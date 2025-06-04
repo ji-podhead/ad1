@@ -8,6 +8,7 @@ ad1 is a secure, modular platform for automated email and document processing, d
 
 ### Tasks
 ![s2](https://github.com/user-attachments/assets/11df8006-6d92-486f-b0fd-603276fb254d)
+> You can select tasks by date and validate them, or restart workflows
 
 ### Human Validation
 
@@ -81,6 +82,59 @@ ad1 is a secure, modular platform for automated email and document processing, d
 - `frontend/` – React/Vite frontend (Inbox, Documents, Validation, Audit, Chat, Tasks)
 - `db/` – Database initialization scripts
 - `mcp/` – MCP server for email integration
+
+## System Architecture (Mermaid Diagram)
+
+```mermaid
+graph TD
+  subgraph Frontend
+    FE["React/Vite UI"]
+    FE -->|WebSocket/API| BE
+    FE -->|WebSocket| Catbot
+  end
+
+  subgraph Backend
+    BE["FastAPI Backend"]
+    BE -->|REST/WebSocket| Catbot
+    BE -->|REST| Agents
+    BE -->|REST| ValidationModel
+    BE -->|SQL| DB[(PostgreSQL DB)]
+    BE -->|REST| AuditTrail
+    BE -->|REST| MCP["MCP Email Bridge"]
+  end
+
+  subgraph Agents
+    Agent1["Document Agent"]
+    Agent2["Compliance Agent"]
+    Agent3["LLM/Handwriting Model"]
+    Agents --> Agent1
+    Agents --> Agent2
+    Agents --> Agent3
+  end
+
+  subgraph Validation
+    ValidationModel["Validation Model (OCR, Extraction)"]
+  end
+
+  subgraph Audit
+    AuditTrail["Audit Trail Service"]
+  end
+
+  subgraph Email
+    MCP["MCP Email Bridge"]
+    MCP -->|IMAP/SMTP| Mail["Mail Server"]
+  end
+
+  FE -.->|User Actions| FE
+  FE -.->|Validation| ValidationModel
+  FE -.->|Audit Log| AuditTrail
+  FE -.->|Task Status| BE
+  BE -->|Triggers| Agents
+  BE -->|Validation| ValidationModel
+  BE -->|Audit Log| AuditTrail
+  BE -->|Email| MCP
+  BE -->|DB| DB
+```
 
 ---
 
