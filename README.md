@@ -84,57 +84,7 @@ ad1 is a secure, modular platform for automated email and document processing, d
 - `mcp/` – MCP server for email integration
 
 ## System Architecture (Mermaid Diagram)
-
-```mermaid
-graph TD
-  subgraph Frontend
-    FE["React/Vite UI"]
-    FE -->|WebSocket/API| BE
-    FE -->|WebSocket| Catbot
-  end
-
-  subgraph Backend
-    BE["FastAPI Backend"]
-    BE -->|REST/WebSocket| Catbot
-    BE -->|REST| Agents
-    BE -->|REST| ValidationModel
-    BE -->|SQL| DB[(PostgreSQL DB)]
-    BE -->|REST| AuditTrail
-    BE -->|REST| MCP["MCP Email Bridge"]
-  end
-
-  subgraph Agents
-    Agent1["Document Agent"]
-    Agent2["Compliance Agent"]
-    Agent3["LLM/Handwriting Model"]
-    Agents --> Agent1
-    Agents --> Agent2
-    Agents --> Agent3
-  end
-
-  subgraph Validation
-    ValidationModel["Validation Model (OCR, Extraction)"]
-  end
-
-  subgraph Audit
-    AuditTrail["Audit Trail Service"]
-  end
-
-  subgraph Email
-    MCP["MCP Email Bridge"]
-    MCP -->|IMAP/SMTP| Mail["Mail Server"]
-  end
-
-  FE -.->|User Actions| FE
-  FE -.->|Validation| ValidationModel
-  FE -.->|Audit Log| AuditTrail
-  FE -.->|Task Status| BE
-  BE -->|Triggers| Agents
-  BE -->|Validation| ValidationModel
-  BE -->|Audit Log| AuditTrail
-  BE -->|Email| MCP
-  BE -->|DB| DB
-```
+![image](https://github.com/user-attachments/assets/97d1fdf4-b5da-4b3d-9168-47f765c33b82)
 
 ---
 
