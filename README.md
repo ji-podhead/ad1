@@ -111,63 +111,7 @@ ad1 is a secure, modular platform for automated email and document processing, d
 
 ## System Architecture (Mermaid Diagram)
 
-```mermaid
-graph TD
-  subgraph User
-    U1["Browser"]
-  end
-  subgraph Frontend
-    FE["React/Vite UI"]
-    FE -->|REST/WebSocket| BE
-    FE -->|WebSocket| Catbot
-    FE -->|API| IPAM["IPAM User Management"]
-  end
-
-  subgraph Backend
-    BE["FastAPI Backend"]
-    BE -->|DB| DB[(PostgreSQL)]
-    BE -->|API| Agents["Agent Layer"]
-    BE -->|API| Validation["Validation Model"]
-    BE -->|API| Audit["Audit Trail"]
-    BE -->|API| MCP["MCP Email Bridge"]
-    BE -->|API| Users["User Management"]
-  end
-
-  subgraph Agents
-    Agent1["Document Agent"]
-    Agent2["Compliance Agent"]
-    Agent3["LLM/Handwriting Model"]
-    Agents --> Agent1
-    Agents --> Agent2
-    Agents --> Agent3
-  end
-
-  subgraph Validation
-    Validation["Validation Model (OCR, Extraction)"]
-  end
-
-  subgraph Audit
-    Audit["Audit Trail Service"]
-  end
-
-  subgraph Email
-    MCP["MCP Email Bridge"]
-    MCP -->|IMAP/SMTP| Mail["Mail Server"]
-  end
-
-  U1 --> FE
-  FE --> BE
-  FE --> IPAM
-  FE --> Catbot
-  FE --> Validation
-  FE --> Audit
-  BE --> DB
-  BE --> Agents
-  BE --> Validation
-  BE --> Audit
-  BE --> MCP
-  BE --> Users
-```
+![image](https://github.com/user-attachments/assets/69a59c73-d3b7-44bd-af34-f6b094eb7a22)
 
 ## User & Admin Management (IPAM)
 
