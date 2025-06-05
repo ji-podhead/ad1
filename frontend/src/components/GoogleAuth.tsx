@@ -37,6 +37,7 @@ export async function getGoogleClientId(): Promise<string> {
 
 export const GoogleLoginButton: React.FC<{ onSuccess: (user: any) => void }> = ({ onSuccess }) => {
   useEffect(() => {
+    console.log('GoogleLoginButton rendered');
     getGoogleClientId().then(clientId => {
       loadGoogleScript();
       const interval = setInterval(() => {

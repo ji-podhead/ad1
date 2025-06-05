@@ -15,21 +15,41 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   // Simpler Google OAuth mock (replace with real logic)
   useEffect(() => {
+  console.log('Layout component mounted, checking user session...');
     const stored = localStorage.getItem('ad1_user');
     if (stored) setUser(JSON.parse(stored));
   }, []);
 
   useEffect(() => {
+    console.log('Fetching Google OAuth config from /api/oauth-config');
     fetch('/api/oauth-config')
       .then(async res => {
-        if (!res.ok) throw new Error('Google OAuth config not found (HTTP ' + res.status + ')');
-        const json = await res.json();
+        console.log('Received response for /api/oauth-config:', res.status, res.headers.get('Content-Type'));
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error('HTTP Error response text:', errorText);
+          throw new Error('Google OAuth config not found (HTTP ' + res.status + ')');
+        }
+        const text = await res.text();
+        console.log('Raw response text for /api/oauth-config:', text);
+        let json;
+        try {
+          json = JSON.parse(text);
+        } catch (e) {
+          console.error('Failed to parse JSON for /api/oauth-config:', e);
+          throw new Error('Google OAuth config is not valid JSON.');
+        }
         if (!json.web || !json.web.client_id) {
+          console.error('OAuth config missing web.client_id:', json);
           throw new Error('Google OAuth config missing web.client_id.');
         }
+        console.log('Successfully loaded client ID:', json.web.client_id);
         setClientId(json.web.client_id);
       })
-      .catch(err => setClientId('ERROR:' + (err?.message || err)));
+      .catch(err => {
+        console.error('Fetch error for /api/oauth-config:', err);
+        setClientId('ERROR:' + (err?.message || err));
+      });
   }, []);
 
   const handleLogin = (user: any) => {
