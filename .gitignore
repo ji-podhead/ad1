@@ -138,3 +138,4 @@ auth/*
 auth
 .auth
 ./auth/gcp-oauth.keys.json
+.env
