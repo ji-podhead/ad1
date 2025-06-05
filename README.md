@@ -158,7 +158,68 @@ Any commercial use, resale, or distribution of this software (including SaaS, on
 
 Contact the author for licensing options. All rights remain with the project owner.
 
----
+## Deployment
 
+You can deploy ad1 on-premises or in the cloud. Example scenarios:
+
+### Tailscale On-Premises (Local)
+
+1. Install [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) on your server or VM.
+2. (Optional) Set up [Tailscale](https://tailscale.com/) for secure private networking between your devices and the deployment server.
+3. Clone the repository and configure environment variables as needed (see `docker-compose.yml`).
+4. Start the stack:
+   ```bash
+   docker compose up --build
+   ```
+5. Access the frontend via the server's local/private IP (e.g., `http://<your-server-ip>:3000`).
+
+### Google Cloud (GCP)
+
+1. Create a VM or use Google Cloud Run for containerized deployment.
+2. Ensure required ports are open (frontend, backend, database).
+3. Set environment variables for production (see `docker-compose.yml`).
+4. Deploy using Docker Compose or build/push images to Google Artifact Registry and deploy via GCP tools.
+5. (Optional) Use Google Secret Manager for sensitive config.
+
+For both scenarios, ensure compliance with Swiss/EU data residency and security requirements. For more details, see the documentation and `briefing multiagent.md`.
+
+## Google OAuth Setup for Gmail API
+
+To use Google Login and Gmail API, you must create OAuth credentials and a project in Google Cloud. Here is a step-by-step guide:
+
+### 1. Enable Gmail API
+- Go to the [Google Cloud Console](https://console.cloud.google.com/)
+- Create a new project or select your existing project
+- Navigate to **APIs & Services > Library**
+- Search for **Gmail API** and click **Enable**
+
+### 2. Create OAuth 2.0 Credentials
+- Go to **APIs & Services > Credentials**
+- Click **Create Credentials > OAuth client ID**
+- Choose **Web application**
+- Set a name (e.g. `ad1-frontend`)
+- Under **Authorized redirect URIs** add:
+  - `http://localhost:3000/oauth2callback` (for local dev)
+  - Add your production URI if needed
+- Click **Create**
+- Download the `gcp-oauth.keys.json` file and place it in `auth/gcp-oauth.keys.json`
+
+### 3. Set OAuth Scopes
+- Required scopes for Gmail API:
+  - `openid`
+  - `email`
+  - `profile`
+  - `https://www.googleapis.com/auth/gmail.readonly`
+  - `https://www.googleapis.com/auth/gmail.send`
+- You can set these in the OAuth consent screen and in your code when requesting tokens.
+
+### 4. Docker Compose Setup
+- The `docker-compose.yml` mounts the `gcp-oauth.keys.json` into the frontend and MCP containers automatically.
+- No need to set the client ID in `.env` anymore.
+
+### 5. Terraform Example for Gmail API Project
+See `iac/google/gmailApi/main.tf` for an example Terraform deployment that creates a project, enables the Gmail API, and creates OAuth credentials.
+
+---
 For more details, see the API documentation and the `briefing multiagent.md` file.
 

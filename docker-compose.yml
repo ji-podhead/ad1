@@ -42,7 +42,7 @@ services:
       - ./mcp/scripts:/scripts
       - ./mcp/scripts/gmail_auth.py:/root/gmail_auth.py
       - ./mcp/config:/config
-      - ./auth/gcp-oauth.keys.json:/root/.gmail-mcp/gcp-oauth.keys.json
+      - ./auth/gcp-oauth.keys.json:/app/frontend/public/gcp-oauth.keys.json:ro
     environment:
       MCP_BRIDGE__CONFIG__FILE: /config/bridge_config.json
 

@@ -12,6 +12,7 @@ import Tasks from './pages/Tasks';
 import Layout from './components/Layout';
 import Landing from './pages/Landing';
 import IPAMPage from './pages/IPAM';
+import About from './pages/About';
 
 const App = () => (
   <BrowserRouter>
@@ -25,6 +26,7 @@ const App = () => (
         <Route path="/chat" element={<AgentChat />} />
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/ipam" element={<IPAMPage />} />
+        <Route path="/about" element={<About />} />
       </Routes>
     </Layout>
   </BrowserRouter>
