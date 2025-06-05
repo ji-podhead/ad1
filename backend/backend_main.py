@@ -9,15 +9,15 @@ import json
 from dotenv import load_dotenv
 import os
 import logging
-from backend.tools_wrapper import (
+from tools_wrapper import (
     list_emails, get_email, label_email, send_email, draft_email, read_email, search_emails, modify_email, delete_email, list_email_labels, create_label, update_label, delete_label, get_or_create_label, batch_modify_emails, batch_delete_emails
 )
 import asyncpg
-from backend.agent_ws import agent_websocket
+from agent_ws import agent_websocket
 from fastapi import HTTPException
 import uuid
 import datetime
-from backend.agent_scheduler import AgentScheduler
+from agent_scheduler import AgentScheduler
 from fastapi.responses import JSONResponse
 from fastapi import Request
 
