@@ -166,9 +166,9 @@ You can deploy ad1 on-premises or in the cloud. Example scenarios:
 
 For both scenarios, ensure compliance with Swiss/EU data residency and security requirements. For more details, see the documentation and `briefing multiagent.md`.
 
-## Google OAuth Setup for Gmail API
+## Google OAuth Setup (Frontend & Backend)
 
-To use Google Login and Gmail API, you must create OAuth credentials and a project in Google Cloud. Here is a step-by-step guide:
+To use Google Login and Gmail API, you must create OAuth credentials and a project in Google Cloud. Follow these steps to ensure correct setup for both frontend and backend:
 
 ### 1. Enable Gmail API
 - Go to the [Google Cloud Console](https://console.cloud.google.com/)
@@ -181,11 +181,17 @@ To use Google Login and Gmail API, you must create OAuth credentials and a proje
 - Click **Create Credentials > OAuth client ID**
 - Choose **Web application**
 - Set a name (e.g. `ad1-frontend`)
-- Under **Authorized redirect URIs** add:
-  - `http://localhost:3000/oauth2callback` (for local dev)
-  - Add your production URI if needed
+- **Under Authorized redirect URIs add (for local dev and production as needed):**
+  - `http://localhost:3000/oauth2callback`
+  - `http://localhost:5173/oauth2callback`
+  - `http://localhost:5173`
+  - (add your production URI if needed)
+- **Under Authorized JavaScript origins add:**
+  - `http://localhost:3000`
+  - `http://localhost:5173`
+  - (add your production origin if needed)
 - Click **Create**
-- Download the `gcp-oauth.keys.json` file and place it in `auth/gcp-oauth.keys.json`
+- Download the `gcp-oauth.keys.json` file and place it in `auth/gcp-oauth.keys.json` and `backend/auth/gcp-oauth.keys.json`
 
 ### 3. Set OAuth Scopes
 - Required scopes for Gmail API:
@@ -194,14 +200,16 @@ To use Google Login and Gmail API, you must create OAuth credentials and a proje
   - `profile`
   - `https://www.googleapis.com/auth/gmail.readonly`
   - `https://www.googleapis.com/auth/gmail.send`
-- You can set these in the OAuth consent screen and in your code when requesting tokens.
+- Set these in the OAuth consent screen and in your code when requesting tokens.
 
 ### 4. Docker Compose Setup
-- The `docker-compose.yml` mounts the `gcp-oauth.keys.json` into the frontend and MCP containers automatically.
+- The `docker-compose.yml` mounts the `gcp-oauth.keys.json` into the backend container automatically.
 - No need to set the client ID in `.env` anymore.
 
-### 5. Terraform Example for Gmail API Project
-See `iac/google/gmailApi/main.tf` for an example Terraform deployment that creates a project, enables the Gmail API, and creates OAuth credentials.
+### 5. Troubleshooting
+- If you see errors like `redirect_uri_mismatch` or `The given origin is not allowed for the given client ID`, double-check that **both** the redirect URIs and JavaScript origins are correctly set in the Google Cloud Console **and** in your `gcp-oauth.keys.json` file.
+- The frontend (Vite) often runs on port 5173 by default. Make sure this port is included in both lists.
+- For production, add your deployed domain(s) to both lists as well.
 
 ---
 
