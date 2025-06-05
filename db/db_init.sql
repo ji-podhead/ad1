@@ -5,6 +5,7 @@ CREATE TABLE emails (
     subject TEXT NOT NULL,
     sender TEXT NOT NULL,
     body TEXT NOT NULL,
+    received_at TIMESTAMP NOT NULL DEFAULT NOW(),
     label TEXT
 );
 
@@ -22,6 +23,44 @@ CREATE TABLE users (
     password TEXT NOT NULL,
     is_admin BOOLEAN NOT NULL DEFAULT FALSE,
     roles TEXT[] NOT NULL DEFAULT '{}'
+);
+
+CREATE TABLE tasks (
+    id SERIAL PRIMARY KEY,
+    email_id INTEGER REFERENCES emails(id),
+    status TEXT NOT NULL DEFAULT 'pending', -- e.g., pending, processing, completed, failed
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Trigger function to update 'updated_at' timestamp
+CREATE OR REPLACE FUNCTION update_modified_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Apply trigger to 'tasks' table
+CREATE TRIGGER update_tasks_modtime
+BEFORE UPDATE ON tasks
+FOR EACH ROW
+EXECUTE FUNCTION update_modified_column();
+
+CREATE TABLE scheduler_tasks (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    description TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    nextRun TEXT, -- Consider TIMESTAMP WITH TIME ZONE
+    to_email TEXT, -- 'to' in Pydantic model
+    subject TEXT,
+    body TEXT,
+    date_val TEXT, -- 'date' in Pydantic model
+    interval_seconds INTEGER, -- 'interval' in Pydantic model
+    condition TEXT,
+    actionDesc TEXT
 );
 
 INSERT INTO emails (subject, sender, body, label)

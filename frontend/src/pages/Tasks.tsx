@@ -1,166 +1,168 @@
 import * as React from 'react';
-import { useState } from 'react';
-import Calendar from '../components/Calendar';
+import { useState, useEffect } from 'react';
+// import Calendar from '../components/Calendar'; // Calendar component can be re-integrated if date filtering is added for API
 
-// Task Section: Overview of all processing tasks, their status, and actions (select, validate, abort, etc.).
-const allDemoTasks = [
-  { id: 1, name: 'Registration_Form.pdf', status: 'Processing', assigned: 'catbot', created: '2025-06-03' },
-  { id: 2, name: 'Case_Notes.docx', status: 'Needs Validation', assigned: 'user2', created: '2025-06-02' },
-  { id: 3, name: 'Final_Report.pdf', status: 'Validated', assigned: 'user1', created: '2025-06-01' },
-  { id: 4, name: 'Invoice_2025-06-01.pdf', status: 'Needs Validation', assigned: 'user3', created: '2025-06-01' },
-  { id: 5, name: 'Contract_Scan.pdf', status: 'Processing', assigned: 'catbot', created: '2025-06-03' },
-  { id: 6, name: 'Expense_Report.xlsx', status: 'Aborted', assigned: 'user2', created: '2025-06-02' },
-  { id: 7, name: 'HR_Form.docx', status: 'Needs Validation', assigned: 'user4', created: '2025-06-03' },
-  { id: 8, name: 'Legal_Review.pdf', status: 'Validated', assigned: 'user1', created: '2025-06-01' },
-  { id: 9, name: 'Onboarding.pdf', status: 'Processing', assigned: 'catbot', created: '2025-06-03' },
-  { id: 10, name: 'Offer_Letter.pdf', status: 'Needs Validation', assigned: 'user5', created: '2025-06-02' },
-];
+// Define the ProcessingTask interface based on backend Pydantic model
+interface ProcessingTask {
+  id: number; // from tasks table
+  email_id: number;
+  status: string;
+  created_at: string; // ISO date string
+  updated_at: string; // ISO date string
+  // Fields from emails table
+  email_subject?: string | null;
+  email_sender?: string | null;
+  email_body?: string | null;
+  email_received_at?: string | null; // ISO date string
+  email_label?: string | null;
+}
 
+// Consistent status styling, ensure keys are lowercase to match backend or use .toLowerCase() when accessing
 const statusStyles: Record<string, string> = {
-  Processing: 'bg-blue-200 text-blue-800',
-  'Needs Validation': 'bg-yellow-200 text-yellow-900',
-  Validated: 'bg-green-200 text-green-800',
-  Aborted: 'bg-red-200 text-red-800',
+  pending: 'bg-gray-200 text-gray-800',
+  processing: 'bg-blue-200 text-blue-800',
+  validated: 'bg-green-200 text-green-800',
+  aborted: 'bg-red-200 text-red-800',
+  failed: 'bg-orange-200 text-orange-800', // Example for another potential status
+  'needs validation': 'bg-yellow-200 text-yellow-900', // For "Needs Validation" status
 };
 
+// Consistent status icons
 const statusIcons: Record<string, string> = {
-  Processing: '⏳',
-  'Needs Validation': '⚠️',
-  Validated: '✅',
-  Aborted: '❌',
+  pending: '⏳',
+  processing: '⏳',
+  validated: '✅',
+  aborted: '❌',
+  failed: '🔥',
+  'needs validation': '⚠️',
 };
 
 const Tasks: React.FC = () => {
-  const [calendarMode, setCalendarMode] = useState<'day' | 'week' | 'month'>('day');
-  const [date, setDate] = useState('');
-  const [tasks, setTasks] = useState(allDemoTasks);
-  const [selected, setSelected] = useState<number[]>([]);
+  const [tasks, setTasks] = useState<ProcessingTask[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Filter tasks by selected date/week/month
-  let filteredTasks = tasks;
-  if (date) {
-    if (calendarMode === 'day') {
-      filteredTasks = tasks.filter(t => t.created === date);
-    } else if (calendarMode === 'week') {
-      // date format: 2025-W23
-      const [year, week] = date.split('-W');
-      filteredTasks = tasks.filter(t => {
-        const d = new Date(t.created);
-        const dYear = d.getFullYear();
-        const dWeek = Math.ceil((((d.getTime() - new Date(dYear,0,1).getTime()) / 86400000) + new Date(dYear,0,1).getDay()+1)/7);
-        return dYear.toString() === year && dWeek.toString().padStart(2, '0') === week;
-      });
-    } else if (calendarMode === 'month') {
-      // date format: 2025-06
-      filteredTasks = tasks.filter(t => t.created.slice(0,7) === date);
+  const fetchTasks = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/processing_tasks');
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch tasks: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+      const data: ProcessingTask[] = await response.json();
+      setTasks(data);
+    } catch (err: any) {
+      setError(err.message);
+      console.error("Fetch error:", err);
+    } finally {
+      setLoading(false);
     }
-  }
-
-  const handleSelect = (id: number, checked: boolean) => {
-    setSelected((prev) =>
-      checked ? [...prev, id] : prev.filter((sid) => sid !== id)
-    );
   };
 
-  const handleSelectAll = (checked: boolean) => {
-    setSelected(checked ? filteredTasks.filter(t => t.status === 'Needs Validation').map(t => t.id) : []);
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  const handleTaskAction = async (taskId: number, action: 'validate' | 'abort') => {
+    setError(null); // Clear previous errors specific to actions
+    try {
+      const response = await fetch(`/api/processing_tasks/${taskId}/${action}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: `HTTP error ${response.status}` }));
+        throw new Error(`Action ${action} failed for task ${taskId}: ${errorData.detail || response.statusText}`);
+      }
+      // Refresh tasks list to show updated status
+      await fetchTasks();
+    } catch (err: any) {
+      setError(err.message); // Set action-specific error
+      console.error(`Error during ${action} action for task ${taskId}:`, err);
+      alert(`Error performing action: ${err.message}`); // Provide feedback to the user
+    }
   };
 
-  const handleAction = (id: number, action: string) => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, status: action } : t));
-  };
-
-  // This would be a navigation in a real app
-  const handleValidateSelected = () => {
-    if (selected.length === 1) {
-      window.location.href = `/validation?tasks=${selected[0]}`;
-    } else if (selected.length > 1) {
-      alert('Please select only one task to validate at a time.');
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleString();
+    } catch (e) {
+      return dateString;
     }
   };
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Tasks</h1>
-      <div className="mb-4 flex items-center gap-4 flex-wrap">
-        <label className="font-medium">Zeitraum wählen:</label>
-        <select
-          className="border rounded px-2 py-1"
-          value={calendarMode}
-          onChange={e => { setCalendarMode(e.target.value as any); setDate(''); }}
-        >
-          <option value="day">Tag</option>
-          <option value="week">Woche</option>
-          <option value="month">Monat</option>
-        </select>
-        <Calendar value={date} onChange={setDate} mode={calendarMode} />
+      <h1 className="text-2xl font-bold mb-4">Email Processing Tasks</h1>
+
+      {/* Optional: Button to manually refresh tasks */}
+      <div className="mb-4">
         <button
-          className="text-xs text-gray-500 underline"
-          onClick={() => setDate('')}
-          disabled={!date}
-        >Alle anzeigen</button>
-      </div>
-      <div className="mb-2 flex items-center gap-4">
-        <input
-          type="checkbox"
-          checked={selected.length === filteredTasks.filter(t => t.status === 'Needs Validation').length && selected.length > 0}
-          onChange={e => handleSelectAll(e.target.checked)}
-        />
-        <span className="text-sm">Select all needing validation</span>
-        <button
-          className="ml-4 bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50"
-          disabled={selected.length === 0}
-          onClick={handleValidateSelected}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm"
+          onClick={fetchTasks}
+          disabled={loading}
         >
-          Validate Selected
+          {loading ? 'Refreshing...' : 'Refresh Tasks'}
         </button>
       </div>
-      <table className="w-full border bg-white rounded shadow">
-        <thead>
-          <tr className="bg-gray-100">
-            <th className="p-2 text-left">Select</th>
-            <th className="p-2 text-left">Name</th>
-            <th className="p-2 text-left">Assigned</th>
-            <th className="p-2 text-left">Created</th>
-            <th className="p-2 text-left">Status</th>
-            <th className="p-2 text-left">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredTasks.map(task => (
-            <tr key={task.id} className="border-t">
-              <td className="p-2">
-                {task.status === 'Needs Validation' && (
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(task.id)}
-                    onChange={e => handleSelect(task.id, e.target.checked)}
-                  />
-                )}
-              </td>
-              <td className="p-2">{task.name}</td>
-              <td className="p-2">{task.assigned}</td>
-              <td className="p-2">{task.created}</td>
-              <td className="p-2">
-                <span className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 ${statusStyles[task.status] || ''}`}>
-                  <span>{statusIcons[task.status] || ''}</span> {task.status}
-                </span>
-              </td>
-              <td className="p-2 flex gap-2">
-                {task.status === 'Needs Validation' && (
-                  <button className="bg-green-600 text-white px-2 py-1 rounded text-xs" onClick={() => handleAction(task.id, 'Validated')}>Validate</button>
-                )}
-                {task.status !== 'Validated' && (
-                  <button className="bg-red-500 text-white px-2 py-1 rounded text-xs" onClick={() => handleAction(task.id, 'Aborted')}>Abort</button>
-                )}
-                {task.status === 'Processing' && (
-                  <button className="bg-yellow-500 text-white px-2 py-1 rounded text-xs" onClick={() => handleAction(task.id, 'Needs Validation')}>Send to Validation</button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+
+      {loading && tasks.length === 0 && <p>Loading tasks...</p>}
+      {error && <p className="text-red-500 p-4 bg-red-100 border border-red-400 rounded">Error: {error}</p>}
+
+      {!loading && !error && tasks.length === 0 && <p>No tasks found.</p>}
+
+      {!loading && tasks.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full border bg-white rounded shadow min-w-full">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="p-3 text-left text-sm font-semibold text-gray-700">Email Subject</th>
+                <th className="p-3 text-left text-sm font-semibold text-gray-700">Sender</th>
+                <th className="p-3 text-left text-sm font-semibold text-gray-700">Status</th>
+                <th className="p-3 text-left text-sm font-semibold text-gray-700">Email Received</th>
+                <th className="p-3 text-left text-sm font-semibold text-gray-700">Task Updated</th>
+                <th className="p-3 text-left text-sm font-semibold text-gray-700">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tasks.map(task => (
+                <tr key={task.id} className="border-t hover:bg-gray-50">
+                  <td className="p-3 text-sm text-gray-700">{task.email_subject || 'N/A'}</td>
+                  <td className="p-3 text-sm text-gray-700">{task.email_sender || 'N/A'}</td>
+                  <td className="p-3 text-sm">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1 ${statusStyles[task.status.toLowerCase()] || statusStyles['pending']}`}>
+                      <span>{statusIcons[task.status.toLowerCase()] || statusIcons['pending']}</span> {task.status}
+                    </span>
+                  </td>
+                  <td className="p-3 text-sm text-gray-700">{formatDate(task.email_received_at)}</td>
+                  <td className="p-3 text-sm text-gray-700">{formatDate(task.updated_at)}</td>
+                  <td className="p-3 text-sm flex gap-2">
+                    <button
+                      className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium disabled:opacity-50"
+                      onClick={() => handleTaskAction(task.id, 'validate')}
+                      disabled={task.status.toLowerCase() === 'validated' || task.status.toLowerCase() === 'aborted'}
+                    >
+                      Validate
+                    </button>
+                    <button
+                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs font-medium disabled:opacity-50"
+                      onClick={() => handleTaskAction(task.id, 'abort')}
+                      disabled={task.status.toLowerCase() === 'validated' || task.status.toLowerCase() === 'aborted'}
+                    >
+                      Abort
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
