@@ -165,7 +165,7 @@ async def list_users():
 
 @app.get("/api/oauth-config")
 def get_oauth_config():
-    path = os.path.join(os.path.dirname(__file__), '../auth/gcp-oauth.keys.json')
+    path = os.path.join(os.path.dirname(__file__), 'auth/gcp-oauth.keys.json')
     try:
         with open(path, 'r') as f:
             data = json.load(f)
