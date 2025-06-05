@@ -14,7 +14,7 @@ services:
     ports:
       - "8001:8001"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mailwhisperer
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/mailwhisperer
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - MCP_SERVER_URL=${MCP_SERVER_URL}
     depends_on:
