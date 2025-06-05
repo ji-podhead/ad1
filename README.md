@@ -52,10 +52,17 @@ ad1 is a secure, modular platform for automated email and document processing, d
 
 ## Technical Architecture
 
-- **Daemon for Email API**: Monitors the inbox (via MCP server), ingests new emails, and updates the task section in the database. Each relevant email or document becomes a processing task.
-- **Task & Document Workflow**: All documents to be processed are tracked as tasks in the database. Each task has a status (pending, processing, needs validation, validated, failed) and links to the original and processed files.
-- **Human-in-the-Loop Validation**: After agent processing, tasks require manual validation. The validation UI displays the original document (left) and the processed result (right, including extracted values and handwriting recognition). Below are buttons to abort, restart (with prompt), or validate the task.
-- **Audit Trail**: Every action (processing, validation, abort, etc.) is logged for compliance and traceability. Audit logs are visible in the UI.
+- **Email Processing Daemon**: A background service integrated into the backend that periodically checks for new emails via the configured email integration (MCP server).
+  - New emails are stored in the `emails` table (which now includes a `received_at` timestamp).
+  - For each new email, a corresponding entry is created in the `tasks` table with an initial status (e.g., 'pending'), linking the email to a processing workflow.
+- **Task & Document Workflow**: All documents and emails to be processed are tracked as tasks. Each task has a status (e.g., pending, processing, needs validation, validated, aborted, failed) and links to the original email/document.
+- **Database Structure Highlights**:
+    - `emails` table: Stores email content. Includes a `received_at` column to timestamp when the email was fetched.
+    - `tasks` table: Tracks the state of each email processing job. Key columns include `id` (PK), `email_id` (FK to `emails`), `status`, `created_at`, and `updated_at` (automatically updated on modification).
+    - `scheduler_tasks` table: Persists configurations for scheduled jobs, such as the polling interval for the email daemon.
+    - `audit_trail` table: Logs all significant actions.
+- **Human-in-the-Loop Validation**: After agent processing, tasks typically require manual validation. The validation UI displays the original document (left) and the processed result (right, including extracted values and handwriting recognition). Below are buttons to abort, restart (with prompt), or validate the task.
+- **Audit Trail**: Every action (email ingestion, task creation, status changes, processing, validation, abort, etc.) is logged for compliance and traceability. Audit logs are visible in the UI.
 - **Encryption & Secure Email Sending**: Once validated, documents are encrypted and sent via email. All transmission and storage is secured.
 - **Extensible Model Integration**: For handwriting and advanced document recognition, a dedicated model is used (self-hosted or via a Swiss provider). The system is modular for future model or provider swaps.
 
@@ -75,6 +82,9 @@ ad1 is a secure, modular platform for automated email and document processing, d
 - `/api/validation` – Manage validation tasks (approve, abort, restart)
 - `/api/audit` – View audit logs
 - `/ws/agent` – WebSocket chat for agent interaction
+- `GET /api/processing_tasks` – Returns a list of email processing tasks with their status and associated email details.
+- `POST /api/processing_tasks/{task_id}/validate` – Marks a specific processing task as validated.
+- `POST /api/processing_tasks/{task_id}/abort` – Marks a specific processing task as aborted.
 
 ## Frontend Structure
 
@@ -83,7 +93,7 @@ ad1 is a secure, modular platform for automated email and document processing, d
 - **Validation**: Human-in-the-loop validation interface. Left: original document; Right: processed result (fields, handwriting, etc.). Below: Approve, abort, or restart with prompt. Audit trail for each task is visible. On validation, document is encrypted and sent.
 - **Audit Trail**: View all actions and changes for compliance.
 - **Agent Chat**: WebSocket chat to trigger workflows, ask for status, or interact with Catbot.
-- **Task Section**: Overview of all processing tasks, their status, and actions (select, validate, abort, etc.).
+- **Task Section**: Displays email processing tasks fetched from the backend (`/api/processing_tasks`). Shows current status (e.g., 'pending', 'validated', 'aborted'), associated email details (subject, sender, received date), and task timestamps (last updated). Allows users to perform actions like "Validate" or "Abort" on these tasks, which calls the respective backend APIs.
 
 ## Security & Compliance
 
@@ -263,6 +273,12 @@ The ad1 backend exposes a secure REST API for all core functions. All endpoints 
 
 - **/api/scheduler/task/{task_id}** (DELETE):
   - Delete a scheduled task.
+- `GET /api/processing_tasks`:
+  - Retrieves a list of all email processing tasks, including their current status and details from the linked email (subject, sender, received date).
+- `POST /api/processing_tasks/{task_id}/validate`:
+  - Marks a specific task (identified by `task_id`) as 'validated'. This is typically used after human-in-the-loop verification.
+- `POST /api/processing_tasks/{task_id}/abort`:
+  - Marks a specific task as 'aborted', indicating it should not proceed further.
 
 All endpoints return JSON. For more details, see the backend source code in `backend/backend_main.py`.
 

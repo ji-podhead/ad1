@@ -46,6 +46,7 @@ class ConnectionManager:
             return response
         except WebSocketDisconnect:
             return None
+        # TODO: This method seems unused by agent_ws.py (which uses websocket.receive_text() directly). Review for removal.
 
 async def stream_task_progress(manager: ConnectionManager, task_id: str):
     while True:
