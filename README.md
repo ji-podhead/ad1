@@ -7,28 +7,39 @@
 ad1 is a secure, modular platform for automated email and document processing, designed to meet strict Swiss and EU compliance requirements. The system leverages intelligent agents, a persistent PostgreSQL database, audit trails, and a WebSocket-based chat for workflow orchestration. All components are hosted in Switzerland or on Swiss-compliant infrastructure, supporting both on-prem and cloud GPU options.
 
 ## Screenshots
-![ad1_oauth](https://github.com/user-attachments/assets/742aa0c9-3ee4-40a5-827f-b9da743346fa)
-> required oauth login
 
-![landing page](https://github.com/user-attachments/assets/7fdbb396-15a8-4459-862a-e3b3939f7b7c)
-> landing page after login
-
-![Inbox](https://github.com/user-attachments/assets/325503a6-cb18-44ab-b655-572227c702dd)
-> inbox page
-
-![Documents](https://github.com/user-attachments/assets/ed053302-7a33-4646-9c99-065d8d208375)
-> documents page
-
-![tasks](https://github.com/user-attachments/assets/b760c693-f9ce-4741-8c79-ee7aa41a2fba)
-> tasks page
-
-![iam](https://github.com/user-attachments/assets/2f890d59-6e13-45b6-9d87-7a971c6dcd28)
-
-> iam page 
-
-
-
-
+<table>
+  <tr>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/742aa0c9-3ee4-40a5-827f-b9da743346fa" style="max-width:300px;"><br>
+      <small>required oauth login</small>
+    </td>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/7fdbb396-15a8-4459-862a-e3b3939f7b7c" style="max-width:300px;"><br>
+      <small>landing page after login</small>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/325503a6-cb18-44ab-b655-572227c702dd" style="max-width:300px;"><br>
+      <small>inbox page</small>
+    </td>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/ed053302-7a33-4646-9c99-065d8d208375" style="max-width:300px;"><br>
+      <small>documents page</small>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/b760c693-f9ce-4741-8c79-ee7aa41a2fba" style="max-width:300px;"><br>
+      <small>tasks page</small>
+    </td>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/2f890d59-6e13-45b6-9d87-7a971c6dcd28" style="max-width:300px;"><br>
+      <small>iam page</small>
+    </td>
+  </tr>
+</table>
 
 ## Client Requirements (from briefing multiagent.md)
 
