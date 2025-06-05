@@ -6,15 +6,6 @@
 
 ad1 is a secure, modular platform for automated email and document processing, designed to meet strict Swiss and EU compliance requirements. The system leverages intelligent agents, a persistent PostgreSQL database, audit trails, and a WebSocket-based chat for workflow orchestration. All components are hosted in Switzerland or on Swiss-compliant infrastructure, supporting both on-prem and cloud GPU options.
 
-### Tasks
-![s2](https://github.com/user-attachments/assets/11df8006-6d92-486f-b0fd-603276fb254d)
-> You can select tasks by date and validate them, or restart workflows
-
-### Human Validation
-
-![s1](https://github.com/user-attachments/assets/6e5424b6-2d37-49d1-9374-5c56f79cc6a6)
-
-
 ## Client Requirements (from briefing multiagent.md)
 
 - **Swiss Hosting & Compliance**: All components (including LLMs) are hosted in Switzerland or with providers guaranteeing data residency in CH. GDPR, Swiss DSGVO, and AI law compliance are enforced. Role-based access, audit trails, and data retention policies are implemented.
@@ -150,14 +141,6 @@ graph TD
 - The initial admin user is set via environment variables in `docker-compose.yml` (`INIT_ADMIN_EMAIL`, `INIT_ADMIN_PASSWORD`).
 - User management is fully integrated with the backend API (`/api/users`).
 
-## License & Commercial Use
-
-**All rights reserved.**
-
-Any commercial use, resale, or distribution of this software (including SaaS, on-prem, or as part of another product) is strictly prohibited without a written contract with the copyright holder.
-
-Contact the author for licensing options. All rights remain with the project owner.
-
 ## Deployment
 
 You can deploy ad1 on-premises or in the cloud. Example scenarios:
@@ -249,9 +232,19 @@ For more details on MCP integration and SSE endpoints, refer to the backend docu
 
 ---
 
+
 ## Original Mockup
-
+### Tasks
 ![s2](https://github.com/user-attachments/assets/11df8006-6d92-486f-b0fd-603276fb254d)
-
+### Validation
 ![s1](https://github.com/user-attachments/assets/6e5424b6-2d37-49d1-9374-5c56f79cc6a6)
 
+
+
+## License & Commercial Use
+
+**All rights reserved.**
+
+Any commercial use, resale, or distribution of this software (including SaaS, on-prem, or as part of another product) is strictly prohibited without a written contract with the copyright holder.
+
+Contact the author for licensing options. All rights remain with the project owner.
