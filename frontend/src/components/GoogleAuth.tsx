@@ -42,8 +42,12 @@ export const GoogleLoginButton: React.FC<{ onSuccess: (user: any) => void }> = (
                 name: user.name,
                 email: user.email,
                 picture: user.picture,
+                hd: user.hd || null,
               });
             },
+            ux_mode: 'redirect',
+            login_uri: window.location.origin + '/inbox',
+            // No 'hd' restriction, allow all Google accounts (including Workspace)
           });
           window.google.accounts.id.renderButton(
             document.getElementById('google-login-btn')!,

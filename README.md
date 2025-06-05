@@ -221,5 +221,37 @@ To use Google Login and Gmail API, you must create OAuth credentials and a proje
 See `iac/google/gmailApi/main.tf` for an example Terraform deployment that creates a project, enables the Gmail API, and creates OAuth credentials.
 
 ---
-For more details, see the API documentation and the `briefing multiagent.md` file.
+
+## Infrastructure as Code (IaC) & Deployment
+
+This repository includes ready-to-use Terraform modules for Google Cloud:
+
+- `iac/google/gmailApi/`: Automates Gmail API activation and OAuth client creation (see `main.tf` and `example.tf`).
+- `iac/google/app/`: Deploys the ad1 frontend (public) and backend (private) as Cloud Run services. Optional GKE (Kubernetes) example included.
+
+**How to use:**
+1. Install [Terraform](https://www.terraform.io/downloads.html)
+2. Adjust the variables in the respective `main.tf`/`example.tf` (e.g. `project_id`, `support_email`, Images etc.)
+3. Run `terraform init && terraform apply` in the respective folder
+
+---
+
+## MCP Server & SSE Transport
+
+ad1 uses its own MCP (Mail Control Protocol) Server for secure email integration. The communication between frontend and MCP occurs over Server-Sent Events (SSE):
+
+- **MCP Server:** Runs as its own container/service (see `docker-compose.yml` and `mcp/` folder)
+- **SSE Transport:** The frontend connects to the MCP server via an SSE URL (e.g. `MCP_SERVER_URL=http://localhost:8000/mcp-server/sse/`)
+- **Benefits:** Real-time updates, no polling load, robust for compliance and audit trails
+- **Configuration:** The MCP URL is set via an environment variable and used in the frontend/backend
+
+For more details on MCP integration and SSE endpoints, refer to the backend documentation and the `mcp/` folder.
+
+---
+
+## Original Mockup
+
+![s2](https://github.com/user-attachments/assets/11df8006-6d92-486f-b0fd-603276fb254d)
+
+![s1](https://github.com/user-attachments/assets/6e5424b6-2d37-49d1-9374-5c56f79cc6a6)
 

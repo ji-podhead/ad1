@@ -4,16 +4,25 @@ import { MainMenubar } from './ui/menubar';
 import FloatingAgentChat from './FloatingAgentChat';
 import { useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import LoginModal from './LoginModal';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const [user, setUser] = useState<any>(null);
+  const [clientId, setClientId] = useState<string | null>(null);
   const hideFloatingChat = location.pathname === '/chat';
 
   // Simpler Google OAuth mock (replace with real logic)
   useEffect(() => {
     const stored = localStorage.getItem('ad1_user');
     if (stored) setUser(JSON.parse(stored));
+  }, []);
+
+  useEffect(() => {
+    fetch('/gcp-oauth.keys.json')
+      .then(res => res.json())
+      .then(json => setClientId(json.web.client_id));
   }, []);
 
   const handleLogin = () => {
@@ -41,12 +50,17 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     }
   };
 
+  if (!clientId) return null;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <MainMenubar user={user} onLogin={handleLogin} onLogout={handleLogout} onNav={protectedNav} />
-      <main className="max-w-6xl mx-auto pt-[72px] pb-8 px-2">{children}</main>
-      {!hideFloatingChat && user && <FloatingAgentChat />}
-    </div>
+    <GoogleOAuthProvider clientId={clientId}>
+      <div className="min-h-screen bg-gray-50">
+        <MainMenubar user={user} onLogin={handleLogin} onLogout={handleLogout} onNav={protectedNav} />
+        <main className="max-w-6xl mx-auto pt-[72px] pb-8 px-2">{children}</main>
+        {!hideFloatingChat && user && <FloatingAgentChat />}
+        {!user && <LoginModal onLogin={handleLogin} />}
+      </div>
+    </GoogleOAuthProvider>
   );
 };
 

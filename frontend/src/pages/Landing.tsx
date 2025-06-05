@@ -1,7 +1,7 @@
 // Landing page: Welcome, project info, and navigation links
 import React from 'react';
 import About from './About';
-import { GoogleLoginButton } from '../components/GoogleAuth';
+import { GoogleLogin } from '@react-oauth/google';
 
 const gradientBG = {
   background: 'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 50%, #fbc2eb 100%)',
@@ -17,10 +17,14 @@ const gradientBG = {
 const Landing: React.FC = () => {
   const [aboutOpen, setAboutOpen] = React.useState(false);
   const [user, setUser] = React.useState<any>(null);
+  const [clientId, setClientId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const stored = localStorage.getItem('ad1_user');
     if (stored) setUser(JSON.parse(stored));
+    fetch('/gcp-oauth.keys.json')
+      .then(res => res.json())
+      .then(json => setClientId(json.web.client_id));
   }, []);
 
   const handleLogin = (user: any) => {
@@ -49,9 +53,36 @@ const Landing: React.FC = () => {
             <a href="/audit" className="bg-gray-700 text-white px-5 py-2 rounded shadow hover:bg-gray-800 transition">Audit Trail</a>
             <a href="/chat" className="bg-pink-600 text-white px-5 py-2 rounded shadow hover:bg-pink-700 transition">Agent Chat</a>
           </div>
-          {!user && (
+          {!user && clientId && (
             <div className="w-full flex items-center justify-center">
-              <GoogleLoginButton onSuccess={handleLogin} />
+              <GoogleLogin
+                onSuccess={credentialResponse => {
+                  if (!credentialResponse.credential) return;
+                  const base64Url = credentialResponse.credential.split('.')[1];
+                  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                  const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                  }).join(''));
+                  const user = JSON.parse(jsonPayload);
+                  handleLogin({
+                    name: user.name,
+                    email: user.email,
+                    picture: user.picture,
+                    hd: user.hd || null,
+                  });
+                }}
+                onError={() => {
+                  alert('Login Failed');
+                }}
+                useOneTap
+              />
+            </div>
+          )}
+          {user && (
+            <div className="w-full flex flex-col items-center gap-2 mt-4">
+              <img src={user.picture} alt="pfp" className="w-16 h-16 rounded-full border shadow" />
+              <div className="font-semibold text-blue-700">{user.name}</div>
+              <div className="text-xs text-gray-500">{user.email}</div>
             </div>
           )}
           <button className="mt-4 w-full text-xs text-blue-600 underline" onClick={() => setAboutOpen(true)}>About / Info</button>
