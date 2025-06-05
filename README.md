@@ -125,10 +125,10 @@ ad1 is a secure, modular platform for automated email and document processing, d
 
 ## User & Admin Management (IPAM)
 
-- The IPAM page allows administrators to create new users (Google Mail only), assign roles (read, write, validate, download), and toggle admin status.
+- Initial admin users are configured via the `ADMIN_EMAILS` environment variable in the `backend` service definition within `docker-compose.yml`. This should be a comma-separated list of email addresses (e.g., `"admin1@example.com,admin2@example.com"`). These users will be created on startup with administrative privileges (is_admin: true, role: "admin") and a default password "changeme_admin", which should be changed immediately via the user management interface.
+- Administrators can manage users (create new users, edit email, password, roles and admin status, delete users) through the "User Management" page in the frontend UI.
 - All user data is stored in the database (`users` table).
-- The initial admin user is set via environment variables in `docker-compose.yml` (`INIT_ADMIN_EMAIL`, `INIT_ADMIN_PASSWORD`).
-- User management is fully integrated with the backend API (`/api/users`).
+- User management is fully integrated with the backend API (see API Overview section).
 
 ## Deployment
 
@@ -256,8 +256,14 @@ The ad1 backend exposes a secure REST API for all core functions. All endpoints 
 - **/api/audit** (GET):
   - Retrieve the audit trail for compliance and traceability.
 
-- **/api/users** (GET/POST):
-  - List all users or create a new user (admin only).
+- **/api/users** (GET):
+  - List all users (admin only).
+- **/api/users/add** (POST):
+  - Creates a new user. Requires email and password; roles and admin status are optional. (Admin only).
+- **/api/users/{user_identifier}/set** (PUT):
+  - Updates an existing user's details such as email, password, roles, or admin status. `user_identifier` can be the user's ID or email. (Admin only).
+- **/api/users/{user_identifier}** (DELETE):
+  - Deletes a user. `user_identifier` can be the user's ID or email. (Admin only).
 
 - **/ws/agent** (WebSocket):
   - Real-time chat and workflow orchestration with the agent layer.

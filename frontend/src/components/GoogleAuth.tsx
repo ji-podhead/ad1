@@ -33,9 +33,13 @@ export async function getGoogleClientId(): Promise<string> {
       'Failed to load Google OAuth config: ' + (err?.message || err)
     );
   }
+import { useAuth } from '../contexts/AuthContext'; // Import useAuth
+
 }
 
 export const GoogleLoginButton: React.FC<{ onSuccess: (user: any) => void }> = ({ onSuccess }) => {
+  const { setUser } = useAuth(); // Get setUser from AuthContext
+
   useEffect(() => {
     console.log('GoogleLoginButton rendered');
     getGoogleClientId().then(clientId => {
@@ -52,12 +56,14 @@ export const GoogleLoginButton: React.FC<{ onSuccess: (user: any) => void }> = (
                 return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
               }).join(''));
               const user = JSON.parse(jsonPayload);
-              onSuccess({
+              const loggedInUser = {
                 name: user.name,
                 email: user.email,
                 picture: user.picture,
                 hd: user.hd || null,
-              });
+              };
+              setUser({ email: loggedInUser.email, is_admin: false, roles: [] }); // Set user in AuthContext, roles/admin will be fetched
+              onSuccess(loggedInUser); // Call original onSuccess
             },
             ux_mode: 'redirect',
             login_uri: window.location.origin + '/inbox',

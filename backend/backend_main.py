@@ -4,8 +4,14 @@
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Union
 import json
+from passlib.context import CryptContext
+try:
+    from asyncpg.exceptions import UniqueViolationError
+except ImportError:
+    # Fallback for older asyncpg versions or if not specifically needed for all flows
+    UniqueViolationError = None
 from dotenv import load_dotenv
 import os
 import logging
@@ -30,6 +36,8 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/mailwhisperer")
 
 app = FastAPI()
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # CORS for local frontend dev
 app.add_middleware(
@@ -100,6 +108,31 @@ async def startup():
     # Make sure check_new_emails is an async function that accepts db_pool
     app.state.scheduler.schedule_cron(check_new_emails, 60, app.state.db)
     print("Scheduled email checking job to run every 60 seconds.")
+
+    # Process ADMIN_EMAILS
+    admin_emails_str = os.getenv("ADMIN_EMAILS")
+    if admin_emails_str:
+        admin_emails = [email.strip() for email in admin_emails_str.split(',')]
+        default_password = "changeme_admin"  # Consider a more secure approach for production
+        hashed_password = pwd_context.hash(default_password)
+
+        for email in admin_emails:
+            try:
+                user_exists = await app.state.db.fetchval("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", email)
+                if not user_exists:
+                    await app.state.db.execute(
+                        """
+                        INSERT INTO users (email, password, is_admin, roles)
+                        VALUES ($1, $2, $3, $4)
+                        """,
+                        email, hashed_password, True, ["admin"]
+                    )
+                    logging.info(f"Admin user {email} created with default password.")
+                else:
+                    logging.info(f"Admin user {email} already exists.")
+            except Exception as e:
+                logging.error(f"Error processing admin email {email}: {e}")
+
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -194,17 +227,133 @@ async def delete_scheduler_task(task_id: str, request: Request):
     # TODO: Unscheduling logic from AgentScheduler needed here
     return {"ok": True}
 
-@app.post("/api/users")
-async def create_user(user: User):
-    # Insert user into DB
+# Define request model for creating a user, explicitly requiring a password
+class CreateUserRequest(BaseModel):
+    email: str
+    password: str
+    is_admin: bool = False
+    roles: list[str] = []
+
+@app.post("/api/users/add", response_model=User)
+async def addUser(user_create_request: CreateUserRequest):
+    hashed_password = pwd_context.hash(user_create_request.password)
     try:
+        query = """
+            INSERT INTO users (email, password, is_admin, roles)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id, email, is_admin, roles
+        """
         row = await app.state.db.fetchrow(
-            "INSERT INTO users (email, password, is_admin, roles) VALUES ($1, $2, $3, $4) RETURNING id, email, is_admin, roles",
-            user.email, user.password or '', user.is_admin, user.roles
+            query,
+            user_create_request.email,
+            hashed_password,
+            user_create_request.is_admin,
+            user_create_request.roles
         )
-        return dict(row)
+        if row:
+            return User(**dict(row))
+        else:
+            # This case should ideally not be reached if INSERT RETURNING works as expected
+            raise HTTPException(status_code=500, detail="Failed to create user.")
+    except UniqueViolationError: # Specific error for duplicate email
+        raise HTTPException(status_code=400, detail=f"User with email {user_create_request.email} already exists.")
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        # Generic error for other issues
+        logging.error(f"Error creating user {user_create_request.email}: {e}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while creating the user.")
+
+class UpdateUserRequest(BaseModel):
+    email: Optional[str] = None # Allow changing email, though be cautious with this
+    password: Optional[str] = None
+    is_admin: Optional[bool] = None
+    roles: Optional[list[str]] = None
+
+@app.put("/api/users/{user_identifier}/set", response_model=User)
+async def setUser(user_identifier: Union[int, str], user_update_request: UpdateUserRequest):
+    # Determine if identifier is email or ID
+    if isinstance(user_identifier, str) and "@" in user_identifier:
+        condition_column = "email"
+    elif isinstance(user_identifier, int) or (isinstance(user_identifier, str) and user_identifier.isdigit()):
+        condition_column = "id"
+        try:
+            user_identifier = int(user_identifier)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid user ID format.")
+    else:
+        raise HTTPException(status_code=400, detail="Invalid user identifier. Must be email or ID.")
+
+    # Fetch existing user
+    existing_user_row = await app.state.db.fetchrow(
+        f"SELECT id, email, password, is_admin, roles FROM users WHERE {condition_column} = $1",
+        user_identifier
+    )
+    if not existing_user_row:
+        raise HTTPException(status_code=404, detail=f"User with {condition_column} '{user_identifier}' not found.")
+
+    existing_user = dict(existing_user_row)
+    update_fields = {}
+    if user_update_request.email is not None and user_update_request.email != existing_user["email"]:
+        update_fields["email"] = user_update_request.email
+    if user_update_request.password is not None:
+        update_fields["password"] = pwd_context.hash(user_update_request.password)
+    if user_update_request.is_admin is not None and user_update_request.is_admin != existing_user["is_admin"]:
+        update_fields["is_admin"] = user_update_request.is_admin
+    if user_update_request.roles is not None and user_update_request.roles != existing_user["roles"]:
+        update_fields["roles"] = user_update_request.roles
+
+    if not update_fields:
+        # Return existing user data if no changes are requested
+        return User(**existing_user)
+
+    set_clauses = ", ".join([f"{field} = ${i+2}" for i, field in enumerate(update_fields.keys())])
+    query = f"UPDATE users SET {set_clauses} WHERE {condition_column} = $1 RETURNING id, email, is_admin, roles"
+
+    try:
+        updated_user_row = await app.state.db.fetchrow(query, user_identifier, *update_fields.values())
+        if updated_user_row:
+            return User(**dict(updated_user_row))
+        else:
+            # Should not happen if user was found initially
+            raise HTTPException(status_code=500, detail="Failed to update user.")
+    except UniqueViolationError: # Handle email collision if email is being changed
+        raise HTTPException(status_code=400, detail=f"Another user with email {user_update_request.email} already exists.")
+    except Exception as e:
+        logging.error(f"Error updating user {user_identifier}: {e}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while updating the user.")
+
+@app.delete("/api/users/{user_identifier}")
+async def deleteUser(user_identifier: Union[int, str]):
+    # Determine if identifier is email or ID
+    if isinstance(user_identifier, str) and "@" in user_identifier:
+        condition_column = "email"
+    elif isinstance(user_identifier, int) or (isinstance(user_identifier, str) and user_identifier.isdigit()):
+        condition_column = "id"
+        try:
+            user_identifier = int(user_identifier)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid user ID format.")
+    else:
+        raise HTTPException(status_code=400, detail="Invalid user identifier. Must be email or ID.")
+
+    # Check if user exists before attempting deletion (optional, but good for clear error messages)
+    user_exists = await app.state.db.fetchval(
+        f"SELECT EXISTS(SELECT 1 FROM users WHERE {condition_column} = $1)",
+        user_identifier
+    )
+    if not user_exists:
+        raise HTTPException(status_code=404, detail=f"User with {condition_column} '{user_identifier}' not found.")
+
+    try:
+        result = await app.state.db.execute(
+            f"DELETE FROM users WHERE {condition_column} = $1",
+            user_identifier
+        )
+        if result == "DELETE 0": # Should ideally be caught by the check above
+            raise HTTPException(status_code=404, detail=f"User with {condition_column} '{user_identifier}' not found during delete, though existed moments before.")
+        return {"status": "success", "message": f"User with {condition_column} '{user_identifier}' deleted successfully."}
+    except Exception as e:
+        logging.error(f"Error deleting user {user_identifier}: {e}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while deleting the user.")
 
 @app.get("/api/users")
 async def list_users():
