@@ -1,29 +1,27 @@
 import asyncio
+from mcp_sse_client import MCPClient
 import json
 from dotenv import load_dotenv
-import os
-import warnings
-import logging
-from fastapi import WebSocket, WebSocketDisconnect
-from google import genai
+from google.genai import Client as GenaiClient
+from mcp import ClientSession, StdioServerParameters
 from google.genai.types import GenerateContentConfig, HttpOptions
 from mcp import ClientSession
 from mcp.client.sse import sse_client
+from pydantic import BaseModel
 from litellm import experimental_mcp_client
-from ws_manager import ConnectionManager
-
+import litellm
+import warnings
 warnings.filterwarnings("ignore")
+import logging
 logging.basicConfig(level=logging.ERROR)
+from google.adk.models.lite_llm import LiteLlm
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp-server/sse/")
-
-manager = ConnectionManager()
 
 async def categorize_email(email_body):
     """Categorizes email content using Gemini API."""
-    client = genai.Client(api_key=GEMINI_API_KEY)
-    async with sse_client(MCP_SERVER_URL) as streams:
+    client = GenaiClient(api_key=GEMINI_API_KEY)
+    async with sse_client("http://localhost:8000/mcp-server/sse/") as streams:
         async with ClientSession(*streams) as session:
             await session.initialize()
             mcp_tools = await experimental_mcp_client.load_mcp_tools(session=session, format="mcp")
@@ -33,20 +31,21 @@ async def categorize_email(email_body):
                 return "unknown"
             response = client.models.generate_content(
                 model="gemini-2.0-flash",
-                contents=[email_body],
+                contents=["write email to yousif@test.com. tell him it works now."],
                 config=GenerateContentConfig(
                     system_instruction=["You are a Gmail agent. Your task is to use the available tools."],
                     tools=mcp_tools
-                ),
+                    ),
             )
             print("making response")
             print(response)
 
             if response.candidates and response.candidates[0].content.parts:
                 for part in response.candidates[0].content.parts:
-                    if hasattr(part, 'function_call') and part.function_call is not None:
+                    if hasattr(part, 'function_call') and part.function_call!= None:
                         function_call = part.function_call
                         print(f"Function call: {function_call}")
+
                         result = await session.call_tool(
                             function_call.name, arguments=dict(function_call.args)
                         )
@@ -70,31 +69,9 @@ async def categorize_email(email_body):
 
             return "unknown"
 
-# --- WebSocket Agent Chat Logic ---
-async def agent_websocket(websocket: WebSocket):
-    session_id = None
-    try:
-        # Accept connection and assign session id
-        session_id = str(id(websocket))
-        await manager.connect(websocket, session_id)
-        await websocket.send_json({"message": "Agent chat connected.", "session_id": session_id})
-        while True:
-            data = await websocket.receive_text()
-            # Here: Use categorize_email or other agent logic
-            result = await categorize_email(data)
-            await manager.send_personal_message(session_id, {"message": result})
-    except WebSocketDisconnect:
-        pass
-    except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        print(f"Agent error: {str(e)}\n{tb}")
-        if session_id:
-            await manager.send_personal_message(session_id, {"error": str(e)})
-    finally:
-        if session_id:
-            manager.disconnect(session_id)
+async def main():
+    """Main function to execute email filtering."""
+    await categorize_email("")
 
-# Optional: Standalone test
 if __name__ == '__main__':
-    asyncio.run(categorize_email("write email to yousif@test.com. tell him it works now."))
+    asyncio.run(categorize_email(""))
