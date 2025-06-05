@@ -1,0 +1,62 @@
+version: "3.9"
+services:
+  backend:
+    image: orchestranexus/agentbox:0.0.0
+    container_name: mw-backend
+    command: uvicorn backend/agent_ws:app --host 0.0.0.0 --port 8001 --reload
+    network_mode: host
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/mailwhisperer
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - MCP_SERVER_URL=${MCP_SERVER_URL}
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    container_name: mw-db
+    network_mode: host
+    environment:
+      POSTGRES_DB: mailwhisperer
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      INIT_ADMIN_EMAIL: admin@yourdomain.com
+      INIT_ADMIN_PASSWORD: changeme123
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/db_init.sql:/docker-entrypoint-initdb.d/db_init.sql
+
+  gmail:
+    image: orchestranexus/gmail-mcp:v0.0.0
+    command: bash -c "cd /root/.gmail-mcp/  && node /Gmail-MCP-Server-main/dist/index.js auth http://localhost:3000/oauth2callback & /scripts/start_bridge.sh"
+    privileged: true
+    tty: true
+    network_mode: host
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./mcp/scripts:/scripts
+      - ./mcp/scripts/gmail_auth.py:/root/gmail_auth.py
+      - ./mcp/config:/config
+      - ./auth/gcp-oauth.keys.json:/root/.gmail-mcp/gcp-oauth.keys.json
+    environment:
+      MCP_BRIDGE__CONFIG__FILE: /config/bridge_config.json
+
+  frontend:
+    image: orchestranexus/python3.11-node24-npx:v0.0.0
+    container_name: mw-frontend
+    working_dir: /app/frontend
+    command: bash -c "npm install & npm run dev"
+    network_mode: host
+    volumes:
+      - ./frontend:/app/frontend
+    depends_on:
+      - db
+      - backend
+
+volumes:
+  db_data:

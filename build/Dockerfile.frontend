@@ -1,0 +1,6 @@
+FROM node:20-alpine
+WORKDIR /app
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm install && npx shadcn-ui@latest init --yes && npx shadcn-ui@latest add button menubar separator slot
+COPY frontend .
+CMD ["npm", "run", "preview"]

@@ -1,0 +1,11 @@
+/* Tailwind and global styles placeholder. Add your Tailwind imports here if using Tailwind CSS. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+body {
+  background: #f7f7fa;
+  color: #222;
+  font-family: 'Inter', sans-serif;
+}

@@ -87,24 +87,20 @@ ad1 is a secure, modular platform for automated email and document processing, d
 
 ```mermaid
 graph TD
-  subgraph User
-    U1["Browser"]
-  end
   subgraph Frontend
     FE["React/Vite UI"]
-    FE -->|REST/WebSocket| BE
+    FE -->|WebSocket/API| BE
     FE -->|WebSocket| Catbot
-    FE -->|API| IPAM["IPAM User Management"]
   end
 
   subgraph Backend
     BE["FastAPI Backend"]
-    BE -->|DB| DB[(PostgreSQL)]
-    BE -->|API| Agents["Agent Layer"]
-    BE -->|API| Validation["Validation Model"]
-    BE -->|API| Audit["Audit Trail"]
-    BE -->|API| MCP["MCP Email Bridge"]
-    BE -->|API| Users["User Management"]
+    BE -->|REST/WebSocket| Catbot
+    BE -->|REST| Agents
+    BE -->|REST| ValidationModel
+    BE -->|SQL| DB[(PostgreSQL DB)]
+    BE -->|REST| AuditTrail
+    BE -->|REST| MCP["MCP Email Bridge"]
   end
 
   subgraph Agents
@@ -117,11 +113,11 @@ graph TD
   end
 
   subgraph Validation
-    Validation["Validation Model (OCR, Extraction)"]
+    ValidationModel["Validation Model (OCR, Extraction)"]
   end
 
   subgraph Audit
-    Audit["Audit Trail Service"]
+    AuditTrail["Audit Trail Service"]
   end
 
   subgraph Email
@@ -129,34 +125,16 @@ graph TD
     MCP -->|IMAP/SMTP| Mail["Mail Server"]
   end
 
-  U1 --> FE
-  FE --> BE
-  FE --> IPAM
-  FE --> Catbot
-  FE --> Validation
-  FE --> Audit
-  BE --> DB
-  BE --> Agents
-  BE --> Validation
-  BE --> Audit
-  BE --> MCP
-  BE --> Users
+  FE -.->|User Actions| FE
+  FE -.->|Validation| ValidationModel
+  FE -.->|Audit Log| AuditTrail
+  FE -.->|Task Status| BE
+  BE -->|Triggers| Agents
+  BE -->|Validation| ValidationModel
+  BE -->|Audit Log| AuditTrail
+  BE -->|Email| MCP
+  BE -->|DB| DB
 ```
-
-## User & Admin Management (IPAM)
-
-- The IPAM page allows administrators to create new users (Google Mail only), assign roles (read, write, validate, download), and toggle admin status.
-- All user data is stored in the database (`users` table).
-- The initial admin user is set via environment variables in `docker-compose.yml` (`INIT_ADMIN_EMAIL`, `INIT_ADMIN_PASSWORD`).
-- User management is fully integrated with the backend API (`/api/users`).
-
-## License & Commercial Use
-
-**All rights reserved.**
-
-Any commercial use, resale, or distribution of this software (including SaaS, on-prem, or as part of another product) is strictly prohibited without a written contract with the copyright holder.
-
-Contact the author for licensing options. All rights remain with the project owner.
 
 ---
 
