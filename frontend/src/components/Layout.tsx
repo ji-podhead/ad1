@@ -20,16 +20,32 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    fetch('/gcp-oauth.keys.json')
-      .then(res => res.json())
-      .then(json => setClientId(json.web.client_id));
+    fetch('/api/oauth-config')
+      .then(async res => {
+        if (!res.ok) throw new Error('Google OAuth config not found (HTTP ' + res.status + ')');
+        const json = await res.json();
+        if (!json.web || !json.web.client_id) {
+          throw new Error('Google OAuth config missing web.client_id.');
+        }
+        setClientId(json.web.client_id);
+      })
+      .catch(err => setClientId('ERROR:' + (err?.message || err)));
   }, []);
 
-  const handleLogin = () => {
-    // Replace with real Google OAuth
-    const fakeUser = { name: 'Max Mustermann', email: 'max@example.com', picture: 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y' };
-    setUser(fakeUser);
-    localStorage.setItem('ad1_user', JSON.stringify(fakeUser));
+  const handleLogin = (user: any) => {
+    setUser(user);
+    localStorage.setItem('ad1_user', JSON.stringify(user));
+    // After Google login, ask backend for user info/roles
+    fetch('/api/userinfo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: user.email, token: user.credential || null })
+    })
+      .then(res => res.json())
+      .then(info => {
+        setUser((u: any) => ({ ...u, ...info }));
+      })
+      .catch(() => {/* ignore, backend decides access */});
   };
   const handleLogout = () => {
     setUser(null);
@@ -51,11 +67,20 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   };
 
   if (!clientId) return null;
+  if (clientId && clientId.startsWith('ERROR:')) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="bg-white border border-red-200 text-red-700 rounded-xl shadow-xl p-8 max-w-lg w-full text-center text-lg font-semibold animate-fade-in-up">
+          {clientId.replace('ERROR:', '')}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <GoogleOAuthProvider clientId={clientId}>
       <div className="min-h-screen bg-gray-50">
-        <MainMenubar user={user} onLogin={handleLogin} onLogout={handleLogout} onNav={protectedNav} />
+        <MainMenubar user={user} onLogin={handleLogin} onLogout={handleLogout} />
         <main className="max-w-6xl mx-auto pt-[72px] pb-8 px-2">{children}</main>
         {!hideFloatingChat && user && <FloatingAgentChat />}
         {!user && <LoginModal onLogin={handleLogin} />}

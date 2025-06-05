@@ -17,9 +17,22 @@ export function loadGoogleScript() {
 }
 
 export async function getGoogleClientId(): Promise<string> {
-  const res = await fetch('/gcp-oauth.keys.json');
-  const json = await res.json();
-  return json.web.client_id;
+  try {
+    const res = await fetch('/api/oauth-config', { cache: 'no-store' });
+    if (!res.ok) {
+      throw new Error('Google OAuth config not found (HTTP ' + res.status + ')');
+    }
+    const json = await res.json();
+    if (!json.web || !json.web.client_id) {
+      throw new Error('Google OAuth config missing web.client_id.');
+    }
+    return json.web.client_id;
+  } catch (err: any) {
+    // Optionally log error
+    throw new Error(
+      'Failed to load Google OAuth config: ' + (err?.message || err)
+    );
+  }
 }
 
 export const GoogleLoginButton: React.FC<{ onSuccess: (user: any) => void }> = ({ onSuccess }) => {

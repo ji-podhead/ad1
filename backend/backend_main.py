@@ -9,15 +9,17 @@ import json
 from dotenv import load_dotenv
 import os
 import logging
-from backend.tools_wrapper import (
+from tools_wrapper import (
     list_emails, get_email, label_email, send_email, draft_email, read_email, search_emails, modify_email, delete_email, list_email_labels, create_label, update_label, delete_label, get_or_create_label, batch_modify_emails, batch_delete_emails
 )
 import asyncpg
-from backend.agent_ws import agent_websocket
+from agent_ws import agent_websocket
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter, HTTPException
 import uuid
 import datetime
-from backend.agent_scheduler import AgentScheduler
+from agent_scheduler import AgentScheduler
+from fastapi.responses import JSONResponse
+from fastapi import Request
 
 # Logging configuration
 logging.basicConfig(level=logging.ERROR)
@@ -160,3 +162,26 @@ async def create_user(user: User):
 async def list_users():
     rows = await app.state.db.fetch("SELECT id, email, is_admin, roles FROM users")
     return [dict(row) for row in rows]
+
+@app.get("/api/oauth-config")
+def get_oauth_config():
+    path = os.path.join(os.path.dirname(__file__), '../auth/gcp-oauth.keys.json')
+    try:
+        with open(path, 'r') as f:
+            data = json.load(f)
+        return JSONResponse(content=data)
+    except FileNotFoundError:
+        return JSONResponse(status_code=404, content={"error": "Google OAuth config not found"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/api/userinfo")
+async def userinfo(request: Request):
+    data = await request.json()
+    email = data.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Missing email")
+    row = await app.state.db.fetchrow("SELECT is_admin, roles FROM users WHERE email=$1", email)
+    if not row:
+        return {"is_admin": False, "roles": []}
+    return {"is_admin": row["is_admin"], "roles": row["roles"]}

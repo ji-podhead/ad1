@@ -139,3 +139,12 @@ auth
 .auth
 ./auth/gcp-oauth.keys.json
 .env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+backend/auth/gcp-oauth.keys.json
+backend/test/__pycache__/

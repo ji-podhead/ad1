@@ -8,7 +8,7 @@ import google.generativeai as genai
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 from litellm import experimental_mcp_client
-from backend.ws_manager import ConnectionManager
+from ws_manager import ConnectionManager
 
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.ERROR)

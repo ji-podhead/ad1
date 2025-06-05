@@ -22,14 +22,34 @@ const Landing: React.FC = () => {
   React.useEffect(() => {
     const stored = localStorage.getItem('ad1_user');
     if (stored) setUser(JSON.parse(stored));
-    fetch('/gcp-oauth.keys.json')
-      .then(res => res.json())
-      .then(json => setClientId(json.web.client_id));
+    fetch('/api/oauth-config')
+      .then(async res => {
+        if (!res.ok) throw new Error('Google OAuth config not found (HTTP ' + res.status + ')');
+        const json = await res.json();
+        if (!json.web || !json.web.client_id) {
+          throw new Error('Google OAuth config missing web.client_id.');
+        }
+        setClientId(json.web.client_id);
+      })
+      .catch(err => setClientId('ERROR:' + (err?.message || err)));
   }, []);
 
   const handleLogin = (user: any) => {
     setUser(user);
     localStorage.setItem('ad1_user', JSON.stringify(user));
+    // After Google login, ask backend for user info/roles
+    fetch('/api/userinfo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: user.email, token: user.credential || null })
+    })
+      .then(res => res.json())
+      .then(info => {
+        // Optionally store roles/admin info in state if needed for UI
+        setUser((u: any) => ({ ...u, ...info }));
+        // Optionally: localStorage.setItem('ad1_userinfo', JSON.stringify(info));
+      })
+      .catch(() => {/* ignore, backend decides access */});
     window.location.href = '/inbox';
   };
 
@@ -53,7 +73,7 @@ const Landing: React.FC = () => {
             <a href="/audit" className="bg-gray-700 text-white px-5 py-2 rounded shadow hover:bg-gray-800 transition">Audit Trail</a>
             <a href="/chat" className="bg-pink-600 text-white px-5 py-2 rounded shadow hover:bg-pink-700 transition">Agent Chat</a>
           </div>
-          {!user && clientId && (
+          {!user && clientId && !clientId.startsWith('ERROR:') && (
             <div className="w-full flex items-center justify-center">
               <GoogleLogin
                 onSuccess={credentialResponse => {
@@ -76,6 +96,11 @@ const Landing: React.FC = () => {
                 }}
                 useOneTap
               />
+            </div>
+          )}
+          {!user && clientId && clientId.startsWith('ERROR:') && (
+            <div className="w-full flex items-center justify-center text-red-600 text-sm font-semibold bg-red-50 border border-red-200 rounded p-4 mt-4">
+              {clientId.replace('ERROR:', '')}
             </div>
           )}
           {user && (

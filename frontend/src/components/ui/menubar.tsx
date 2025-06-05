@@ -40,9 +40,16 @@ export function MenubarShortcut({ children }: { children: React.ReactNode }) {
 export function MainMenubar({ user, onLogin, onLogout }: { user?: any, onLogin?: (user: any) => void, onLogout?: () => void }) {
   const [clientId, setClientId] = React.useState<string | null>(null);
   React.useEffect(() => {
-    fetch('/gcp-oauth.keys.json')
-      .then(res => res.json())
-      .then(json => setClientId(json.web.client_id));
+    fetch('/api/oauth-config')
+      .then(async res => {
+        if (!res.ok) throw new Error('Google OAuth config not found (HTTP ' + res.status + ')');
+        const json = await res.json();
+        if (!json.web || !json.web.client_id) {
+          throw new Error('Google OAuth config missing web.client_id.');
+        }
+        setClientId(json.web.client_id);
+      })
+      .catch(err => setClientId('ERROR:' + (err?.message || err)));
   }, []);
   const pages = [
     { to: "/", label: "Ad1" },

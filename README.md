@@ -232,6 +232,54 @@ For more details on MCP integration and SSE endpoints, refer to the backend docu
 
 ---
 
+## Backend API
+
+The ad1 backend exposes a secure REST API for all core functions. All endpoints require authentication via Google OAuth. The backend determines user roles (admin, user) based on the email address after login.
+
+### Main Endpoints
+
+- **/api/oauth-config** (GET):
+  - Returns the Google OAuth client configuration (client_id etc.) for the frontend.
+  - Used by the frontend to initialize Google Login.
+
+- **/api/userinfo** (POST):
+  - Request body: `{ "email": "user@gmail.com", "token": "<optional>" }`
+  - Returns: `{ "is_admin": true/false, "roles": [ ... ] }`
+  - Used by the frontend after Google login to determine user roles and admin status.
+
+- **/api/emails** (GET):
+  - List all emails in the system.
+
+- **/api/emails/{email_id}** (GET):
+  - Get details for a specific email.
+
+- **/api/emails/{email_id}/label** (POST):
+  - Set or update the label for an email.
+
+- **/api/audit** (GET):
+  - Retrieve the audit trail for compliance and traceability.
+
+- **/api/users** (GET/POST):
+  - List all users or create a new user (admin only).
+
+- **/ws/agent** (WebSocket):
+  - Real-time chat and workflow orchestration with the agent layer.
+
+- **/api/scheduler/tasks** (GET):
+  - List all scheduled tasks (document/email processing, etc.).
+
+- **/api/scheduler/task** (POST):
+  - Create a new scheduled task.
+
+- **/api/scheduler/task/{task_id}/pause** (POST):
+  - Pause or resume a scheduled task.
+
+- **/api/scheduler/task/{task_id}** (DELETE):
+  - Delete a scheduled task.
+
+All endpoints return JSON. For more details, see the backend source code in `backend/backend_main.py`.
+
+---
 
 ## Original Mockup
 ### Tasks

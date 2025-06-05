@@ -3,8 +3,12 @@ services:
   backend:
     image: orchestranexus/agentbox:0.0.0
     container_name: mw-backend
-    command: uvicorn backend/agent_ws:app --host 0.0.0.0 --port 8001 --reload
+    command: uvicorn backend_main.py:app --host 0.0.0.0 --port 8001 --reload
     network_mode: host
+    working_dir: /backend
+    volumes:
+    - ./backend:/backend
+    - ./auth/gcp-oauth.keys.json:/backend/auth/gcp-oauth.keys.json:ro
     ports:
       - "8001:8001"
     environment:
