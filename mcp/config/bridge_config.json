@@ -1,0 +1,16 @@
+{
+    "inference_server": {
+        "base_url": "http://localhost:8000/v1",
+        "api_key": "None"
+    },
+    "mcp_servers": {
+       
+
+       "gmail": {
+         "command": "node",
+         "args": ["../Gmail-MCP-Server-main/dist/index.js"]
+       }
+    }
+ }
+
+
