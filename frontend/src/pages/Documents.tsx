@@ -10,6 +10,7 @@ interface Document {
   body: string; // Or a summary
   received_at: string;
   type: string | null;
+  short_description: string | null;
   // label: string | null; // If you need to retain label from previous structure for some reason
 }
 
@@ -131,6 +132,7 @@ const Documents: React.FC = () => {
             <th className="p-2 text-left">Sender</th>
             <th className="p-2 text-left">Received At</th>
             <th className="p-2 text-left">Type</th>
+            <th className="p-2 text-left">Short Description</th>
             {/* <th className="p-2 text-left">Status</th> */} {/* Status field removed for now, can be derived or added if needed */}
             <th className="p-2 text-left">Actions</th>
           </tr>
@@ -151,8 +153,9 @@ const Documents: React.FC = () => {
                     <div className="mb-1 text-gray-600">From: {doc.sender}</div>
                     <div className="mb-1 text-gray-500">Received: {formatDate(doc.received_at)}</div>
                     <div className="mb-1 text-gray-400">Type: {doc.type || 'N/A'}</div>
+                    <div className="mb-1 text-gray-400">Summary: {doc.short_description || 'N/A'}</div>
                     <div className="text-gray-700 whitespace-pre-line mt-2">
-                      {doc.body ? (doc.body.substring(0, 200) + (doc.body.length > 200 ? '...' : '')) : 'No preview available.'}
+                      Body Preview: {doc.body ? (doc.body.substring(0, 150) + (doc.body.length > 150 ? '...' : '')) : 'No body preview.'}
                     </div>
                   </div>
                 )}
@@ -160,6 +163,7 @@ const Documents: React.FC = () => {
               <td className="p-2">{doc.sender}</td>
               <td className="p-2">{formatDate(doc.received_at)}</td>
               <td className="p-2">{doc.type || 'N/A'}</td>
+              <td className="p-2 truncate max-w-xs" title={doc.short_description || undefined}>{doc.short_description || 'N/A'}</td>
               {/* <td className="p-2">
                 <span className={`px-2 py-1 rounded text-xs ${doc.status === 'Processing' ? 'bg-blue-200' : doc.status === 'Needs Validation' ? 'bg-yellow-200' : 'bg-green-200'}`}>{doc.status}</span>
               </td> */}
@@ -173,7 +177,23 @@ const Documents: React.FC = () => {
           ))}
         </tbody>
       </table>
-      <DocumentModal open={!!modalDoc} onClose={() => setModalDoc(null)} doc={modalDoc} />
+      {modalDoc && (
+        <DocumentModal
+          open={!!modalDoc}
+          onClose={() => setModalDoc(null)}
+          doc={{ // Adapt DocumentModal props if necessary.
+            name: modalDoc.subject,
+            status: modalDoc.type || 'N/A',
+            uploaded: formatDate(modalDoc.received_at),
+            body: modalDoc.body,
+            // Potentially pass short_description to DocumentModal if it's designed to show it
+            short_description: modalDoc.short_description,
+            // Pass other fields as needed by DocumentModal, e.g. sender, type explicitly
+            sender: modalDoc.sender,
+            type: modalDoc.type,
+          }}
+        />
+      )}
     </div>
   );
 };

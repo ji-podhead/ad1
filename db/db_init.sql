@@ -7,7 +7,8 @@ CREATE TABLE emails (
     body TEXT NOT NULL,
     received_at TIMESTAMP NOT NULL DEFAULT NOW(),
     label TEXT,
-    type TEXT
+    type TEXT,
+    short_description TEXT DEFAULT NULL
 );
 
 CREATE TABLE audit_trail (

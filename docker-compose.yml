@@ -18,6 +18,7 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - MCP_SERVER_URL=${MCP_SERVER_URL}
       - ADMIN_EMAILS="admin@example.com,testuser@example.com"
+      - DOC_PROCESSING_SERVICE_URL=http://localhost:8002/process_pdf/ # Added for new service
     depends_on:
       - db
 
@@ -63,5 +64,27 @@ services:
       - db
       - backend
 
+  doc-processing-service:
+    build:
+      context: ./doc_processing_service
+    container_name: mw-doc-processing-service
+    network_mode: host
+    environment:
+      - DOC_SERVICE_INTERNAL_PORT=8002 # Service will listen on port 8002 on the host
+      - TRANSFORMERS_CACHE=/app/huggingface_cache
+      # - NVIDIA_VISIBLE_DEVICES=all # Uncomment for local GPU with nvidia-docker
+      # - NVIDIA_DRIVER_CAPABILITIES=compute,utility # Uncomment for local GPU
+    volumes:
+      - ./doc_processing_service/app:/app/app
+      - doc_processing_cache:/app/huggingface_cache
+    restart: unless-stopped
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 60s
+
 volumes:
   db_data:
+  doc_processing_cache: # New volume for doc processing model cache
