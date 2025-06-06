@@ -70,6 +70,29 @@ CREATE TABLE scheduler_tasks (
     workflow_name TEXT
 );
 
+-- New table for Email Types
+CREATE TABLE email_types (
+    id SERIAL PRIMARY KEY,
+    topic TEXT UNIQUE NOT NULL,
+    description TEXT
+);
+
+-- New table for Key Features
+CREATE TABLE key_features (
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL
+);
+
+-- Table to store general settings like email grabber frequency
+CREATE TABLE settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
+);
+
+-- Optional: Insert a default setting for email grabber frequency
+INSERT INTO settings (key, value) VALUES ('email_grabber_frequency_type', 'days');
+INSERT INTO settings (key, value) VALUES ('email_grabber_frequency_value', '1');
+
 INSERT INTO emails (subject, sender, body, label)
 VALUES (
   'Sick Note Example',

@@ -1,29 +1,58 @@
 // Inbox page: List, filter, and label emails. Trigger workflows on incoming emails. See processing status.
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmailModal from '../components/EmailModal';
 
-const demoEmails = [
-  { id: 1, subject: 'New Registration Form', from: 'office@agency.ch', status: 'Pending', date: '2025-06-03',
-    documents: ['Registration_Form.pdf'],
-    body: 'Dear team,\nPlease find attached the new registration form.\nBest regards,\nAgency Office',
-  },
-  { id: 2, subject: 'Case Update', from: 'caseworker@org.ch', status: 'Processing', date: '2025-06-02',
-    documents: ['Case_Notes.docx', 'Evidence.pdf'],
-    body: 'Hello,\nThe case notes and evidence are attached.\nRegards,\nCaseworker',
-  },
-  { id: 3, subject: 'Final Report', from: 'admin@org.ch', status: 'Validated', date: '2025-06-01',
-    documents: ['Final_Report.pdf'],
-    body: 'Hi,\nThe final report is ready for your review.\nThanks,\nAdmin',
-  },
-];
+interface Email {
+  id: number;
+  subject: string;
+  from: string;
+  status: string;
+  date: string;
+  documents: string[];
+  body: string;
+}
 
 const Inbox: React.FC = () => {
   const [filter, setFilter] = useState('All');
   const [hovered, setHovered] = useState<number|null>(null);
-  const [modalEmail, setModalEmail] = useState<any|null>(null);
+  const [modalEmail, setModalEmail] = useState<Email|null>(null);
+  const [emails, setEmails] = useState<Email[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string|null>(null);
   const navigate = useNavigate();
-  const filtered = filter === 'All' ? demoEmails : demoEmails.filter(e => e.status === filter);
+
+  useEffect(() => {
+    const fetchEmails = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch('/api/emails');
+        if (!response.ok) throw new Error('Failed to fetch emails');
+        const data = await response.json();
+        // Map backend data to Email interface if needed
+        setEmails(data.map((item: any) => ({
+          id: item.id,
+          subject: item.subject,
+          from: item.sender,
+          status: item.status || 'Pending',
+          date: item.received_at ? new Date(item.received_at).toISOString().slice(0, 10) : '',
+          documents: item.documents || [],
+          body: item.body || '',
+        })));
+      } catch (err: any) {
+        setError(err.message || 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEmails();
+  }, []);
+
+  const filtered = filter === 'All' ? emails : emails.filter(e => e.status === filter);
+
+  if (loading) return <div className="p-6 text-center">{emails.length === 0 ? 'Keine E-Mails vorhanden.' : 'Loading emails...'}</div>;
+  if (error) return <div className="p-6 text-center text-red-500">Error: {error}</div>;
 
   return (
     <div className="p-6">

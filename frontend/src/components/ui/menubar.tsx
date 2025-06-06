@@ -67,12 +67,11 @@ export function MainMenubar() { // Removed props: user, onLogin, onLogout
     { to: "/", label: "Ad1" },
     { to: "/inbox", label: "Inbox" },
     { to: "/documents", label: "Documents" },
-    { to: "/validation", label: "Validation" },
     { to: "/tasks", label: "Tasks" },
     { to: "/audit", label: "Audit" },
     { to: "/ipam", label: "IAM" },
     { to: "/chat", label: "Agent Chat" },
-    { to: "/workflow-builder", label: "Workflow Builder" },
+    { to: "/settings", label: "Settings" }, // Add Settings link
   ];
   // Determine if the User Management link should be shown
   const showUserManagementLink = user && user.is_admin;

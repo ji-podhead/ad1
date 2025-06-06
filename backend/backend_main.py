@@ -29,6 +29,7 @@ from fastapi import Request
 
 # Logging configuration
 logging.basicConfig(level=logging.ERROR)
+logger = logging.getLogger(__name__) # Initialize logger
 
 # Load environment variables
 load_dotenv()
@@ -82,6 +83,20 @@ class SchedulerTask(BaseModel):
     workflow_config: Optional[dict] = None
     workflow_name: Optional[str] = None
 
+class CreateUserRequest(BaseModel):
+    email: str
+    password: str
+    is_admin: bool = False
+    roles: list[str] = []
+    google_id: Optional[str] = None # Added for Google OAuth
+
+class UpdateUserRequest(BaseModel):
+    email: Optional[str] = None # Allow changing email, though be cautious with this
+    password: Optional[str] = None
+    is_admin: Optional[bool] = None
+    roles: Optional[list[str]] = None
+    google_id: Optional[str] = None # Added for Google OAuth
+
 class User(BaseModel):
     id: int | None = None
     email: str
@@ -105,6 +120,21 @@ class ProcessingTask(BaseModel):
     workflow_type: Optional[str] = None
     email_short_description: Optional[str] = None
 
+# New Pydantic models for Settings
+class EmailType(BaseModel):
+    id: Optional[int] = None # ID is optional for creation
+    topic: str
+    description: Optional[str] = None
+
+class KeyFeature(BaseModel):
+    id: Optional[int] = None # ID is optional for creation
+    name: str
+
+class SettingsData(BaseModel):
+    email_grabber_frequency_type: str
+    email_grabber_frequency_value: int
+    email_types: List[EmailType]
+    key_features: List[KeyFeature]
 
 class SetTaskStatusRequest(BaseModel):
     status: str
@@ -114,11 +144,61 @@ class SetTaskStatusRequest(BaseModel):
 async def startup():
     app.state.db = await asyncpg.create_pool(DATABASE_URL)
     # Initialize and store scheduler
-    app.state.scheduler = AgentScheduler() # Use the global scheduler instance or app.state.scheduler
-    # Schedule the email checking job
-    # Make sure check_new_emails is an async function that accepts db_pool
-    app.state.scheduler.schedule_cron(check_new_emails, 60, app.state.db)
-    print("Scheduled email checking job to run every 60 seconds.")
+    app.state.scheduler = AgentScheduler()
+    # Schedule the default email checking job (if needed, or replace with a cron workflow)
+    # app.state.scheduler.schedule_cron(check_new_emails, 60, app.state.db)
+    # print("Scheduled default email checking job to run every 60 seconds.")
+
+    # Load and schedule active cron workflows from the database
+    try:
+        active_cron_tasks = await app.state.db.fetch(
+            "SELECT id, workflow_name, workflow_config, status, trigger_type FROM scheduler_tasks WHERE status = 'active' AND trigger_type = 'cron'"
+        )
+        print(f"Found {len(active_cron_tasks)} active cron workflows to schedule.")
+
+        for task_record in active_cron_tasks:
+            task_id = task_record['id']
+            workflow_name = task_record['workflow_name']
+            workflow_config = task_record['workflow_config']
+
+            # Calculate interval_seconds from workflow_config (frequency_type/frequency_value)
+            interval_seconds = 86400 # Default: 1 Tag
+            if workflow_config:
+                freq_type = workflow_config.get('frequency_type')
+                freq_value = workflow_config.get('frequency_value')
+                if freq_type == 'days' and freq_value is not None:
+                    try:
+                        interval_seconds = int(freq_value) * 86400
+                    except ValueError:
+                        print(f"Warning: Invalid frequency_value for workflow {workflow_name} ({task_id}). Using default 1 day interval.")
+                elif freq_type == 'minutes' and freq_value is not None:
+                     try:
+                        interval_seconds = int(freq_value) * 60
+                     except ValueError:
+                        print(f"Warning: Invalid frequency_value for workflow {workflow_name} ({task_id}). Using default 1 day interval.")
+
+            # Define the async function to be executed by the scheduler
+            async def workflow_cron_job(db_pool, task_details):
+                print(f"[Scheduler] Executing cron workflow {task_details['workflow_name']} ({task_details['id']})...")
+                # TODO: Implement the actual workflow execution logic here
+                # This function should parse task_details['workflow_config']'] and execute the defined steps
+                # For now, it just prints a message.
+                # Example: Trigger check_new_emails if that's part of the workflow
+                # await check_new_emails(db_pool)
+                pass
+
+            # Schedule the task
+            app.state.scheduler.schedule_cron(
+                workflow_cron_job,
+                interval_seconds,
+                app.state.db, # Pass db_pool as argument
+                dict(task_record) # Pass task details as argument
+            )
+            print(f"Scheduled cron workflow '{workflow_name}' ({task_id}) to run every {interval_seconds} seconds.")
+
+    except Exception as e:
+        print(f"Error loading or scheduling cron workflows on startup: {e}")
+        # Depending on severity, you might want to raise the exception or log more verbosely
 
     # Process ADMIN_EMAILS
     admin_emails_str = os.getenv("ADMIN_EMAILS")
@@ -155,11 +235,13 @@ async def shutdown():
 @app.get("/api/emails", response_model=List[Email])
 async def get_emails():
     rows = await app.state.db.fetch("SELECT id, subject, sender, body, label, type, short_description FROM emails")
+    print(rows)
     return [dict(row) for row in rows]
 
 @app.get("/api/emails/{email_id}", response_model=Email)
 async def get_email(email_id: int):
     row = await app.state.db.fetchrow("SELECT id, subject, sender, body, label, type, short_description FROM emails WHERE id=$1", email_id)
+    print(row)
     return dict(row)
 
 @app.post("/api/emails/{email_id}/label")
@@ -202,8 +284,8 @@ async def get_scheduler_tasks(request: Request):
 
 @app.post("/api/scheduler/task", response_model=SchedulerTask)
 async def create_scheduler_task(task: SchedulerTask, request: Request):
+    import math
     task.id = str(uuid.uuid4())
-    # Ensure default status if not provided, though Pydantic model has default
     if task.status is None:
         task.status = "active"
 
@@ -216,14 +298,27 @@ async def create_scheduler_task(task: SchedulerTask, request: Request):
         task.to, task.subject, task.body, task.date, task.interval,
         task.condition, task.actionDesc, task.trigger_type, task.workflow_config, task.workflow_name
     )
-    # TODO: Actual scheduling logic with app.state.scheduler needs to be wired up here
-    # For example, if task.type == 'email', schedule it.
-    # This part is complex as it requires translating DB stored task back to scheduler actions.
-    # Current AgentScheduler doesn't have a direct way to load tasks from DB.
+    # Register cron workflow in scheduler if type is 'cron' and active
+    if task.trigger_type == 'cron' and task.status == 'active':
+        # Berechne Intervall in Sekunden aus workflow_config (frequency_type/frequency_value)
+        interval_seconds = 86400 # Default: 1 Tag
+        if task.workflow_config:
+            freq_type = task.workflow_config.get('frequency_type')
+            freq_value = task.workflow_config.get('frequency_value')
+            if freq_type == 'days' and freq_value:
+                interval_seconds = int(freq_value) * 86400
+            elif freq_type == 'minutes' and freq_value:
+                interval_seconds = int(freq_value) * 60
+        # Definiere die auszuführende Workflow-Funktion
+        async def workflow_func():
+            print(f"[Scheduler] Triggering workflow {task.workflow_name} ({task.id}) via cron.")
+            # Hier gewünschte Backend-Logik einfügen, z.B. check_new_emails(request.app.state.db)
+            pass # TODO: Implementiere die gewünschte Logik
+        request.app.state.scheduler.schedule_cron(workflow_func, interval_seconds)
     await log_generic_action(
         db_pool=request.app.state.db,
         action_description=f"Workflow '{task.workflow_name}' (ID: {task.id}) of type '{task.trigger_type}' created.",
-        username="user_api" # Placeholder
+        username="user_api"
     )
     return task
 
@@ -249,25 +344,120 @@ async def pause_scheduler_task(task_id: str, request: Request):
 
 @app.delete("/api/scheduler/task/{task_id}")
 async def delete_scheduler_task(task_id: str, request: Request):
-    result = await request.app.state.db.execute("DELETE FROM scheduler_tasks WHERE id = $1", task_id)
-    if result == "DELETE 0": # Check if any row was deleted
+    # First, check if the task exists and get its type for potential unscheduling logic
+    task_record = await request.app.state.db.fetchrow("SELECT id, trigger_type FROM scheduler_tasks WHERE id = $1", task_id)
+    if not task_record:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    # Delete from database
+    result = await request.app.state.db.execute("DELETE FROM scheduler_tasks WHERE id = $1", task_id)
+    if result == "DELETE 0": # Should ideally be caught by the check above, but as a safeguard
+        raise HTTPException(status_code=404, detail="Task not found after check.")
+
+    # Unscheduling logic from AgentScheduler
+    if task_record['trigger_type'] == 'cron':
+        request.app.state.scheduler.cancel_task(task_id)
+        logging.info(f"Cancelled cron task {task_id} in scheduler.") # Use logging.info
+
     await log_generic_action(
         db_pool=request.app.state.db,
         action_description=f"Workflow '{task_id}' deleted.",
         username="user_api" # Placeholder
     )
-    # TODO: Unscheduling logic from AgentScheduler needed here
     return {"ok": True}
 
-# Define request model for creating a user, explicitly requiring a password
-class CreateUserRequest(BaseModel):
-    email: str
-    password: str
-    is_admin: bool = False
-    roles: list[str] = []
-    google_id: Optional[str] = None # Added for Google OAuth
+# Settings Endpoints
+@app.get("/api/settings", response_model=SettingsData)
+async def get_settings(request: Request):
+    db_pool = request.app.state.db
 
+    # Fetch email grabber frequency
+    freq_type_row = await db_pool.fetchrow("SELECT value FROM settings WHERE key = 'email_grabber_frequency_type'")
+    freq_value_row = await db_pool.fetchrow("SELECT value FROM settings WHERE key = 'email_grabber_frequency_value'")
+
+    freq_type = freq_type_row['value'] if freq_type_row and freq_type_row['value'] else 'days' # Default to 'days' if not found or empty
+    freq_value = int(freq_value_row['value']) if freq_value_row and freq_value_row['value'] and freq_value_row['value'].isdigit() else 1 # Default to 1 if not found, empty, or not a digit
+
+    # Fetch email types
+    email_types_rows = await db_pool.fetch("SELECT id, topic, description FROM email_types ORDER BY topic")
+    email_types_list = [EmailType(**dict(row)) for row in email_types_rows]
+
+    # Fetch key features
+    key_features_rows = await db_pool.fetch("SELECT id, name FROM key_features ORDER BY name")
+    key_features_list = [KeyFeature(**dict(row)) for row in key_features_rows]
+
+    return SettingsData(
+        email_grabber_frequency_type=freq_type,
+        email_grabber_frequency_value=freq_value,
+        email_types=email_types_list,
+        key_features=key_features_list
+    )
+
+@app.post("/api/settings")
+async def save_settings(settings_data: SettingsData, request: Request):
+    db_pool = request.app.state.db
+
+    async with db_pool.acquire() as connection:
+        async with connection.transaction():
+            # Save email grabber frequency
+            await connection.execute(
+                "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+                'email_grabber_frequency_type', settings_data.email_grabber_frequency_type
+            )
+            await connection.execute(
+                "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+                'email_grabber_frequency_value', str(settings_data.email_grabber_frequency_value)
+            )
+
+            # Save email types (clear existing and insert new)
+            await connection.execute("DELETE FROM email_types")
+            if settings_data.email_types:
+                email_type_values = [(et.topic, et.description) for et in settings_data.email_types]
+                await connection.copy_records_to_table('email_types', records=email_type_values, columns=['topic', 'description'])
+
+            # Save key features (clear existing and insert new)
+            await connection.execute("DELETE FROM key_features")
+            if settings_data.key_features:
+                key_feature_values = [(kf.name,) for kf in settings_data.key_features]
+                await connection.copy_records_to_table('key_features', records=key_feature_values, columns=['name'])
+
+    await log_generic_action(
+        db_pool=db_pool,
+        action_description="Settings updated (Email Grabber Frequency, Email Types, Key Features)",
+        username="user_api" # Placeholder
+    )
+
+    return {"status": "success", "message": "Settings saved successfully"}
+
+# Individual endpoints for Email Types (if needed for more granular control)
+# @app.get("/api/email_types", response_model=List[EmailType])
+# async def get_email_types(request: Request):
+#     rows = await request.app.state.db.fetch("SELECT id, topic, description FROM email_types ORDER BY topic")
+#     return [EmailType(**dict(row)) for row in rows]
+
+# @app.post("/api/email_types", response_model=EmailType)
+# async def create_email_type(email_type: EmailType, request: Request):
+#     # ... insertion logic ...
+
+# @app.delete("/api/email_types/{email_type_id}")
+# async def delete_email_type(email_type_id: int, request: Request):
+#     # ... deletion logic ...
+
+# Individual endpoints for Key Features (if needed for more granular control)
+# @app.get("/api/key_features", response_model=List[KeyFeature])
+# async def get_key_features(request: Request):
+#     rows = await request.app.state.db.fetch("SELECT id, name FROM key_features ORDER BY name")
+#     return [KeyFeature(**dict(row)) for row in rows]
+
+# @app.post("/api/key_features", response_model=KeyFeature)
+# async def create_key_feature(key_feature: KeyFeature, request: Request):
+#     # ... insertion logic ...
+
+# @app.delete("/api/key_features/{key_feature_id}")
+# async def delete_key_feature(key_feature_id: int, request: Request):
+#     # ... deletion logic ...
+
+# User Management Endpoints
 @app.post("/api/users/add", response_model=User)
 async def addUser(user_create_request: CreateUserRequest):
     hashed_password = pwd_context.hash(user_create_request.password)
@@ -302,13 +492,6 @@ async def addUser(user_create_request: CreateUserRequest):
         # Generic error for other issues
         logging.error(f"Error creating user {user_create_request.email}: {e}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred while creating the user.")
-
-class UpdateUserRequest(BaseModel):
-    email: Optional[str] = None # Allow changing email, though be cautious with this
-    password: Optional[str] = None
-    is_admin: Optional[bool] = None
-    roles: Optional[list[str]] = None
-    google_id: Optional[str] = None # Added for Google OAuth
 
 @app.put("/api/users/{user_identifier}/set", response_model=User)
 async def setUser(user_identifier: Union[int, str], user_update_request: UpdateUserRequest):
@@ -385,13 +568,16 @@ async def deleteUser(user_identifier: Union[int, str]):
     else:
         raise HTTPException(status_code=400, detail="Invalid user identifier. Must be email or ID.")
 
-    # Check if user exists before attempting deletion (optional, but good for clear error messages)
-    user_exists = await app.state.db.fetchval(
-        f"SELECT EXISTS(SELECT 1 FROM users WHERE {condition_column} = $1)",
+    # Fetch user details before attempting deletion for logging
+    user_to_delete_row = await app.state.db.fetchrow(
+        f"SELECT id, email FROM users WHERE {condition_column} = $1",
         user_identifier
     )
-    if not user_exists:
+    if not user_to_delete_row:
         raise HTTPException(status_code=404, detail=f"User with {condition_column} '{user_identifier}' not found.")
+
+    user_email_for_log = user_to_delete_row['email']
+    user_id_for_log = user_to_delete_row['id']
 
     try:
         result = await app.state.db.execute(
@@ -401,13 +587,9 @@ async def deleteUser(user_identifier: Union[int, str]):
         if result == "DELETE 0": # Should ideally be caught by the check above
             raise HTTPException(status_code=404, detail=f"User with {condition_column} '{user_identifier}' not found during delete, though existed moments before.")
 
-        action_desc_user_id = user_identifier
-        if isinstance(user_identifier, int): # If it was an ID, try to get email for logging
-            action_desc_user_id = existing_user_row['email'] if existing_user_row else user_identifier
-
         await log_generic_action(
             db_pool=app.state.db,
-            action_description=f"User '{action_desc_user_id}' deleted.",
+            action_description=f"User '{user_email_for_log}' (ID: {user_id_for_log}) deleted.",
             username="admin_api" # Placeholder
         )
         return {"status": "success", "message": f"User with {condition_column} '{user_identifier}' deleted successfully."}

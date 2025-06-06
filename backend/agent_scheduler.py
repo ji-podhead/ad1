@@ -101,42 +101,42 @@ Body:
 
 class AgentScheduler:
     def __init__(self):
-        self.tasks = []  # List of all scheduled tasks
+        # Store tasks in a dictionary mapping task ID (from DB) to asyncio.Task
+        self.tasks: Dict[str, asyncio.Task] = {}
 
-    def schedule_email(self, send_func: Callable, to: str, subject: str, body: str, when: datetime.datetime):
+    def schedule_email(self, task_id: str, send_func: Callable, to: str, subject: str, body: str, when: datetime.datetime):
         """Schedule an email to be sent at a specific time."""
-        self.tasks.append(asyncio.create_task(self._run_at(send_func, to, subject, body, when)))
+        # Associate the asyncio task with the DB task_id
+        self.tasks[task_id] = asyncio.create_task(self._run_at(send_func, to, subject, body, when))
+        logger.info(f"Scheduled email task {task_id}.")
 
-    def schedule_cron(self, func: Callable, interval_seconds: int, *args, **kwargs):
+    def schedule_cron(self, task_id: str, func: Callable, interval_seconds: int, *args, **kwargs):
         """Schedule a periodic task (classic cronjob)."""
-        self.tasks.append(asyncio.create_task(self._run_cron(func, interval_seconds, *args, **kwargs)))
+        # Associate the asyncio task with the DB task_id
+        self.tasks[task_id] = asyncio.create_task(self._run_cron(func, interval_seconds, *args, **kwargs))
+        logger.info(f"Scheduled cron task {task_id} to run every {interval_seconds} seconds.")
 
-    def schedule_agent_event(self, agent_func: Callable, condition: str, interval_seconds: int, action: Callable, *args, **kwargs):
+    def schedule_agent_event(self, task_id: str, agent_func: Callable, condition: str, interval_seconds: int, action: Callable, *args, **kwargs):
         """Schedule an AgentEvent: Agent periodically checks a semantic condition and triggers an action if true."""
-        self.tasks.append(asyncio.create_task(self._run_agent_event(agent_func, condition, interval_seconds, action, *args, **kwargs)))
+        # Associate the asyncio task with the DB task_id
+        self.tasks[task_id] = asyncio.create_task(self._run_agent_event(agent_func, condition, interval_seconds, action, *args, **kwargs))
+        logger.info(f"Scheduled agent event task {task_id}.")
 
-    async def _run_at(self, send_func, to, subject, body, when):
-        now = datetime.datetime.now()
-        delay = (when - now).total_seconds()
-        if delay > 0:
-            await asyncio.sleep(delay)
-        await send_func(to, subject, body)
-
-    async def _run_cron(self, func, interval_seconds, *args, **kwargs):
-        while True:
-            await func(*args, **kwargs)
-            await asyncio.sleep(interval_seconds)
-
-    async def _run_agent_event(self, agent_func, condition, interval_seconds, action, *args, **kwargs):
-        while True:
-            result = await agent_func(condition)
-            if result:
-                await action(*args, **kwargs)
-            await asyncio.sleep(interval_seconds)
+    def cancel_task(self, task_id: str):
+        """Cancel a specific scheduled task by its ID."""
+        task = self.tasks.pop(task_id, None)
+        if task:
+            task.cancel()
+            logger.info(f"Cancelled task {task_id}.")
+            return True
+        logger.warning(f"Attempted to cancel non-existent task {task_id}.")
+        return False
 
     def cancel_all(self):
-        for t in self.tasks:
-            t.cancel()
+        """Cancel all scheduled tasks."""
+        for task_id, task in list(self.tasks.items()): # Iterate over a copy
+            task.cancel()
+            logger.info(f"Cancelled task {task_id} during shutdown.")
         self.tasks.clear()
 
 # Example agent_func: checks a semantic condition (e.g. in emails)

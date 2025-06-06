@@ -6,7 +6,7 @@ import os
 import aiohttp
 from typing import Any, Dict, List, Optional
 
-MCP_BASE_URL = os.getenv("MCP_BASE_URL", "http://gmail:8000")
+MCP_BASE_URL = os.getenv("MCP_BASE_URL", "http://localhost:8000")
 
 async def list_emails() -> List[Dict[str, Any]]:
     """Hole alle E-Mails über die MCP-Bridge."""
