@@ -72,6 +72,7 @@ export function MainMenubar() { // Removed props: user, onLogin, onLogout
     { to: "/audit", label: "Audit" },
     { to: "/ipam", label: "IAM" },
     { to: "/chat", label: "Agent Chat" },
+    { to: "/workflow-builder", label: "Workflow Builder" },
   ];
   // Determine if the User Management link should be shown
   const showUserManagementLink = user && user.is_admin;
