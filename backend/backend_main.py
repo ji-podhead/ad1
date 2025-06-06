@@ -65,6 +65,19 @@ class AuditTrail(BaseModel):
     username: str # Matches DB column name "username"
     timestamp: str
 
+class EmailTypeBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class EmailTypeCreate(EmailTypeBase):
+    pass
+
+class EmailType(EmailTypeBase):
+    id: int
+
+class SettingUpdate(BaseModel):
+    value: str
+
 class SchedulerTask(BaseModel):
     id: str
     type: str
@@ -110,15 +123,40 @@ class SetTaskStatusRequest(BaseModel):
     status: str
 
 # DB pool
+DEFAULT_SCAN_INTERVAL = 60
+MIN_SCAN_INTERVAL = 10
+
 @app.on_event("startup")
 async def startup():
     app.state.db = await asyncpg.create_pool(DATABASE_URL)
-    # Initialize and store scheduler
-    app.state.scheduler = AgentScheduler() # Use the global scheduler instance or app.state.scheduler
+    app.state.scheduler = AgentScheduler()
+
+    # Determine email scan interval
+    scan_interval = DEFAULT_SCAN_INTERVAL
+    try:
+        record = await app.state.db.fetchrow("SELECT value FROM system_settings WHERE key = 'email_scan_interval'")
+        if record and record['value']:
+            try:
+                db_interval = int(record['value'])
+                if db_interval >= MIN_SCAN_INTERVAL:
+                    scan_interval = db_interval
+                    logging.info(f"Using email_scan_interval from system_settings: {scan_interval} seconds.")
+                else:
+                    scan_interval = MIN_SCAN_INTERVAL
+                    logging.warning(f"email_scan_interval from DB ({db_interval}s) is below minimum ({MIN_SCAN_INTERVAL}s). Using minimum.")
+            except ValueError:
+                logging.warning(f"Invalid email_scan_interval value '{record['value']}' in system_settings. Using default: {DEFAULT_SCAN_INTERVAL} seconds.")
+        else:
+            logging.info(f"No email_scan_interval found in system_settings. Using default: {DEFAULT_SCAN_INTERVAL} seconds.")
+    except Exception as e:
+        logging.error(f"Error reading email_scan_interval from system_settings: {e}. Using default: {DEFAULT_SCAN_INTERVAL} seconds.")
+
     # Schedule the email checking job
-    # Make sure check_new_emails is an async function that accepts db_pool
-    app.state.scheduler.schedule_cron(check_new_emails, 60, app.state.db)
-    print("Scheduled email checking job to run every 60 seconds.")
+    app.state.scheduler.schedule_cron(check_new_emails, scan_interval, app.state.db)
+    logging.info(f"Scheduled email checking job to run every {scan_interval} seconds.")
+    # For print:
+    print(f"Scheduled email checking job to run every {scan_interval} seconds.")
+
 
     # Process ADMIN_EMAILS
     admin_emails_str = os.getenv("ADMIN_EMAILS")
@@ -183,6 +221,144 @@ async def label_email(email_id: int, label: str):
 async def get_audit():
     rows = await app.state.db.fetch("SELECT * FROM audit_trail ORDER BY timestamp DESC LIMIT 100")
     return [dict(row) for row in rows]
+
+# Email Types Endpoints
+@app.post("/api/email_types", response_model=EmailType, status_code=201)
+async def create_email_type(email_type: EmailTypeCreate, request: Request):
+    try:
+        query = "INSERT INTO email_types (name, description) VALUES ($1, $2) RETURNING id, name, description"
+        row = await request.app.state.db.fetchrow(query, email_type.name, email_type.description)
+        if row:
+            created_type = EmailType(**dict(row))
+            await log_generic_action(
+                db_pool=request.app.state.db,
+                action_description=f"Email type '{created_type.name}' (ID: {created_type.id}) created.",
+                username="user_api"  # Placeholder
+            )
+            return created_type
+        raise HTTPException(status_code=500, detail="Failed to create email type.")
+    except UniqueViolationError:
+        raise HTTPException(status_code=400, detail=f"Email type with name '{email_type.name}' already exists.")
+    except Exception as e:
+        logging.error(f"Error creating email type {email_type.name}: {e}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while creating the email type.")
+
+@app.get("/api/email_types", response_model=List[EmailType])
+async def get_email_types(request: Request):
+    query = "SELECT id, name, description FROM email_types ORDER BY name"
+    rows = await request.app.state.db.fetch(query)
+    return [EmailType(**dict(row)) for row in rows]
+
+@app.get("/api/email_types/{type_id}", response_model=EmailType)
+async def get_email_type_by_id(type_id: int, request: Request):
+    query = "SELECT id, name, description FROM email_types WHERE id = $1"
+    row = await request.app.state.db.fetchrow(query, type_id)
+    if row:
+        return EmailType(**dict(row))
+    raise HTTPException(status_code=404, detail=f"Email type with ID {type_id} not found.")
+
+@app.put("/api/email_types/{type_id}", response_model=EmailType)
+async def update_email_type(type_id: int, email_type_update: EmailTypeCreate, request: Request):
+    # Fetch existing to ensure it exists and for logging old values if needed
+    existing_type_row = await request.app.state.db.fetchrow("SELECT name, description FROM email_types WHERE id = $1", type_id)
+    if not existing_type_row:
+        raise HTTPException(status_code=404, detail=f"Email type with ID {type_id} not found.")
+
+    # Check for name uniqueness if name is being changed
+    if email_type_update.name != existing_type_row["name"]:
+        name_exists = await request.app.state.db.fetchval("SELECT EXISTS(SELECT 1 FROM email_types WHERE name = $1 AND id != $2)", email_type_update.name, type_id)
+        if name_exists:
+            raise HTTPException(status_code=400, detail=f"Email type with name '{email_type_update.name}' already exists.")
+
+    query = "UPDATE email_types SET name = $1, description = $2 WHERE id = $3 RETURNING id, name, description"
+    try:
+        row = await request.app.state.db.fetchrow(query, email_type_update.name, email_type_update.description, type_id)
+        if row:
+            updated_type = EmailType(**dict(row))
+            await log_generic_action(
+                db_pool=request.app.state.db,
+                action_description=f"Email type '{updated_type.name}' (ID: {updated_type.id}) updated. Old name: '{existing_type_row['name']}'.",
+                username="user_api"  # Placeholder
+            )
+            return updated_type
+        # This path should ideally not be reached if the initial check passed and DB is consistent
+        raise HTTPException(status_code=404, detail=f"Email type with ID {type_id} not found during update.")
+    except UniqueViolationError: # Should be caught by pre-check, but as a safeguard
+        raise HTTPException(status_code=400, detail=f"Email type with name '{email_type_update.name}' already exists.")
+    except Exception as e:
+        logging.error(f"Error updating email type ID {type_id}: {e}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while updating the email type.")
+
+
+@app.delete("/api/email_types/{type_id}", status_code=200)
+async def delete_email_type(type_id: int, request: Request):
+    # Fetch existing to log its name before deletion
+    existing_type_row = await request.app.state.db.fetchrow("SELECT name FROM email_types WHERE id = $1", type_id)
+    if not existing_type_row:
+        raise HTTPException(status_code=404, detail=f"Email type with ID {type_id} not found.")
+
+    result = await request.app.state.db.execute("DELETE FROM email_types WHERE id = $1", type_id)
+    if result == "DELETE 0": # Should be caught by the check above
+        raise HTTPException(status_code=404, detail=f"Email type with ID {type_id} not found during delete.")
+
+    await log_generic_action(
+        db_pool=request.app.state.db,
+        action_description=f"Email type '{existing_type_row['name']}' (ID: {type_id}) deleted.",
+        username="user_api"  # Placeholder
+    )
+    return {"status": "success", "message": f"Email type '{existing_type_row['name']}' (ID: {type_id}) deleted successfully."}
+
+# System Settings Endpoints
+@app.get("/api/settings/email_scan_interval")
+async def get_email_scan_interval(request: Request):
+    try:
+        record = await request.app.state.db.fetchrow("SELECT value FROM system_settings WHERE key = 'email_scan_interval'")
+        if record and record['value']:
+            try:
+                interval = int(record['value'])
+                return {"interval": interval}
+            except ValueError:
+                # Value in DB is not an int, return default but also log an error
+                logging.error(f"Invalid non-integer value '{record['value']}' for 'email_scan_interval' in database.")
+                return {"interval": DEFAULT_SCAN_INTERVAL, "warning": "Invalid value in database, using default."}
+        return {"interval": DEFAULT_SCAN_INTERVAL} # Default if not set
+    except Exception as e:
+        logging.error(f"Error fetching email_scan_interval: {e}")
+        raise HTTPException(status_code=500, detail="Error fetching email scan interval.")
+
+@app.put("/api/settings/email_scan_interval")
+async def set_email_scan_interval(setting_update: SettingUpdate, request: Request):
+    try:
+        new_interval = int(setting_update.value)
+        if new_interval < MIN_SCAN_INTERVAL:
+            raise HTTPException(status_code=400, detail=f"Scan interval cannot be less than {MIN_SCAN_INTERVAL} seconds.")
+
+        # Upsert logic: Insert or Update the setting
+        await request.app.state.db.execute(
+            """
+            INSERT INTO system_settings (key, value)
+            VALUES ('email_scan_interval', $1)
+            ON CONFLICT (key) DO UPDATE SET value = $1;
+            """,
+            str(new_interval)
+        )
+        await log_generic_action(
+            db_pool=request.app.state.db,
+            action_description=f"Email scan interval updated to {new_interval} seconds. Restart backend for changes to take effect.",
+            username="user_api" # Placeholder
+        )
+        return {
+            "status": "success",
+            "message": f"Email scan interval set to {new_interval} seconds.",
+            "note": "A restart of the backend service is required for the new interval to take effect on the scheduler."
+        }
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid interval value. Must be an integer.")
+    except HTTPException: # Re-raise if it's an HTTPException we threw (e.g. below min value)
+        raise
+    except Exception as e:
+        logging.error(f"Error setting email_scan_interval: {e}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while setting the email scan interval.")
 
 # WebSocket for agent chat (MCP integration)
 @app.websocket("/ws/agent")
