@@ -55,15 +55,15 @@ const WorkflowBuilder: React.FC = () => {
     };
 
     if (triggerType === 'cron') {
-      payload.interval_seconds = interval === '' ? undefined : parseInt(interval as string, 10);
-      // payload.date_val = null; // Or add UI for this if specific start date/time needed
+      payload.interval = interval === '' ? undefined : parseInt(interval as string, 10); // Changed to 'interval'
+      // payload.date = null; // Changed to 'date' if UI for this is added (was date_val)
     }
 
     // Include email fields if "Send Email" step is selected or if they are filled (general purpose)
     // For this iteration, we'll include them if the "Send Email" step is selected,
     // or if any email field has a value (could be a general purpose workflow that sends an email)
     if (selectedSteps.includes('send_email') || toEmail || emailSubject || emailBody) {
-      payload.to_email = toEmail;
+      payload.to = toEmail; // Changed to 'to'
       payload.subject = emailSubject;
       payload.body = emailBody;
     }
@@ -72,9 +72,9 @@ const WorkflowBuilder: React.FC = () => {
     Object.keys(payload).forEach(key => {
         if (payload[key] === undefined || payload[key] === null || payload[key] === '') {
             // For optional fields, backend might expect them to be absent if not set, rather than null/empty.
-            // However, for numbers like interval_seconds, 0 might be valid.
+            // However, for numbers like interval, 0 might be valid.
             // Adjust this logic based on backend expectations. For now, removing undefined/null/empty strings.
-            if (key !== 'interval_seconds' || payload[key] === '') { // Keep interval_seconds if it's 0
+            if (key !== 'interval' || payload[key] === '') { // Keep interval if it's 0 (was interval_seconds)
                  delete payload[key];
             }
         }

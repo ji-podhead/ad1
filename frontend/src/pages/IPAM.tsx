@@ -2,8 +2,16 @@ import React, { useState, useEffect } from "react";
 
 const allRoles = ["Lesen", "Schreiben", "Validieren", "Runterladen"];
 
+import { User as AuthUser } from '../contexts/AuthContext'; // Assuming User interface is exported
+
+// Potentially extend or use AuthUser, ensure properties match what /api/users returns
+// For this page, we might need 'id' if we are to make updates.
+interface PageUser extends AuthUser {
+  id: number; // Assuming /api/users returns id
+}
+
 const IPAMPage: React.FC = () => {
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<PageUser[]>([]);
   const [email, setEmail] = useState("");
   const [roles, setRoles] = useState<string[]>([]);
   const [error, setError] = useState("");
@@ -25,13 +33,18 @@ const IPAMPage: React.FC = () => {
       return;
     }
     try {
-      const res = await fetch("/api/users", {
+      // Backend expects 'password'. Sending a default one.
+      // Also, the endpoint is /api/users/add
+      const res = await fetch("/api/users/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, roles, is_admin: false }),
+        body: JSON.stringify({ email, roles, is_admin: false, password: "defaultPassword123" }),
       });
-      if (!res.ok) throw new Error("Fehler beim Anlegen des Users");
-      const newUser = await res.json();
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ detail: "Fehler beim Anlegen des Users" }));
+        throw new Error(errorData.detail || "Fehler beim Anlegen des Users");
+      }
+      const newUser: PageUser = await res.json(); // Ensure newUser matches PageUser structure
       setUsers([...users, newUser]);
       setEmail("");
       setRoles([]);
@@ -48,14 +61,19 @@ const IPAMPage: React.FC = () => {
   };
 
   const handleAdminToggle = (idx: number) => {
+    // TODO: This only updates local state. Need to call backend API to persist.
+    // Example: /api/users/{users[idx].id}/set with body { is_admin: !users[idx].is_admin }
     setUsers((prev) =>
       prev.map((u, i) =>
-        i === idx ? { ...u, isAdmin: !u.isAdmin } : u
+        i === idx ? { ...u, is_admin: !u.is_admin } : u // Use is_admin
       )
     );
+    alert("Hinweis: Admin-Status-Änderung ist nur lokal und wird nicht gespeichert.");
   };
 
   const handleUserRoleChange = (idx: number, role: string, checked: boolean) => {
+    // TODO: This only updates local state. Need to call backend API to persist.
+    // Example: /api/users/{users[idx].id}/set with body { roles: new_roles_array }
     setUsers((prev) =>
       prev.map((u, i) =>
         i === idx
@@ -104,12 +122,12 @@ const IPAMPage: React.FC = () => {
           <tr className="bg-gray-100">
             <th className="p-2">E-Mail</th>
             <th className="p-2">Rollen</th>
-            <th className="p-2">Admin</th>
+            <th className="p-2">Admin (Lokal)</th>
           </tr>
         </thead>
         <tbody>
           {users.map((user, idx) => (
-            <tr key={user.email} className="border-t">
+            <tr key={user.id || user.email} className="border-t"> {/* Use id if available */}
               <td className="p-2 font-mono">{user.email}</td>
               <td className="p-2">
                 <div className="flex gap-2 flex-wrap">
@@ -128,7 +146,7 @@ const IPAMPage: React.FC = () => {
               <td className="p-2">
                 <input
                   type="checkbox"
-                  checked={user.isAdmin}
+                  checked={user.is_admin} // Use is_admin
                   onChange={() => handleAdminToggle(idx)}
                 />
               </td>

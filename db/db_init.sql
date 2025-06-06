@@ -24,7 +24,8 @@ CREATE TABLE users (
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     is_admin BOOLEAN NOT NULL DEFAULT FALSE,
-    roles TEXT[] NOT NULL DEFAULT '{}'
+    roles TEXT[] NOT NULL DEFAULT '{}',
+    google_id TEXT -- Added for Google OAuth
 );
 
 CREATE TABLE tasks (

@@ -60,9 +60,9 @@ class Email(BaseModel):
 
 class AuditTrail(BaseModel):
     id: int
-    email_id: int
+    email_id: Optional[int] = None # Matches DB schema (can be NULL)
     action: str
-    user: str
+    username: str # Matches DB column name "username"
     timestamp: str
 
 class SchedulerTask(BaseModel):
@@ -88,6 +88,7 @@ class User(BaseModel):
     password: str | None = None
     is_admin: bool = False
     roles: list[str] = []
+    google_id: Optional[str] = None # Added for Google OAuth
 
 class ProcessingTask(BaseModel):
     id: int # from tasks table
@@ -265,22 +266,24 @@ class CreateUserRequest(BaseModel):
     password: str
     is_admin: bool = False
     roles: list[str] = []
+    google_id: Optional[str] = None # Added for Google OAuth
 
 @app.post("/api/users/add", response_model=User)
 async def addUser(user_create_request: CreateUserRequest):
     hashed_password = pwd_context.hash(user_create_request.password)
     try:
         query = """
-            INSERT INTO users (email, password, is_admin, roles)
-            VALUES ($1, $2, $3, $4)
-            RETURNING id, email, is_admin, roles
+            INSERT INTO users (email, password, is_admin, roles, google_id)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id, email, is_admin, roles, google_id
         """
         row = await app.state.db.fetchrow(
             query,
             user_create_request.email,
             hashed_password,
             user_create_request.is_admin,
-            user_create_request.roles
+            user_create_request.roles,
+            user_create_request.google_id
         )
         if row:
             created_user = User(**dict(row))
@@ -305,6 +308,7 @@ class UpdateUserRequest(BaseModel):
     password: Optional[str] = None
     is_admin: Optional[bool] = None
     roles: Optional[list[str]] = None
+    google_id: Optional[str] = None # Added for Google OAuth
 
 @app.put("/api/users/{user_identifier}/set", response_model=User)
 async def setUser(user_identifier: Union[int, str], user_update_request: UpdateUserRequest):
@@ -322,7 +326,7 @@ async def setUser(user_identifier: Union[int, str], user_update_request: UpdateU
 
     # Fetch existing user
     existing_user_row = await app.state.db.fetchrow(
-        f"SELECT id, email, password, is_admin, roles FROM users WHERE {condition_column} = $1",
+        f"SELECT id, email, password, is_admin, roles, google_id FROM users WHERE {condition_column} = $1",
         user_identifier
     )
     if not existing_user_row:
@@ -338,13 +342,15 @@ async def setUser(user_identifier: Union[int, str], user_update_request: UpdateU
         update_fields["is_admin"] = user_update_request.is_admin
     if user_update_request.roles is not None and user_update_request.roles != existing_user["roles"]:
         update_fields["roles"] = user_update_request.roles
+    if user_update_request.google_id is not None and user_update_request.google_id != existing_user.get("google_id"): # Use .get for safety
+        update_fields["google_id"] = user_update_request.google_id
 
     if not update_fields:
         # Return existing user data if no changes are requested
         return User(**existing_user)
 
     set_clauses = ", ".join([f"{field} = ${i+2}" for i, field in enumerate(update_fields.keys())])
-    query = f"UPDATE users SET {set_clauses} WHERE {condition_column} = $1 RETURNING id, email, is_admin, roles"
+    query = f"UPDATE users SET {set_clauses} WHERE {condition_column} = $1 RETURNING id, email, is_admin, roles, google_id"
 
     try:
         updated_user_row = await app.state.db.fetchrow(query, user_identifier, *update_fields.values())
@@ -411,7 +417,7 @@ async def deleteUser(user_identifier: Union[int, str]):
 
 @app.get("/api/users")
 async def list_users():
-    rows = await app.state.db.fetch("SELECT id, email, is_admin, roles FROM users")
+    rows = await app.state.db.fetch("SELECT id, email, is_admin, roles, google_id FROM users")
     return [dict(row) for row in rows]
 
 @app.get("/api/oauth-config")
@@ -432,10 +438,11 @@ async def userinfo(request: Request):
     email = data.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="Missing email")
-    row = await app.state.db.fetchrow("SELECT is_admin, roles FROM users WHERE email=$1", email)
+    # Also fetch google_id if it's relevant for userinfo response
+    row = await app.state.db.fetchrow("SELECT is_admin, roles, google_id FROM users WHERE email=$1", email)
     if not row:
-        return {"is_admin": False, "roles": []}
-    return {"is_admin": row["is_admin"], "roles": row["roles"]}
+        return {"is_admin": False, "roles": [], "google_id": None} # Ensure consistent response structure
+    return {"is_admin": row["is_admin"], "roles": row["roles"], "google_id": row["google_id"]}
 
 
 @app.get("/api/processing_tasks", response_model=List[ProcessingTask])
