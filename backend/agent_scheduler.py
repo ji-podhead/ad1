@@ -71,7 +71,9 @@ async def example_send_email(to, subject, body):
 
 async def check_new_emails(db_pool: asyncpg.pool.Pool):
     """
-    Checks for new emails, inserts them into the database, and creates corresponding tasks.
+    Checks for new emails, determines their type based on 'email_receive' scheduler tasks,
+    inserts them into the database with the determined type, and creates corresponding tasks
+    in the 'tasks' table with an appropriate workflow_type.
     """
     print("Checking for new emails...")
     try:
@@ -81,65 +83,101 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool):
         return
 
     async with db_pool.acquire() as connection:
+        # Fetch active 'email_receive' scheduler tasks
+        email_receive_workflows = await connection.fetch(
+            "SELECT workflow_config, workflow_name FROM scheduler_tasks WHERE status = 'active' AND trigger_type = 'email_receive'"
+        )
+
+        applied_workflow_config = None
+        applied_workflow_name = None
+        email_workflow_type = "default_email_model" # Default if no matching workflow or config
+        task_initial_status = "pending" # Default task status
+
+        if email_receive_workflows:
+            # Assume the first active 'email_receive' workflow applies for now
+            # More sophisticated matching logic can be added later (e.g., based on sender, subject patterns)
+            first_workflow = email_receive_workflows[0]
+            applied_workflow_config = first_workflow['workflow_config']
+            applied_workflow_name = first_workflow['workflow_name']
+            print(f"Applying email_receive workflow: {applied_workflow_name}")
+
+            if applied_workflow_config:
+                if isinstance(applied_workflow_config, str): # Handle if JSON string is returned
+                    try:
+                        applied_workflow_config = json.loads(applied_workflow_config)
+                    except json.JSONDecodeError:
+                        print(f"Warning: Could not parse workflow_config JSON for {applied_workflow_name}: {applied_workflow_config}")
+                        applied_workflow_config = {} # Use empty dict to avoid errors
+
+                email_workflow_type = applied_workflow_config.get("model", email_workflow_type)
+                task_initial_status = applied_workflow_config.get("initial_status", task_initial_status)
+                print(f"Determined email_workflow_type: {email_workflow_type}, task_initial_status: {task_initial_status} from {applied_workflow_name}")
+            else:
+                print(f"No workflow_config found for {applied_workflow_name}, using defaults.")
+        else:
+            print("No active 'email_receive' workflows found. Using default types and statuses.")
+
+
         for email_data in emails_from_tool:
-            # Assume email_data contains 'id' (as messageId), 'subject', 'sender', 'body'
-            # 'sender' might be a dict like {'email': 'address'}, adapt as necessary
-            # For now, assume 'sender' is a simple string.
-            # Also, 'list_emails' doesn't provide a received_date, so we'll use now().
-            message_id = email_data.get('id')
+            message_id = email_data.get('id') # This is the external message ID from the email provider
             subject = email_data.get('subject', 'No Subject')
-            sender = email_data.get('sender', 'Unknown Sender')
+            sender = email_data.get('sender', 'Unknown Sender') # Potentially a dict {'email': 'address'}
             body = email_data.get('body', '')
             received_at = datetime.datetime.now(datetime.timezone.utc)
 
-            if not message_id:
+            # Extract simple sender email if it's a dict, otherwise use as is
+            if isinstance(sender, dict) and 'email' in sender:
+                sender_email = sender['email']
+            elif isinstance(sender, str):
+                sender_email = sender
+            else:
+                sender_email = 'Unknown Sender'
+
+
+            if not message_id: # Should ideally be the unique ID from the email service
                 print(f"Skipping email due to missing message ID: {email_data}")
                 continue
 
             try:
-                # Check if email already exists
+                # Check if email already exists based on a combination of fields.
+                # Ideally, we'd store and check against the external message_id if the 'emails' table had a column for it.
+                # The current check (subject, sender, body) is weak and prone to false negatives/positives.
                 existing_email = await connection.fetchrow(
-                    "SELECT id FROM emails WHERE subject = $1 AND sender = $2 AND body = $3", # Using combination as message_id might not be in DB
-                    subject, sender, body # A more robust check would be against a unique message_id if available and stored
-                ) # Fallback if message_id from tool is not what we expect to store or not available for query directly
+                    "SELECT id FROM emails WHERE subject = $1 AND sender = $2 AND body = $3", # Using combination
+                    subject, sender_email, body
+                )
 
                 if not existing_email:
-                    # Insert new email
-                    # The subtask implies that the `emails.id` is a SERIAL.
-                    # We also need to consider if the `message_id` from the tool should be stored.
-                    # Let's assume for now that the `emails` table should have a `message_id` column for the external ID.
-                    # If not, the current check for duplicates is (subject, sender, body), which is not ideal.
-                    # For now, I'll proceed without storing message_id from the tool directly,
-                    # and rely on the combination check, acknowledging its weakness.
-                    # The previous subtask did not add a message_id column to the emails table.
-
                     inserted_email_id = await connection.fetchval(
                         """
-                        INSERT INTO emails (subject, sender, body, received_at, label)
-                        VALUES ($1, $2, $3, $4, $5)
+                        INSERT INTO emails (subject, sender, body, received_at, label, type)
+                        VALUES ($1, $2, $3, $4, $5, $6)
                         RETURNING id
                         """,
                         subject,
-                        sender,
+                        sender_email,
                         body,
                         received_at,
-                        None  # Default label or None
+                        None,  # Default label or None
+                        email_workflow_type # Set the email type
                     )
-                    print(f"Inserted new email with ID: {inserted_email_id}")
+                    print(f"Inserted new email with ID: {inserted_email_id}, Type: {email_workflow_type}")
 
-                    # Insert corresponding task
+                    # Insert corresponding task with workflow_type
                     await connection.execute(
                         """
-                        INSERT INTO tasks (email_id, status, created_at, updated_at)
-                        VALUES ($1, 'pending', $2, $3)
+                        INSERT INTO tasks (email_id, status, created_at, updated_at, workflow_type)
+                        VALUES ($1, $2, $3, $4, $5)
                         """,
                         inserted_email_id,
-                        received_at,  # Using received_at for created_at for the task
-                        received_at   # Using received_at for updated_at for the task
+                        task_initial_status, # Use status from workflow config or default
+                        received_at,
+                        received_at,
+                        email_workflow_type # Set the task's workflow_type
                     )
-                    print(f"Created task for email ID: {inserted_email_id}")
+                    print(f"Created task for email ID: {inserted_email_id}, Workflow Type: {email_workflow_type}, Status: {task_initial_status}")
                 else:
-                    print(f"Email already exists, skipping: Subject='{subject}', Sender='{sender}'")
+                    print(f"Email already exists, skipping: Subject='{subject}', Sender='{sender_email}'")
 
             except Exception as e:
-                print(f"Error processing email (Subject: '{subject}', Sender: '{sender}'): {e}")
+                print(f"Error processing email (Subject: '{subject}', Sender: '{sender_email}'): {e}")

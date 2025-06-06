@@ -14,6 +14,7 @@ import Landing from './pages/Landing';
 import IPAMPage from './pages/IPAM';
 import About from './pages/About';
 import UserManagementPage from './pages/UserManagementPage'; // Import UserManagementPage
+import WorkflowBuilder from './pages/WorkflowBuilder'; // Import WorkflowBuilder
 import { AuthProvider } from './contexts/AuthContext';
 
 const App = () => (
@@ -31,6 +32,7 @@ const App = () => (
         <Route path="/ipam" element={<IPAMPage />} />
         <Route path="/about" element={<About />} />
         <Route path="/user-management" element={<UserManagementPage />} /> {/* Add UserManagementPage route */}
+        <Route path="/workflow-builder" element={<WorkflowBuilder />} /> {/* Add WorkflowBuilder route */}
         </Routes>
       </Layout>
     </AuthProvider>

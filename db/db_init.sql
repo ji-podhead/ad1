@@ -6,7 +6,8 @@ CREATE TABLE emails (
     sender TEXT NOT NULL,
     body TEXT NOT NULL,
     received_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    label TEXT
+    label TEXT,
+    type TEXT
 );
 
 CREATE TABLE audit_trail (
@@ -30,7 +31,8 @@ CREATE TABLE tasks (
     email_id INTEGER REFERENCES emails(id),
     status TEXT NOT NULL DEFAULT 'pending', -- e.g., pending, processing, completed, failed
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    workflow_type TEXT
 );
 
 -- Trigger function to update 'updated_at' timestamp
@@ -60,7 +62,10 @@ CREATE TABLE scheduler_tasks (
     date_val TEXT, -- 'date' in Pydantic model
     interval_seconds INTEGER, -- 'interval' in Pydantic model
     condition TEXT,
-    actionDesc TEXT
+    actionDesc TEXT,
+    trigger_type TEXT,
+    workflow_config JSONB,
+    workflow_name TEXT
 );
 
 INSERT INTO emails (subject, sender, body, label)

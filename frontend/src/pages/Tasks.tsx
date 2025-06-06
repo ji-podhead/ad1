@@ -15,6 +15,7 @@ interface ProcessingTask {
   email_body?: string | null;
   email_received_at?: string | null; // ISO date string
   email_label?: string | null;
+  workflow_type?: string | null;
 }
 
 // Consistent status styling, ensure keys are lowercase to match backend or use .toLowerCase() when accessing
@@ -124,6 +125,7 @@ const Tasks: React.FC = () => {
                 <th className="p-3 text-left text-sm font-semibold text-gray-700">Email Subject</th>
                 <th className="p-3 text-left text-sm font-semibold text-gray-700">Sender</th>
                 <th className="p-3 text-left text-sm font-semibold text-gray-700">Status</th>
+                <th className="p-3 text-left text-sm font-semibold text-gray-700">Workflow Type</th>
                 <th className="p-3 text-left text-sm font-semibold text-gray-700">Email Received</th>
                 <th className="p-3 text-left text-sm font-semibold text-gray-700">Task Updated</th>
                 <th className="p-3 text-left text-sm font-semibold text-gray-700">Actions</th>
@@ -139,6 +141,7 @@ const Tasks: React.FC = () => {
                       <span>{statusIcons[task.status.toLowerCase()] || statusIcons['pending']}</span> {task.status}
                     </span>
                   </td>
+                  <td className="p-3 text-sm text-gray-700">{task.workflow_type || 'N/A'}</td>
                   <td className="p-3 text-sm text-gray-700">{formatDate(task.email_received_at)}</td>
                   <td className="p-3 text-sm text-gray-700">{formatDate(task.updated_at)}</td>
                   <td className="p-3 text-sm flex gap-2">

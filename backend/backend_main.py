@@ -55,6 +55,7 @@ class Email(BaseModel):
     sender: str
     body: str
     label: Optional[str]
+    type: Optional[str] = None
 
 class AuditTrail(BaseModel):
     id: int
@@ -76,6 +77,9 @@ class SchedulerTask(BaseModel):
     interval: Optional[int] = None
     condition: Optional[str] = None
     actionDesc: Optional[str] = None
+    trigger_type: str
+    workflow_config: Optional[dict] = None
+    workflow_name: Optional[str] = None
 
 class User(BaseModel):
     id: int | None = None
@@ -96,7 +100,11 @@ class ProcessingTask(BaseModel):
     email_body: Optional[str] = None
     email_received_at: Optional[datetime.datetime] = None
     email_label: Optional[str] = None
+    workflow_type: Optional[str] = None
 
+
+class SetTaskStatusRequest(BaseModel):
+    status: str
 
 # DB pool
 @app.on_event("startup")
@@ -143,12 +151,12 @@ async def shutdown():
 # Email endpoints
 @app.get("/api/emails", response_model=List[Email])
 async def get_emails():
-    rows = await app.state.db.fetch("SELECT * FROM emails")
+    rows = await app.state.db.fetch("SELECT id, subject, sender, body, label, type FROM emails")
     return [dict(row) for row in rows]
 
 @app.get("/api/emails/{email_id}", response_model=Email)
 async def get_email(email_id: int):
-    row = await app.state.db.fetchrow("SELECT * FROM emails WHERE id=$1", email_id)
+    row = await app.state.db.fetchrow("SELECT id, subject, sender, body, label, type FROM emails WHERE id=$1", email_id)
     return dict(row)
 
 @app.post("/api/emails/{email_id}/label")
@@ -179,7 +187,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
 @app.get("/api/scheduler/tasks", response_model=List[SchedulerTask])
 async def get_scheduler_tasks(request: Request):
-    rows = await request.app.state.db.fetch("SELECT id, type, description, status, nextRun, to_email as \"to\", subject, body, date_val as \"date\", interval_seconds as \"interval\", condition, actionDesc FROM scheduler_tasks")
+    rows = await request.app.state.db.fetch("SELECT id, type, description, status, nextRun, to_email as \"to\", subject, body, date_val as \"date\", interval_seconds as \"interval\", condition, actionDesc, trigger_type, workflow_config, workflow_name FROM scheduler_tasks")
     return [dict(row) for row in rows]
 
 @app.post("/api/scheduler/task", response_model=SchedulerTask)
@@ -191,12 +199,12 @@ async def create_scheduler_task(task: SchedulerTask, request: Request):
 
     await request.app.state.db.execute(
         """
-        INSERT INTO scheduler_tasks (id, type, description, status, nextRun, to_email, subject, body, date_val, interval_seconds, condition, actionDesc)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        INSERT INTO scheduler_tasks (id, type, description, status, nextRun, to_email, subject, body, date_val, interval_seconds, condition, actionDesc, trigger_type, workflow_config, workflow_name)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         """,
         task.id, task.type, task.description, task.status, task.nextRun,
         task.to, task.subject, task.body, task.date, task.interval,
-        task.condition, task.actionDesc
+        task.condition, task.actionDesc, task.trigger_type, task.workflow_config, task.workflow_name
     )
     # TODO: Actual scheduling logic with app.state.scheduler needs to be wired up here
     # For example, if task.type == 'email', schedule it.
@@ -397,7 +405,8 @@ async def get_processing_tasks(request: Request):
         e.sender AS email_sender,
         e.body AS email_body,
         e.received_at AS email_received_at,
-        e.label AS email_label
+        e.label AS email_label,
+        t.workflow_type
     FROM tasks t
     LEFT JOIN emails e ON t.email_id = e.id
     ORDER BY t.created_at DESC;
@@ -444,3 +453,23 @@ async def abort_task(task_id: int, request: Request):
 
     await log_task_action(request.app.state.db, task_id, "abort")
     return {"status": "success", "message": f"Task {task_id} marked as aborted."}
+
+
+@app.post("/api/tasks/{task_id}/status")
+async def set_task_status(task_id: int, status_request: SetTaskStatusRequest, request: Request):
+    # Update task status
+    # The trigger will automatically update 'updated_at'
+    result = await request.app.state.db.execute(
+        "UPDATE tasks SET status = $1 WHERE id = $2",
+        status_request.status, task_id
+    )
+    if result == "UPDATE 0":
+        raise HTTPException(status_code=404, detail=f"Task with id {task_id} not found")
+
+    # Log the action
+    await log_task_action(request.app.state.db, task_id, f"status_set_to_{status_request.status}")
+
+    # Optionally, fetch and return the updated task
+    # updated_task = await request.app.state.db.fetchrow("SELECT * FROM tasks WHERE id = $1", task_id)
+    # return dict(updated_task)
+    return {"status": "success", "message": f"Task {task_id} status updated to {status_request.status}."}
