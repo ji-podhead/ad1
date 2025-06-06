@@ -11,7 +11,7 @@ interface Document {
   received_at: string;
   type: string | null;
   short_description: string | null;
-  // label: string | null; // If you need to retain label from previous structure for some reason
+  label: string | null; // Added to match backend Email model
 }
 
 const Documents: React.FC = () => {

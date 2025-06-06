@@ -4,6 +4,7 @@ interface User {
   email: string | null;
   is_admin: boolean;
   roles: string[];
+  google_id?: string | null; // Added for Google OAuth
 }
 
 interface AuthContextType {
@@ -42,15 +43,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         body: JSON.stringify({ email }),
       });
       if (response.ok) {
-        const data = await response.json();
-        setUserState({ email, is_admin: data.is_admin, roles: data.roles });
+        const data = await response.json(); // Expects { is_admin: boolean, roles: string[], google_id?: string | null }
+        setUserState({ email, is_admin: data.is_admin, roles: data.roles, google_id: data.google_id });
       } else {
         console.error('Failed to fetch user info:', response.status);
-        setUserState({ email, is_admin: false, roles: [] }); // Fallback
+        setUserState({ email, is_admin: false, roles: [], google_id: null }); // Fallback
       }
     } catch (error) {
       console.error('Error fetching user info:', error);
-      setUserState({ email, is_admin: false, roles: [] }); // Fallback
+      setUserState({ email, is_admin: false, roles: [], google_id: null }); // Fallback
     } finally {
       setIsLoading(false);
     }

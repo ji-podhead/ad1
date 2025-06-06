@@ -72,7 +72,7 @@ services:
     ports:
       - "8002:8002"
     environment:
-      - DOC_SERVICE_INTERNAL_PORT= 8002 # Service will listen on port 8002 on the host
+      - DOC_SERVICE_INTERNAL_PORT=8002 # Service will listen on port 8002 on the host
       - TRANSFORMERS_CACHE=/app/huggingface_cache
       # - NVIDIA_VISIBLE_DEVICES=all # Uncomment for local GPU with nvidia-docker
       # - NVIDIA_DRIVER_CAPABILITIES=compute,utility # Uncomment for local GPU
