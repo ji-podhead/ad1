@@ -330,3 +330,38 @@ All endpoints return JSON. For more details, see the backend source code in `bac
 Any commercial use, resale, or distribution of this software (including SaaS, on-prem, or as part of another product) is strictly prohibited without a written contract with the copyright holder.
 
 Contact the author for licensing options. All rights remain with the project owner.
+
+## Backend Docker Build & Compose Usage
+
+### Backend-Image lokal bauen
+
+1. **Image bauen:**
+   
+   ```bash
+   docker build -f build/Dockerfile.backend -t orchestranexus/agentbox:0.0.0 .
+   ```
+   
+   - Das `-f` gibt den Pfad zum Dockerfile an.
+   - Das `-t` setzt den Namen und Tag für das Image.
+   - Der Punkt `.` steht für das Build-Kontext-Verzeichnis (Projekt-Root).
+
+2. **Stack starten:**
+   
+   ```bash
+   docker compose up --build
+   ```
+   
+   Das `--build` sorgt dafür, dass alle Images (inkl. Backend) bei Änderungen neu gebaut werden.
+
+3. **Optional: Image-Cache umgehen (z.B. bei Problemen):**
+   
+   ```bash
+   docker build --no-cache -f build/Dockerfile.backend -t orchestranexus/agentbox:0.0.0 .
+   ```
+
+### Hinweise
+- Stelle sicher, dass im Backend-Dockerfile alle Abhängigkeiten installiert werden (siehe `RUN pip install ...`).
+- Die Compose-Datei verwendet jetzt das lokal gebaute Image, wenn du den `build`-Abschnitt ergänzt hast.
+- Für Änderungen am Backend-Code oder an den Abhängigkeiten muss das Image neu gebaut werden.
+
+---

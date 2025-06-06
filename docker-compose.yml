@@ -1,9 +1,12 @@
 version: "3.9"
 services:
   backend:
+    build:
+      context: .
+      dockerfile: build/Dockerfile.backend
     image: orchestranexus/agentbox:0.0.0
     container_name: mw-backend
-    command: bash -c "pip install --no-cache-dir -r /backend/requirements.txt && uvicorn backend_main:app --host 0.0.0.0 --port 8001 --reload"
+    command: uvicorn backend_main:app --host 0.0.0.0 --port 8001 --reload
     network_mode: host
     working_dir: /backend
     volumes:
@@ -68,6 +71,7 @@ services:
     build:
       context: ./doc_processing_service
     container_name: mw-doc-processing-service
+    command: bash -c "uvicorn main:app --host 0.0.0.0 --port 8002 --reload"
     network_mode: host
     ports:
       - "8002:8002"

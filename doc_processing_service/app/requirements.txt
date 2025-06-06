@@ -9,3 +9,4 @@ sentencepiece
 timm
 # protobuf is often a dependency of sentencepiece or transformers, adding preemptively
 protobuf
+uvicorn
