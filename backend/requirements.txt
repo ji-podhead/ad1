@@ -2,3 +2,10 @@ fastapi
 uvicorn[standard]
 asyncpg
 passlib[bcrypt]
+google-genai
+google-adk
+litellm
+python-dotenv
+pydantic
+mcp
+aiohttp

@@ -3,9 +3,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from "@/components/ui/button"; // Assuming Shadcn/ui components
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input';
-import { Label } from "@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from 'sonner'; // Assuming sonner for toasts, or similar
 
 interface User {

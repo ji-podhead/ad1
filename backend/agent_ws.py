@@ -5,12 +5,17 @@ import os
 import warnings
 import logging
 from fastapi import WebSocket, WebSocketDisconnect
-from google import genai
-from google.genai.types import GenerateContentConfig, HttpOptions
+from google.genai import types
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 from litellm import experimental_mcp_client
 from ws_manager import ConnectionManager
+from google import genai
+from google.genai.types import GenerateContentConfig, HttpOptions
+from google.adk.agents import Agent
+from google.adk.models.lite_llm import LiteLlm
+import litellm
+from pydantic import BaseModel
 
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.ERROR)
@@ -22,83 +27,44 @@ manager = ConnectionManager()
 
 async def categorize_email(email_body):
     """Categorizes email content using Gemini API."""
-    try:
-        client = genai.Client(api_key=GEMINI_API_KEY)
-        if not GEMINI_API_KEY:
-            logging.error("GEMINI_API_KEY is not set.")
-            raise ValueError("Missing Gemini API Key")
-
-        async with sse_client(MCP_SERVER_URL) as streams:
-            async with ClientSession(*streams) as session:
-                await session.initialize()
-                mcp_tools = await experimental_mcp_client.load_mcp_tools(session=session, format="mcp")
-
-                if not mcp_tools:
-                    logging.warning("No MCP tools available.")
-                    # Depending on strictness, could return "unknown" or raise error
-                    # For now, let it proceed, Gemini might respond without tools or error out.
-                    # return "unknown" # Or raise specific error
-
-                logging.info(f"Using {len(mcp_tools)} MCP tools for categorization.")
-
-                response = client.models.generate_content(
-                    model="gemini-2.0-flash", # Consider making model configurable
-                    contents=[email_body],
-                    config=GenerateContentConfig(
-                        system_instruction=["You are a Gmail agent. Your task is to use the available tools."],
-                        tools=mcp_tools
-                    ),
-                )
-                logging.debug(f"Gemini API response: {response}")
-
-                if response.candidates and response.candidates[0].content.parts:
-                    for part in response.candidates[0].content.parts:
-                        if hasattr(part, 'function_call') and part.function_call is not None:
-                            function_call = part.function_call
-                            logging.info(f"Gemini requested function call: {function_call.name} with args: {dict(function_call.args)}")
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    async with sse_client(MCP_SERVER_URL) as streams:
+        async with ClientSession(*streams) as session:
+            await session.initialize()
+            mcp_tools = await experimental_mcp_client.load_mcp_tools(session=session, format="mcp")
+            if not mcp_tools:
+                logging.warning("No MCP tools available.")
+                return "unknown"
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=[email_body],
+                config=GenerateContentConfig(
+                    system_instruction=["You are a Gmail agent. Your task is to use the available tools."],
+                    tools=mcp_tools
+                ),
+            )
+            if response.candidates and response.candidates[0].content.parts:
+                for part in response.candidates[0].content.parts:
+                    if hasattr(part, 'function_call') and part.function_call is not None:
+                        function_call = part.function_call
+                        try:
+                            result = await session.call_tool(
+                                function_call.name, arguments=dict(function_call.args)
+                            )
                             try:
-                                result = await session.call_tool(
-                                    function_call.name, arguments=dict(function_call.args)
-                                )
-                                logging.debug(f"MCP tool result: {result.content}")
-                                try:
-                                    # Assuming result.content[0].text is the JSON string
-                                    email_data = json.loads(result.content[0].text)
-                                    return email_data
-                                except json.JSONDecodeError as je:
-                                    logging.error(f"MCP server returned non-JSON response for {function_call.name}: {result.content[0].text} - Error: {je}")
-                                    raise ValueError(f"Invalid response format from tool {function_call.name}.")
-                                except (IndexError, AttributeError) as ae:
-                                    logging.error(f"Unexpected result structure from MCP tool {function_call.name}: {result} - Error: {ae}")
-                                    raise ValueError(f"Unexpected data structure from tool {function_call.name}.")
-                            except Exception as mcp_e: # Catch errors during MCP call_tool
-                                logging.error(f"Error calling MCP tool {function_call.name}: {mcp_e}")
-                                raise ConnectionError(f"Failed to execute tool {function_call.name} via MCP.")
-                        else:
-                            # This case means Gemini responded but didn't use a function call
-                            logging.info("No function call generated by Gemini. Model response (if any): %s", response.text if response.text else "No text response.")
-                else:
-                    logging.warning("No candidates or content parts in Gemini response.")
-
-        # Fallback if no function call path returned or other issues within sse/ClientSession
-        logging.warning("Categorization did not result in a function call or successful data extraction.")
-        return "unknown" # Default fallback
-
-    except genai.types.generation_types.BlockedPromptException as bpe:
-        logging.error(f"Gemini API blocked the prompt: {bpe}")
-        raise ValueError("Content blocked by API policy.")
-    except (genai.types.HttpError, genai.types.BrokenResponseError) as ge: # More specific Gemini client errors
-        logging.error(f"Gemini API communication error: {ge}")
-        raise ConnectionError(f"Failed to communicate with Gemini API: {ge}")
-    except ConnectionError as ce: # Catch ConnectionError from MCP or re-raised Gemini ConnectionError
-        # This allows specific handling of connection issues in agent_websocket
-        raise ce
-    except ValueError as ve: # Catch ValueError from API key, JSON parsing, blocked content
-        raise ve
-    except Exception as e:
-        logging.error(f"Unexpected error in categorize_email: {e}", exc_info=True)
-        # Raise a generic error that can be caught by the WebSocket handler
-        raise RuntimeError(f"An unexpected issue occurred during email processing: {e}")
+                                email_data = json.loads(result.content[0].text)
+                                return email_data
+                            except json.JSONDecodeError as je:
+                                logging.error(f"MCP server returned non-JSON response for {function_call.name}: {result.content[0].text} - Error: {je}")
+                            except (IndexError, AttributeError) as ae:
+                                logging.error(f"Unexpected result structure from MCP tool {function_call.name}: {result} - Error: {ae}")
+                        except Exception as mcp_e:
+                            logging.error(f"Error calling MCP tool {function_call.name}: {mcp_e}")
+                    else:
+                        logging.info("No function call generated by Gemini. Model response (if any): %s", response.text if response.text else "No text response.")
+            else:
+                logging.warning("No candidates or content parts in Gemini response.")
+            return "unknown"
 
 
 # --- WebSocket Agent Chat Logic ---

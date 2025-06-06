@@ -8,8 +8,8 @@ services:
     working_dir: /backend
     volumes:
     - ./backend:/backend
-    - ./auth/gcp-oauth.keys.json:/backend/auth/gcp-oauth.keys.json:ro
-    - ./backend/requirements.txt:/app/requirements.txt:ro
+    - ./auth/gcp-oauth.keys.json:/backend/auth/gcp-oauth.keys.json
+    - ./backend/requirements.txt:/app/requirements.txt
     - ./backend:/app/backend
     ports:
       - "8001:8001"
@@ -17,7 +17,7 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mailwhisperer
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - MCP_SERVER_URL=${MCP_SERVER_URL}
-      - ADMIN_EMAILS="admin@example.com,testuser@example.com"
+      - ADMIN_EMAILS="leo@orchestra-nexus.com"
       - DOC_PROCESSING_SERVICE_URL=http://localhost:8002/process_pdf/ # Added for new service
     depends_on:
       - db
@@ -58,6 +58,7 @@ services:
     command: bash -c "npm install & npm run dev"
     network_mode: host
     volumes:
+      - ./auth/gcp-oauth.keys.json:/app/frontend/public/gcp-oauth.keys.json
       - ./frontend:/app/frontend
     depends_on:
       - db
@@ -68,8 +69,10 @@ services:
       context: ./doc_processing_service
     container_name: mw-doc-processing-service
     network_mode: host
+    ports:
+      - "8002:8002"
     environment:
-      - DOC_SERVICE_INTERNAL_PORT=8002 # Service will listen on port 8002 on the host
+      - DOC_SERVICE_INTERNAL_PORT= 8002 # Service will listen on port 8002 on the host
       - TRANSFORMERS_CACHE=/app/huggingface_cache
       # - NVIDIA_VISIBLE_DEVICES=all # Uncomment for local GPU with nvidia-docker
       # - NVIDIA_DRIVER_CAPABILITIES=compute,utility # Uncomment for local GPU

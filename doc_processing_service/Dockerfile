@@ -26,7 +26,8 @@ COPY ./app /app
 # The model will be downloaded on the first run of the application if not cached.
 
 ENV DOC_SERVICE_INTERNAL_PORT 8000
-EXPOSE $DOC_SERVICE_INTERNAL_PORT
+EXPOSE 8002
 
 # Command to run the Uvicorn server
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "$DOC_SERVICE_INTERNAL_PORT"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", 8002, "--workers", "1", "--reload", "--log-level", "info", "--timeout-keep-alive", "60"]
+#"$DOC_SERVICE_INTERNAL_PORT"]

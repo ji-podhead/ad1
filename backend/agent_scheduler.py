@@ -11,8 +11,12 @@ import datetime
 import json
 import os
 import asyncpg # Assuming asyncpg is used for database connection
-import google.generativeai as genai
-from backend.tools_wrapper import list_emails # Import list_emails
+import google.genai as genai
+from google.genai.types import GenerateContentConfig, HttpOptions
+from google.adk.agents import Agent
+from google.adk.models.lite_llm import LiteLlm
+from litellm import experimental_mcp_client
+from tools_wrapper import list_emails # Import list_emails
 import aiohttp
 import logging # Added for explicit logging
 import base64 # For dummy PDF
@@ -26,7 +30,8 @@ logger = logging.getLogger(__name__)
 # Configure Gemini API Key
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+    client = genai.Client(api_key=GEMINI_API_KEY)
+
 else:
     print("Warning: GEMINI_API_KEY not found in environment. LLM features will not work.")
 
@@ -51,11 +56,19 @@ Body:
 {email_body[:4000]}
 """ # Limiting body length to manage token usage, adjust as needed
 
+
+
     print(f"Sending prompt to LLM ({llm_model_name}) for subject: {email_subject}")
     try:
         model = genai.GenerativeModel(llm_model_name)
         response = await model.generate_content_async(prompt)
-
+        response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=[ prompt],
+                config=GenerateContentConfig(
+                    system_instruction=["summarize the email and classify it into a document type."],
+                    ),
+            )
         # Debug: Print raw response text
         # print(f"LLM raw response: {response.text}")
 

@@ -1,10 +1,14 @@
 import asyncio
-from mcp_sse_client import MCPClient
 import json
 from dotenv import load_dotenv
-from google.genai import Client as GenaiClient
+from google.generativeai import types
 from mcp import ClientSession, StdioServerParameters
+from google import genai
+import os
+from google.adk.agents import Agent
+from google.adk.models.lite_llm import LiteLlm # For multi-model support
 from google.genai.types import GenerateContentConfig, HttpOptions
+from google.genai import types # For creating message Content/Parts
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 from pydantic import BaseModel
@@ -20,7 +24,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 async def categorize_email(email_body):
     """Categorizes email content using Gemini API."""
-    client = GenaiClient(api_key=GEMINI_API_KEY)
+    client = genai.Client(api_key=GEMINI_API_KEY)
     async with sse_client("http://localhost:8000/mcp-server/sse/") as streams:
         async with ClientSession(*streams) as session:
             await session.initialize()
@@ -31,7 +35,7 @@ async def categorize_email(email_body):
                 return "unknown"
             response = client.models.generate_content(
                 model="gemini-2.0-flash",
-                contents=["write email to yousif@test.com. tell him it works now."],
+                contents=["write email to yousif@orchestra-nexus.com, from leo@orchestra-nexus.com tell him that the gmail bot works now and give a short introduction about you and what you can do regarding your tools. it works now."],
                 config=GenerateContentConfig(
                     system_instruction=["You are a Gmail agent. Your task is to use the available tools."],
                     tools=mcp_tools
