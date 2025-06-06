@@ -1,5 +1,11 @@
 -- Example SQL for initial database setup
 
+CREATE TABLE email_types (
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT
+);
+
 CREATE TABLE emails (
     id SERIAL PRIMARY KEY,
     subject TEXT NOT NULL,
@@ -8,7 +14,8 @@ CREATE TABLE emails (
     received_at TIMESTAMP NOT NULL DEFAULT NOW(),
     label TEXT,
     type TEXT,
-    short_description TEXT DEFAULT NULL
+    short_description TEXT DEFAULT NULL,
+    extracted_data JSONB
 );
 
 CREATE TABLE audit_trail (
@@ -68,6 +75,11 @@ CREATE TABLE scheduler_tasks (
     trigger_type TEXT,
     workflow_config JSONB,
     workflow_name TEXT
+);
+
+CREATE TABLE system_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
 );
 
 INSERT INTO emails (subject, sender, body, label)

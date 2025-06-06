@@ -36,24 +36,46 @@ else:
     print("Warning: GEMINI_API_KEY not found in environment. LLM features will not work.")
 
 # Helper function to get summary and type from LLM
-async def get_summary_and_type_from_llm(email_subject: str, email_body: str, llm_model_name: str) -> Dict[str, str]:
+async def get_summary_and_type_from_llm(
+    email_subject: str,
+    email_body: str,
+    llm_model_name: str,
+    extraction_parameter_name: Optional[str] = None
+) -> Dict[str, Any]:
     """
-    Analyzes email content using an LLM to determine document type and a short description.
-    Returns a dictionary with "document_type" and "short_description".
+    Analyzes email content using an LLM to determine document type, a short description,
+    and optionally extract a specific parameter.
+    Returns a dictionary with "document_type", "short_description", and optionally "extracted_parameter".
     """
     if not GEMINI_API_KEY:
         print("Error: Gemini API key not configured. Cannot get summary from LLM.")
-        return {"document_type": "Default/Unknown (LLM Error)", "short_description": "Summary not available (LLM Error)."}
+        return {
+            "document_type": "Default/Unknown (LLM Error)",
+            "short_description": "Summary not available (LLM Error).",
+            "extracted_parameter": None
+        }
 
-    prompt = f"""Analyze the following email content and provide a document type and a short description.
-Return your response *only* as a valid JSON object with keys "document_type" and "short_description".
+    extraction_prompt_part = ""
+    if extraction_parameter_name:
+        extraction_prompt_part = f"""
+Additionally, extract the value for the parameter "{extraction_parameter_name}".
+The JSON response should include an "extracted_parameter" object with "name" and "value" keys, like this:
+"extracted_parameter": {{"name": "{extraction_parameter_name}", "value": "extracted_value_here"}}
+If the parameter is not found, the value should be null or an empty string.
+"""
+
+    prompt = f"""Analyze the following email content.
+Return your response *only* as a valid JSON object.
+The JSON object must have keys "document_type" and "short_description".
 Ensure the "document_type" is a concise category (e.g., "Invoice", "Support Request", "Marketing Email", "Sick Note", "Order Confirmation").
 Ensure the "short_description" is a 1-2 sentence summary of the email's main content.
-
+{extraction_prompt_part}
 Subject: {email_subject}
 
 Body:
 {email_body[:4000]}
+
+Your JSON response:
 """ # Limiting body length to manage token usage, adjust as needed
 
 
@@ -88,16 +110,31 @@ Body:
             data = json.loads(cleaned_response_text)
             doc_type = data.get("document_type", "Default/Unknown (LLM Parse Error)")
             short_desc = data.get("short_description", "Summary not available (LLM Parse Error).")
-            print(f"LLM result - Type: {doc_type}, Description: {short_desc}")
-            return {"document_type": str(doc_type), "short_description": str(short_desc)}
+            extracted_param = data.get("extracted_parameter") # This could be None if not in response
+
+            result = {
+                "document_type": str(doc_type),
+                "short_description": str(short_desc),
+                "extracted_parameter": extracted_param # Will be None if not found or not requested
+            }
+            print(f"LLM result - Type: {doc_type}, Description: {short_desc}, Extracted: {extracted_param}")
+            return result
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON from LLM response: {e}")
             print(f"LLM response text that failed parsing: '{cleaned_response_text}'")
-            return {"document_type": "Default/Unknown (JSON Error)", "short_description": "Summary not available (JSON Error)."}
+            return {
+                "document_type": "Default/Unknown (JSON Error)",
+                "short_description": "Summary not available (JSON Error).",
+                "extracted_parameter": None
+            }
 
     except Exception as e:
         print(f"Error during LLM call: {e}")
-        return {"document_type": "Default/Unknown (API Error)", "short_description": "Summary not available (API Error)."}
+        return {
+            "document_type": "Default/Unknown (API Error)",
+            "short_description": "Summary not available (API Error).",
+            "extracted_parameter": None
+        }
 
 class AgentScheduler:
     def __init__(self):
@@ -199,6 +236,9 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool):
             current_email_short_description = "Not processed by LLM."
             llm_model_to_use = "gemini-pro" # Default LLM model
             applied_workflow_config_dict = {} # Ensure it's always a dict
+            extraction_param_name_from_config: Optional[str] = None
+            extracted_data_for_db: Optional[dict] = None
+
 
             if email_receive_workflows:
                 first_workflow = email_receive_workflows[0]
@@ -222,22 +262,39 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool):
                 if applied_workflow_config_dict: # Check if dict is not empty after parsing attempt
                     llm_model_to_use = applied_workflow_config_dict.get("model", llm_model_to_use)
                     current_task_initial_status = applied_workflow_config_dict.get("initial_status", current_task_initial_status)
+                    extraction_param_name_from_config = applied_workflow_config_dict.get("extraction_parameter_name")
+                    # extraction_parameter_details = applied_workflow_config_dict.get("extraction_parameter_details") # For future use
 
-                    # Call LLM for summary and type
+                    # Call LLM for summary, type, and optional parameter extraction
                     llm_summary_data = await get_summary_and_type_from_llm(
                         email_subject=email_subject_str,
                         email_body=email_body_str,
-                        llm_model_name=llm_model_to_use
+                        llm_model_name=llm_model_to_use,
+                        extraction_parameter_name=extraction_param_name_from_config
                     )
                     current_email_workflow_type = llm_summary_data.get("document_type", "Default/LLMError")
                     current_email_short_description = llm_summary_data.get("short_description", "Summary N/A (LLMError)")
-                    print(f"LLM derived - Type: {current_email_workflow_type}, Description: {current_email_short_description}, Status: {current_task_initial_status}")
+                    extracted_parameter_info = llm_summary_data.get("extracted_parameter")
+
+                    llm_log_message = f"LLM processing for Email Subject: '{email_subject_str}'. Model: '{llm_model_to_use}'. Type: '{current_email_workflow_type}', Desc: '{current_email_short_description}'"
+
+                    if extracted_parameter_info and isinstance(extracted_parameter_info, dict):
+                        param_name = extracted_parameter_info.get("name")
+                        param_value = extracted_parameter_info.get("value")
+                        if param_name and param_value is not None: # Ensure value can be empty string but not None if key exists
+                            extracted_data_for_db = {"custom_extract": {param_name: param_value}}
+                            llm_log_message += f", Extracted: '{param_name}':'{param_value}'"
+                        else:
+                             logger.warning(f"LLM returned extracted_parameter with missing name/value: {extracted_parameter_info}")
+
+
+                    print(f"LLM derived - Type: {current_email_workflow_type}, Description: {current_email_short_description}, Status: {current_task_initial_status}, Extracted: {extracted_parameter_info}")
 
                     # Log LLM processing action
                     await connection.execute(
                         "INSERT INTO audit_trail (email_id, action, username, timestamp) VALUES ($1, $2, $3, NOW())",
-                        None, # email_id will be set after email insertion if it's a new email, or link if LLM is part of an update
-                        f"LLM processing for Email Subject: '{email_subject_str}'. Model: '{llm_model_to_use}'. Generated Type: '{current_email_workflow_type}', Desc: '{current_email_short_description}'",
+                        None,
+                        llm_log_message,
                         "system_llm_agent"
                     )
                 else:
@@ -254,8 +311,8 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool):
                 if not existing_email:
                     inserted_email_id = await connection.fetchval(
                         """
-                        INSERT INTO emails (subject, sender, body, received_at, label, type, short_description)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7)
+                        INSERT INTO emails (subject, sender, body, received_at, label, type, short_description, extracted_data)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                         RETURNING id
                         """,
                         email_subject_str,
@@ -264,9 +321,10 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool):
                         received_at,
                         None,  # Default label
                         current_email_workflow_type, # Type from LLM or default
-                        current_email_short_description # Description from LLM or default
+                        current_email_short_description, # Description from LLM or default
+                        json.dumps(extracted_data_for_db) if extracted_data_for_db else None # Store as JSON string or NULL
                     )
-                    print(f"Inserted new email ID: {inserted_email_id}, Type: {current_email_workflow_type}")
+                    print(f"Inserted new email ID: {inserted_email_id}, Type: {current_email_workflow_type}, Extracted Data: {extracted_data_for_db}")
 
                     # Log email ingestion
                     await connection.execute(

@@ -52,15 +52,21 @@ ad1 is a secure, modular platform for automated email and document processing, d
 
 ## Technical Architecture
 
-- **Email Processing Daemon**: A background service integrated into the backend that periodically checks for new emails via the configured email integration (MCP server).
-  - New emails are stored in the `emails` table (which now includes a `received_at` timestamp).
-  - For each new email, a corresponding entry is created in the `tasks` table with an initial status (e.g., 'pending'), linking the email to a processing workflow.
-- **Task & Document Workflow**: All documents and emails to be processed are tracked as tasks. Each task has a status (e.g., pending, processing, needs validation, validated, aborted, failed) and links to the original email/document.
+- **Email Processing Daemon**: A background service integrated into the backend that periodically checks for new emails.
+  - The scan interval is **configurable** via API (see `/api/settings/email_scan_interval`) and stored in the `system_settings` table. A backend restart is required for changes to take effect on the running scheduler.
+  - Incoming emails are processed by an LLM to generate a **summary (`short_description`) and an initial classification (`type`)**.
+  - **User-defined Email Types** can be created (see `/api/email_types` and `email_types` table). These types help categorize emails and can be associated with specific workflows.
+  - Workflows can be configured (in `scheduler_tasks.workflow_config`) to instruct the LLM to extract an **additional custom parameter** (e.g., Order ID, Case Number) from the email content. This extracted data is stored structurally in the `emails.extracted_data` JSONB column.
+  - New emails and their LLM-generated attributes (type, description, extracted parameter) are stored in the `emails` table.
+  - For each new email, a corresponding entry is created in the `tasks` table with an initial status, linking the email to a processing workflow.
+- **Task & Document Workflow**: All documents and emails to be processed are tracked as tasks. Each task has a status and links to the original email/document.
 - **Database Structure Highlights**:
-    - `emails` table: Stores email content. Includes a `received_at` column to timestamp when the email was fetched.
-    - `tasks` table: Tracks the state of each email processing job. Key columns include `id` (PK), `email_id` (FK to `emails`), `status`, `created_at`, and `updated_at` (automatically updated on modification).
-    - `scheduler_tasks` table: Persists configurations for scheduled jobs, such as the polling interval for the email daemon.
+    - `emails` table: Stores email content, LLM-generated summary (`short_description`), classification (`type`), and custom extracted parameters (`extracted_data` JSONB). Includes `received_at`.
+    - `tasks` table: Tracks the state of each email processing job.
+    - `scheduler_tasks` table: Persists configurations for scheduled jobs. The `workflow_config` JSON field within this table can now also store settings like the target `EmailType` for a workflow and the `extraction_parameter_name` for LLM-based data extraction.
     - `audit_trail` table: Logs all significant actions.
+    - `email_types` table: Stores user-defined email classifications (ID, name, description) that can be managed via API and linked to workflows.
+    - `system_settings` table: Stores system-wide configurations, such as the `email_scan_interval`.
 - **Human-in-the-Loop Validation**: After agent processing, tasks typically require manual validation. The validation UI displays the original document (left) and the processed result (right, including extracted values and handwriting recognition). Below are buttons to abort, restart (with prompt), or validate the task.
 - **Audit Trail**: Every action (email ingestion, task creation, status changes, processing, validation, abort, etc.) is logged for compliance and traceability. Audit logs are visible in the UI.
 - **Encryption & Secure Email Sending**: Once validated, documents are encrypted and sent via email. All transmission and storage is secured.
@@ -68,9 +74,16 @@ ad1 is a secure, modular platform for automated email and document processing, d
 
 ## Workflow
 
-1. **Email Ingestion**: Daemon fetches and classifies new emails, creating tasks for relevant documents.
-2. **Document Processing**: Documents are processed by agents (including handwriting/field extraction).
-3. **Validation**: Human validates the processed result in the Validation UI (original left, processed right, action buttons below).
+1. **Email Ingestion**: The daemon, running at a configurable interval, fetches new emails.
+2. **LLM Processing**: Each email is processed by an LLM to:
+    - Generate a concise summary (`short_description`).
+    - Assign an initial classification (`type`).
+    - If configured in the relevant workflow, extract a specific custom parameter (e.g., an order number).
+3. **Storage**: The email content, along with the LLM-generated summary, type, and any extracted custom parameters (stored in `extracted_data`), is saved to the `emails` table.
+4. **Task Creation**: A new task is created in the `tasks` table, linking to the ingested email.
+5. **Workflow Matching & Execution**: The system matches the email to relevant workflows. This matching can be based on criteria such as the user-defined `EmailType` (if specified in the workflow configuration). The triggered workflow can then utilize the LLM-generated summary and the extracted custom parameter for its operations.
+6. **Document Processing (if applicable)**: Specific documents attached to or linked in the email are processed by agents (including handwriting/field extraction).
+7. **Validation**: Human validates the processed result in the Validation UI.
 4. **Audit Logging**: All actions are logged and visible in the Audit Trail UI.
 5. **Encryption & Sending**: On validation, the document is encrypted and sent via email.
 6. **Status Tracking**: Task status is updated throughout; users can see and manage all tasks.
@@ -81,6 +94,15 @@ ad1 is a secure, modular platform for automated email and document processing, d
 - `/api/documents` – Upload, list, and process documents
 - `/api/validation` – Manage validation tasks (approve, abort, restart)
 - `/api/audit` – View audit logs
+- `/api/email_types` (GET, POST, PUT, DELETE): Manage user-defined email classifications.
+  - `GET /api/email_types`: List all email types.
+  - `POST /api/email_types`: Create a new email type.
+  - `GET /api/email_types/{type_id}`: Get a specific email type.
+  - `PUT /api/email_types/{type_id}`: Update an email type.
+  - `DELETE /api/email_types/{type_id}`: Delete an email type.
+- `/api/settings/email_scan_interval` (GET, PUT): Manage the email scanning interval.
+  - `GET /api/settings/email_scan_interval`: Retrieve the current interval.
+  - `PUT /api/settings/email_scan_interval`: Set a new interval (requires backend restart to apply to the scheduler).
 - `/ws/agent` – WebSocket chat for agent interaction
 - `GET /api/processing_tasks` – Returns a list of email processing tasks with their status and associated email details.
 - `POST /api/processing_tasks/{task_id}/validate` – Marks a specific processing task as validated.
@@ -137,10 +159,13 @@ ad1 is a secure, modular platform for automated email and document processing, d
 ad1 now includes a flexible workflow management system that allows users to define custom processing pipelines. Workflows are configured via the new 'Workflow Builder' page in the frontend.
 
 **Triggers:** Workflows can be triggered by:
-- **Email Receive:** Automatically when a new email arrives.
+- **Email Receive:** Automatically when a new email arrives. This is the primary trigger for email processing workflows.
 - **Cron Job:** On a scheduled basis (e.g., daily, hourly).
 
-**Configuration (Summary Step):** During setup, users define parameters such as the AI model to be used (e.g., 'gpt-4') and maximum token limits. This configuration determines the 'workflow type'.
+**Configuration (Summary Step):** During setup, users define parameters such as the AI model to be used (e.g., 'gemini-pro') and maximum token limits. This configuration determines the 'workflow type'.
+Additionally, for 'Email Receive' triggered workflows, the configuration (`workflow_config` in `scheduler_tasks`) can now include:
+-   An association with a specific **user-defined Email Type** (linking to an `id` from the `email_types` table). This allows workflows to target emails classified with a certain type.
+-   An `extraction_parameter_name`: If provided, the LLM will attempt to extract this specific parameter from the email content during the initial processing phase. The extracted value is stored in `emails.extracted_data` and can be used by subsequent workflow steps.
 
 **Workflow Steps:** Users can then select a sequence of processing steps, including:
 - Compliance Agent
