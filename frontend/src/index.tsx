@@ -13,12 +13,15 @@ import Layout from './components/Layout';
 import Landing from './pages/Landing';
 import IPAMPage from './pages/IPAM';
 import About from './pages/About';
+import UserManagementPage from './pages/UserManagementPage'; // Import UserManagementPage
+import { AuthProvider } from './contexts/AuthContext';
 
 const App = () => (
   <BrowserRouter>
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Landing />} />
+    <AuthProvider>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<Landing />} />
         <Route path="/inbox" element={<Inbox />} />
         <Route path="/documents" element={<Documents />} />
         <Route path="/validation" element={<Validation />} />
@@ -27,8 +30,10 @@ const App = () => (
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/ipam" element={<IPAMPage />} />
         <Route path="/about" element={<About />} />
-      </Routes>
-    </Layout>
+        <Route path="/user-management" element={<UserManagementPage />} /> {/* Add UserManagementPage route */}
+        </Routes>
+      </Layout>
+    </AuthProvider>
   </BrowserRouter>
 );
 

@@ -17,6 +17,7 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mailwhisperer
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - MCP_SERVER_URL=${MCP_SERVER_URL}
+      - ADMIN_EMAILS="admin@example.com,testuser@example.com"
     depends_on:
       - db
 
@@ -28,8 +29,6 @@ services:
       POSTGRES_DB: mailwhisperer
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      INIT_ADMIN_EMAIL: admin@yourdomain.com
-      INIT_ADMIN_PASSWORD: changeme123
     ports:
       - "5432:5432"
     volumes:

@@ -2,108 +2,103 @@
 import * as React from 'react';
 import { MainMenubar } from './ui/menubar';
 import FloatingAgentChat from './FloatingAgentChat';
-import { useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom'; // Added useNavigate
+import { useEffect, useState } from 'react'; // Removed useState for user
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import LoginModal from './LoginModal';
+import { useAuth } from '../contexts/AuthContext'; // Import useAuth
+import { Toaster } from 'sonner'; // Import Toaster
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
-  const [user, setUser] = useState<any>(null);
-  const [clientId, setClientId] = useState<string | null>(null);
+  const navigate = useNavigate(); // For programmatic navigation
+  const { user, isLoading, setUser } = useAuth(); // Use AuthContext
+  const [oauthClientId, setOauthClientId] = useState<string | null>(null); // For GoogleOAuthProvider
   const hideFloatingChat = location.pathname === '/chat';
 
-  // Simpler Google OAuth mock (replace with real logic)
   useEffect(() => {
-  console.log('Layout component mounted, checking user session...');
-    const stored = localStorage.getItem('ad1_user');
-    if (stored) setUser(JSON.parse(stored));
-  }, []);
+    // Fetch client ID for GoogleOAuthProvider, only if not already fetched or if login might be displayed
+    // This is for the @react-oauth/google components like GoogleLogin used in Menubar or LoginModal
+    if (!oauthClientId || (!user && !isLoading)) {
+      fetch('/api/oauth-config')
+        .then(async res => {
+          if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(`Google OAuth config not found (HTTP ${res.status}): ${errorText}`);
+          }
+          const json = await res.json();
+          if (!json.web || !json.web.client_id) {
+            throw new Error('Google OAuth config missing web.client_id.');
+          }
+          setOauthClientId(json.web.client_id);
+        })
+        .catch(err => {
+          console.error('Fetch error for /api/oauth-config:', err);
+          setOauthClientId('ERROR:' + (err?.message || err));
+        });
+    }
+  }, [user, isLoading, oauthClientId]);
 
+
+  // Effect to handle redirection if not logged in
   useEffect(() => {
-    console.log('Fetching Google OAuth config from /api/oauth-config');
-    fetch('/api/oauth-config')
-      .then(async res => {
-        console.log('Received response for /api/oauth-config:', res.status, res.headers.get('Content-Type'));
-        if (!res.ok) {
-          const errorText = await res.text();
-          console.error('HTTP Error response text:', errorText);
-          throw new Error('Google OAuth config not found (HTTP ' + res.status + ')');
-        }
-        const text = await res.text();
-        console.log('Raw response text for /api/oauth-config:', text);
-        let json;
-        try {
-          json = JSON.parse(text);
-        } catch (e) {
-          console.error('Failed to parse JSON for /api/oauth-config:', e);
-          throw new Error('Google OAuth config is not valid JSON.');
-        }
-        if (!json.web || !json.web.client_id) {
-          console.error('OAuth config missing web.client_id:', json);
-          throw new Error('Google OAuth config missing web.client_id.');
-        }
-        console.log('Successfully loaded client ID:', json.web.client_id);
-        setClientId(json.web.client_id);
-      })
-      .catch(err => {
-        console.error('Fetch error for /api/oauth-config:', err);
-        setClientId('ERROR:' + (err?.message || err));
-      });
-  }, []);
+    if (!isLoading && !user && location.pathname !== '/') {
+      console.log("User not loaded and not on landing, redirecting to /");
+      navigate('/'); // Use navigate for client-side redirection
+    }
+  }, [user, isLoading, location.pathname, navigate]);
 
-  const handleLogin = (user: any) => {
-    setUser(user);
-    localStorage.setItem('ad1_user', JSON.stringify(user));
-    // After Google login, ask backend for user info/roles
-    fetch('/api/userinfo', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: user.email, token: user.credential || null })
-    })
-      .then(res => res.json())
-      .then(info => {
-        setUser((u: any) => ({ ...u, ...info }));
-      })
-      .catch(() => {/* ignore, backend decides access */});
-  };
-  const handleLogout = () => {
-    setUser(null);
-    localStorage.removeItem('ad1_user');
-  };
-
-  // Block access to all except landing if not logged in
-  if (!user && location.pathname !== '/') {
-    window.location.href = '/';
-    return null;
+  // Render loading state or error for OAuth Client ID
+  if (isLoading && !oauthClientId) { // If auth is loading AND we don't have client_id yet for login buttons
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        Loading authentication...
+      </div>
+    );
   }
 
-  // Block navigation in Menubar if not logged in
-  const protectedNav = (e: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
-    if (!user) {
-      e.preventDefault();
-      window.location.href = '/';
-    }
-  };
+  if (!oauthClientId && location.pathname === '/') {
+    // On landing page, if client ID is not yet loaded for login button, show a minimal loading.
+    // Or, if we want to ensure LoginModal can always show, this check might be too aggressive.
+    // For now, let it pass to render LoginModal if user is null.
+  } else if (!oauthClientId && !user) { // If not on landing, and no user, and no client ID for login modal
+     return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        Initializing login provider...
+      </div>
+    );
+  }
 
-  if (!clientId) return null;
-  if (clientId && clientId.startsWith('ERROR:')) {
+
+  if (oauthClientId && oauthClientId.startsWith('ERROR:')) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="bg-white border border-red-200 text-red-700 rounded-xl shadow-xl p-8 max-w-lg w-full text-center text-lg font-semibold animate-fade-in-up">
-          {clientId.replace('ERROR:', '')}
+          {oauthClientId.replace('ERROR:', '')}
         </div>
       </div>
     );
   }
 
+  // If user is not logged in and we are on the landing page, LoginModal will be shown.
+  // If user is not logged in and NOT on landing, the useEffect above should have redirected.
+  // If still loading oauthClientId for the LoginModal/GoogleLogin on landing, it's okay, they will appear once loaded.
+
   return (
-    <GoogleOAuthProvider clientId={clientId}>
+    // Pass oauthClientId only if it's valid and loaded
+    <GoogleOAuthProvider clientId={oauthClientId || "fallback_client_id_for_safety_should_not_be_used"}>
       <div className="min-h-screen bg-gray-50">
-        <MainMenubar user={user} onLogin={handleLogin} onLogout={handleLogout} />
+        <MainMenubar /> {/* user, onLogin, onLogout props are removed as MainMenubar uses AuthContext directly */}
         <main className="max-w-6xl mx-auto pt-[72px] pb-8 px-2">{children}</main>
-        {!hideFloatingChat && user && <FloatingAgentChat />}
-        {!user && <LoginModal onLogin={handleLogin} />}
+        {!hideFloatingChat && user && user.email && <FloatingAgentChat />}
+        {/* LoginModal should also use AuthContext if it needs to set user, or be purely for UI if MainMenubar handles login */}
+        {/* For now, assume LoginModal might still be used on landing page. It needs to be updated to use AuthContext.setUser */}
+        {!isLoading && !user && location.pathname === '/' && oauthClientId && !oauthClientId.startsWith('ERROR:') && (
+          <LoginModal
+            onLogin={(loggedInUser) => setUser({ email: loggedInUser.email, is_admin: false, roles: [] })}
+          />
+        )}
+        <Toaster richColors position="top-right" /> {/* Add Toaster here */}
       </div>
     </GoogleOAuthProvider>
   );
