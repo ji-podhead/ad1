@@ -56,6 +56,7 @@ class Email(BaseModel):
     body: str
     label: Optional[str]
     type: Optional[str] = None
+    short_description: Optional[str] = None
 
 class AuditTrail(BaseModel):
     id: int
@@ -101,6 +102,7 @@ class ProcessingTask(BaseModel):
     email_received_at: Optional[datetime.datetime] = None
     email_label: Optional[str] = None
     workflow_type: Optional[str] = None
+    email_short_description: Optional[str] = None
 
 
 class SetTaskStatusRequest(BaseModel):
@@ -151,21 +153,28 @@ async def shutdown():
 # Email endpoints
 @app.get("/api/emails", response_model=List[Email])
 async def get_emails():
-    rows = await app.state.db.fetch("SELECT id, subject, sender, body, label, type FROM emails")
+    rows = await app.state.db.fetch("SELECT id, subject, sender, body, label, type, short_description FROM emails")
     return [dict(row) for row in rows]
 
 @app.get("/api/emails/{email_id}", response_model=Email)
 async def get_email(email_id: int):
-    row = await app.state.db.fetchrow("SELECT id, subject, sender, body, label, type FROM emails WHERE id=$1", email_id)
+    row = await app.state.db.fetchrow("SELECT id, subject, sender, body, label, type, short_description FROM emails WHERE id=$1", email_id)
     return dict(row)
 
 @app.post("/api/emails/{email_id}/label")
 async def label_email(email_id: int, label: str):
     await app.state.db.execute("UPDATE emails SET label=$1 WHERE id=$2", label, email_id)
     # Audit log
-    await app.state.db.execute(
-        "INSERT INTO audit_trail (email_id, action, user, timestamp) VALUES ($1, $2, $3, NOW())",
-        email_id, f"label:{label}", "user",  # TODO: real user
+    # await app.state.db.execute(
+    #     "INSERT INTO audit_trail (email_id, action, user, timestamp) VALUES ($1, $2, $3, NOW())",
+    #     email_id, f"label:{label}", "user",  # TODO: real user
+    # )
+    # Using new generic logger
+    await log_generic_action(
+        db_pool=app.state.db,
+        action_description=f"Email ID {email_id} labeled as '{label}'",
+        username="user_api", # Placeholder for actual user if available from auth context
+        email_id=email_id
     )
     return {"status": "ok"}
 
@@ -210,6 +219,11 @@ async def create_scheduler_task(task: SchedulerTask, request: Request):
     # For example, if task.type == 'email', schedule it.
     # This part is complex as it requires translating DB stored task back to scheduler actions.
     # Current AgentScheduler doesn't have a direct way to load tasks from DB.
+    await log_generic_action(
+        db_pool=request.app.state.db,
+        action_description=f"Workflow '{task.workflow_name}' (ID: {task.id}) of type '{task.trigger_type}' created.",
+        username="user_api" # Placeholder
+    )
     return task
 
 @app.post("/api/scheduler/task/{task_id}/pause")
@@ -224,6 +238,11 @@ async def pause_scheduler_task(task_id: str, request: Request):
         "UPDATE scheduler_tasks SET status = $1 WHERE id = $2",
         new_status, task_id
     )
+    await log_generic_action(
+        db_pool=request.app.state.db,
+        action_description=f"Workflow '{task_id}' status changed to '{new_status}'.",
+        username="user_api" # Placeholder
+    )
     # TODO: Update actual scheduler if task was active/paused (AgentScheduler might need methods for this)
     return {"status": new_status}
 
@@ -232,6 +251,11 @@ async def delete_scheduler_task(task_id: str, request: Request):
     result = await request.app.state.db.execute("DELETE FROM scheduler_tasks WHERE id = $1", task_id)
     if result == "DELETE 0": # Check if any row was deleted
         raise HTTPException(status_code=404, detail="Task not found")
+    await log_generic_action(
+        db_pool=request.app.state.db,
+        action_description=f"Workflow '{task_id}' deleted.",
+        username="user_api" # Placeholder
+    )
     # TODO: Unscheduling logic from AgentScheduler needed here
     return {"ok": True}
 
@@ -259,7 +283,13 @@ async def addUser(user_create_request: CreateUserRequest):
             user_create_request.roles
         )
         if row:
-            return User(**dict(row))
+            created_user = User(**dict(row))
+            await log_generic_action(
+                db_pool=app.state.db,
+                action_description=f"User '{created_user.email}' created. Admin: {created_user.is_admin}, Roles: {created_user.roles}",
+                username="admin_api" # Placeholder
+            )
+            return created_user
         else:
             # This case should ideally not be reached if INSERT RETURNING works as expected
             raise HTTPException(status_code=500, detail="Failed to create user.")
@@ -319,7 +349,13 @@ async def setUser(user_identifier: Union[int, str], user_update_request: UpdateU
     try:
         updated_user_row = await app.state.db.fetchrow(query, user_identifier, *update_fields.values())
         if updated_user_row:
-            return User(**dict(updated_user_row))
+            updated_user = User(**dict(updated_user_row))
+            await log_generic_action(
+                db_pool=app.state.db,
+                action_description=f"User '{existing_user['email']}' (ID: {existing_user['id']}) updated. Changes: {json.dumps(update_fields) if update_fields else 'No changes'}",
+                username="admin_api" # Placeholder
+            )
+            return updated_user
         else:
             # Should not happen if user was found initially
             raise HTTPException(status_code=500, detail="Failed to update user.")
@@ -358,6 +394,16 @@ async def deleteUser(user_identifier: Union[int, str]):
         )
         if result == "DELETE 0": # Should ideally be caught by the check above
             raise HTTPException(status_code=404, detail=f"User with {condition_column} '{user_identifier}' not found during delete, though existed moments before.")
+
+        action_desc_user_id = user_identifier
+        if isinstance(user_identifier, int): # If it was an ID, try to get email for logging
+            action_desc_user_id = existing_user_row['email'] if existing_user_row else user_identifier
+
+        await log_generic_action(
+            db_pool=app.state.db,
+            action_description=f"User '{action_desc_user_id}' deleted.",
+            username="admin_api" # Placeholder
+        )
         return {"status": "success", "message": f"User with {condition_column} '{user_identifier}' deleted successfully."}
     except Exception as e:
         logging.error(f"Error deleting user {user_identifier}: {e}")
@@ -406,6 +452,7 @@ async def get_processing_tasks(request: Request):
         e.body AS email_body,
         e.received_at AS email_received_at,
         e.label AS email_label,
+        e.short_description AS email_short_description,
         t.workflow_type
     FROM tasks t
     LEFT JOIN emails e ON t.email_id = e.id
@@ -414,17 +461,40 @@ async def get_processing_tasks(request: Request):
     rows = await request.app.state.db.fetch(query)
     return [dict(row) for row in rows]
 
+# Generic Audit Logging Function
+async def log_generic_action(db_pool, action_description: str, username: str = "system_event", email_id: Optional[int] = None):
+    """Helper function to log generic actions to audit_trail."""
+    try:
+        await db_pool.execute(
+            "INSERT INTO audit_trail (email_id, action, username, timestamp) VALUES ($1, $2, $3, NOW())",
+            email_id, action_description, username
+        )
+    except Exception as e:
+        logging.error(f"Failed to log generic action '{action_description}' for user '{username}': {e}")
+
 
 async def log_task_action(db_pool, task_id: int, action: str, user: str = "system_user"):
-    """Helper function to log task actions to audit_trail."""
-    # Fetch email_id associated with the task_id for more complete audit logging
-    email_id_record = await db_pool.fetchrow("SELECT email_id FROM tasks WHERE id = $1", task_id)
-    email_id = email_id_record['email_id'] if email_id_record else None
+    """Helper function to log task-specific actions to audit_trail."""
+    email_id = None
+    task_status = None
+    workflow_type = None
+    try:
+        # Fetch email_id and other details for richer logging
+        task_details_record = await db_pool.fetchrow("SELECT email_id, status, workflow_type FROM tasks WHERE id = $1", task_id)
+        if task_details_record:
+            email_id = task_details_record['email_id']
+            task_status = task_details_record['status']
+            workflow_type = task_details_record['workflow_type']
 
-    await db_pool.execute(
-        "INSERT INTO audit_trail (email_id, action, username, timestamp) VALUES ($1, $2, $3, NOW())",
-        email_id, f"task_{action}:task_id_{task_id}", user, # TODO: Real user
-    )
+        action_details_string = f"{action} (Task ID: {task_id}, Current Status: {task_status}, Workflow: {workflow_type or 'N/A'})"
+
+        await db_pool.execute(
+            "INSERT INTO audit_trail (email_id, action, username, timestamp) VALUES ($1, $2, $3, NOW())",
+            email_id, action_details_string, user
+        )
+    except Exception as e:
+        logging.error(f"Failed to log task action '{action}' for task {task_id}, user '{user}': {e}")
+
 
 @app.post("/api/processing_tasks/{task_id}/validate")
 async def validate_task(task_id: int, request: Request):
@@ -437,7 +507,7 @@ async def validate_task(task_id: int, request: Request):
     if result == "UPDATE 0":
         raise HTTPException(status_code=404, detail=f"Task with id {task_id} not found")
 
-    await log_task_action(request.app.state.db, task_id, "validate")
+    await log_task_action(request.app.state.db, task_id, action="Task validated. Status changed to 'validated'", user="user_api")
     return {"status": "success", "message": f"Task {task_id} marked as validated."}
 
 @app.post("/api/processing_tasks/{task_id}/abort")
@@ -451,7 +521,7 @@ async def abort_task(task_id: int, request: Request):
     if result == "UPDATE 0":
         raise HTTPException(status_code=404, detail=f"Task with id {task_id} not found")
 
-    await log_task_action(request.app.state.db, task_id, "abort")
+    await log_task_action(request.app.state.db, task_id, action="Task aborted. Status changed to 'aborted'", user="user_api")
     return {"status": "success", "message": f"Task {task_id} marked as aborted."}
 
 
@@ -467,7 +537,7 @@ async def set_task_status(task_id: int, status_request: SetTaskStatusRequest, re
         raise HTTPException(status_code=404, detail=f"Task with id {task_id} not found")
 
     # Log the action
-    await log_task_action(request.app.state.db, task_id, f"status_set_to_{status_request.status}")
+    await log_task_action(request.app.state.db, task_id, action=f"Task status manually set to '{status_request.status}'", user="user_api")
 
     # Optionally, fetch and return the updated task
     # updated_task = await request.app.state.db.fetchrow("SELECT * FROM tasks WHERE id = $1", task_id)

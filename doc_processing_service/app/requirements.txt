@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-multipart
+torch
+transformers
+Pillow
+pdf2image
+sentencepiece
+timm
+# protobuf is often a dependency of sentencepiece or transformers, adding preemptively
+protobuf
