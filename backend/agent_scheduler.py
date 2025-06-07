@@ -282,7 +282,7 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                     return
                 async def read_emails_and_log(email):
                     """
-                    For each email in the parsed list, try to fetch the full email content via MCP (if a suitable tool exists), log the result, and return a list of (id, content) tuples.
+                    Für jede E-Mail: Hole den vollständigen Inhalt, parse ihn, und lade ggf. Attachments herunter.
                     """
                     results = []
                     message_id = email.get('id')
@@ -290,19 +290,34 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                         logger.warning(f"Email without ID: {email}")
                         return
                     try:
-                        logger.info(f"Reading full email for message_id={message_id} using MCP tool read_email")
                         result = await session.call_tool("read_email", arguments={"messageId": message_id})
-                        parsed_mail= parse_full_email(result.content[0].text) if result and result.content and len(result.content) > 0 else None
-                        logger.info(f"Read email result: {parsed_mail}")
-                        # content = result.content[0].text if result and result.content and len(result.content) > 0 else None
-                        # logger.info(f"Read email {message_id}: {content[:500] if content else 'No content'}")
-                        # results.append((message_id, content))
+                        parsed_mail = parse_full_email(result.content[0].text) if result and result.content and len(result.content) > 0 else None
+                        logger.info(f"Reading full email for message_id={parsed_mail} using MCP tool read_email")
+
+                        # --- Attachment Download Schritt ---
+                        downloaded_attachments = []
+                        if parsed_mail and len(parsed_mail.get('attachments'))>0:
+                            # Suche passendes MCP-Tool
+                            for atachment in parsed_mail['attachments']:
+                                try:
+                                    filename = atachment['filename']
+                                    logger.info(f"Attachment found: {filename} ({atachment['content_type']})")
+                                    # Argumente ggf. anpassen je nach Tool-API
+                                    gmail_att = await download_gmail_attachment("leo@orchestra-nexus.com", message_id, filename)
+                                    if gmail_att:
+                                        logger.info(f"Downloaded attachment '{filename}' via Gmail API: {len(gmail_att['data'])} bytes")
+                                        downloaded_attachments.append(gmail_att)
+                                    else:
+                                        logger.error(f"Failed to download attachment '{filename}' via Gmail API.")
+                                except Exception as e:
+                                    logger.error(f"Error downloading attachment '{filename}' for message_id={message_id}: {e}")
+                        results.append({"email": parsed_mail, "attachments": downloaded_attachments})
                     except Exception as e:
                         logger.error(f"Error reading email {message_id}: {e}")
                     return results
                 for email in emails:
                     results = await read_emails_and_log(email)
-                    logger.info(f"Parsed email data: {results}")
+                    #logger.info(f"Parsed email data: {results.get('email', {}).get('subject', 'No Subject')} (ID: {email.get('id')})")
                 # try:
                 #     emails_from_tool = raw_content.splitlines()
                 #     emails_from_tool = [json.loads(email.strip()) for email in emails_from_tool if email.strip()]
@@ -577,5 +592,48 @@ async def process_document_step(task_id: int, email_id: int, db_conn_for_audit: 
             )
         except Exception as log_e:
             logger.error(f"Audit log failure (generic error): {log_e}")
+
+import aiohttp
+import base64
+
+async def download_gmail_attachment(user_id: str, message_id: str, attachment_id: str, ):
+    """
+    Downloads an attachment from Gmail using the Gmail API and OAuth2 token.
+    user_id: string ("me" für authentifizierten User oder echte E-Mail-Adresse)
+    message_id: string
+    attachment_id: string
+    filename: string (nur für Logging/DB)
+    Returns a dict with filename, data (bytes), size (int), attachment_id (str)
+    """
+    logger = logging.getLogger(__name__)
+    user_oauth_token = os.getenv("GMAIL_OAUTH_TOKEN")  # TODO: Hole Token dynamisch pro User
+    url = f"https://gmail.googleapis.com/gmail/v1/users/{user_id}/messages/{message_id}/attachments/{attachment_id}"
+    headers = {
+        "Authorization": f"Bearer {user_oauth_token}",
+        "Accept": "application/json"
+    }
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as resp:
+                if resp.status != 200:
+                    logger.error(f"Failed to download attachment {attachment_id} (ID: {attachment_id}) for message {message_id}: HTTP {resp.status}")
+                    return None
+                data = await resp.json()
+                b64data = data.get("data")
+                size = data.get("size")
+                att_id = data.get("attachmentId")
+                if not b64data:
+                    logger.error(f"No data field in Gmail API response for attachment {attachment_id}")
+                    return None
+                file_bytes = base64.urlsafe_b64decode(b64data + '==')
+                logger.info(f"Downloaded attachment '{filename}' ({size} bytes) from Gmail API.")
+                return {
+                    "data": file_bytes,
+                    "size": size,
+                    "attachment_id": att_id
+                }
+    except Exception as e:
+        logger.error(f"Exception downloading Gmail attachment {attachment_id}: {e}")
+        return None
 
 

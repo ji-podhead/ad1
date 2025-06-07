@@ -839,3 +839,13 @@ async def update_scheduler_task(task_id: str, task_update_data: SchedulerTaskCre
         tb = traceback.format_exc()
         logging.error(f"Error in update_scheduler_task: {e}\n{tb}")
         return JSONResponse(status_code=500, content={"error": str(e), "trace": tb})
+
+@app.post("/api/users/{email}/token")
+async def save_user_token(email: str, data: dict, request: Request):
+    token = data.get("token")
+    if not token:
+        raise HTTPException(status_code=400, detail="Missing token")
+    await request.app.state.db.execute(
+        "UPDATE users SET google_access_token=$1 WHERE email=$2", token, email
+    )
+    return {"status": "ok"}
