@@ -338,9 +338,9 @@ const Settings: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-      <div className="flex flex-col md:flex-row gap-10 w-full max-w-6xl p-6">
+      <div className="flex flex-col md:flex-row gap-6 w-full max-w-6xl p-0">
         {/* Main Settings Left */}
-        <div className="flex-1 min-w-[320px] max-w-xl space-y-8 bg-white rounded-lg shadow-md p-6">
+        <div className="flex-1 min-w-[320px] max-w-xl space-y-8 bg-white rounded-lg shadow-md p-2">
           {/* Email Grabber Frequency */}
           <section>
             <h2 className="text-xl font-bold mb-2">Email Grabber Frequenz</h2>
@@ -432,7 +432,7 @@ const Settings: React.FC = () => {
         </div>
 
         {/* Workflows Right */}
-        <div className="flex-1 min-w-[320px] max-w-xl bg-white rounded-lg shadow-md p-6">
+        <div className="flex-1 min-w-[320px] max-w-xl bg-white rounded-lg shadow-md p-2">
           <section>
             <h2 className="text-xl font-bold mb-2">Workflows</h2>
             <form onSubmit={handleWorkflowSubmit} className="space-y-4 mb-4 p-4 border rounded-md bg-gray-50">
@@ -628,7 +628,7 @@ const Settings: React.FC = () => {
               </div>
             </form>
             {/* Saved Workflows List */}
-            <div className="mt-8">
+            <div className="mt-4">
               <h2 className="text-xl font-bold mb-2">Gespeicherte Workflows</h2>
               <div className="max-h-60 overflow-y-auto border rounded-md p-2">
                 <ul>

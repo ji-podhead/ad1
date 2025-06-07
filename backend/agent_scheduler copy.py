@@ -206,10 +206,13 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                 logger.info("Parsing emails from MCP tool response...")
                 logger.info(f"Raw content length: {(raw_content)}")
                 try:
-                    emails_from_tool = json.loads(raw_content)
+                    emails_from_tool = raw_content.splitlines()
+                    emails_from_tool = [json.loads(email.strip()) for email in emails_from_tool if email.strip()]
                 except Exception as e:
                     logger.error(f"Error parsing emails from MCP tool: {e}. Raw response: {raw_content!r}")
                     return
+                for email in emails_from_tool:
+                    logger.debug(f"Parsed email data: {email}")
                 async with db_pool.acquire() as connection:
                     for email_data in emails_from_tool:
                         message_id = email_data.get('id')
@@ -235,6 +238,8 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                             logger.info(f"Email already exists, skipping: Subject='{email_subject_str}', Sender='{sender_email}'")
                             continue
                         # --- 1. SUMMARY/LLM STEP ---
+                        logger.info(f"Processing new email: Subject='{email_subject_str}', Sender='{sender_email}'")
+                        # Use Gemini Pro for summary and classification
                         llm_model_to_use = "gemini-pro"
                         llm_summary_data = await get_summary_and_type_from_llm(
                             email_subject=email_subject_str,
@@ -309,32 +314,61 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                             else:
                                 logger.info(f"No document_processing step in workflow for task {task_id}.")
                         # --- 1b. ATTACHMENT HANDLING ---
-                        # TODO: Replace with actual attachment download logic from Gmail/MCP
-                        # Example: attachments = await download_attachments_for_email(message_id)
-                        attachments = []  # Should be a list of dicts: {filename, content_type, data_b64}
+                        attachments = []
+                        try:
+                            # Try to fetch attachments/documents for this email via MCP tool if available
+                            mcp_attachment_tool = None
+                            for tool in mcp_tools:
+                                if hasattr(tool, 'name') and tool.name in ['get_attachments', 'download_attachments', 'fetch_attachments']:
+                                    mcp_attachment_tool = tool
+                                    break
+                            if mcp_attachment_tool:
+                                logger.info(f"Fetching attachments for message_id={message_id} using MCP tool '{mcp_attachment_tool.name}'")
+                                att_result = await session.call_tool(mcp_attachment_tool.name, arguments={"message_id": message_id})
+                                att_content = att_result.content[0].text if att_result and att_result.content and len(att_result.content) > 0 else None
+                                if att_content:
+                                    try:
+                                        attachments = json.loads(att_content)
+                                        logger.info(f"Fetched {len(attachments)} attachments for message_id={message_id}")
+                                    except Exception as e:
+                                        logger.warning(f"Could not parse attachments JSON for message_id={message_id}: {e}")
+                                else:
+                                    logger.info(f"No attachments found for message_id={message_id}")
+                            else:
+                                logger.info("No MCP attachment tool found, skipping attachment fetch.")
+                        except Exception as e:
+                            logger.error(f"Error fetching attachments for message_id={message_id}: {e}")
                         document_ids = []
                         for att in attachments:
-                            doc_id = await connection.fetchval(
-                                """
-                                INSERT INTO documents (email_id, filename, content_type, data_b64, is_processed, created_at)
-                                VALUES ($1, $2, $3, $4, $5, $6)
-                                RETURNING id
-                                """,
-                                inserted_email_id,
-                                att['filename'],
-                                att['content_type'],
-                                att['data_b64'],
-                                False,
-                                received_at
-                            )
-                            document_ids.append(doc_id)
+                            try:
+                                doc_id = await connection.fetchval(
+                                    """
+                                    INSERT INTO documents (email_id, filename, content_type, data_b64, is_processed, created_at)
+                                    VALUES ($1, $2, $3, $4, $5, $6)
+                                    RETURNING id
+                                    """,
+                                    inserted_email_id,
+                                    att.get('filename', 'unnamed'),
+                                    att.get('content_type', 'application/octet-stream'),
+                                    att.get('data_b64', ''),
+                                    False,
+                                    received_at
+                                )
+                                document_ids.append(doc_id)
+                                logger.info(f"Inserted document ID {doc_id} for email {inserted_email_id} (attachment: {att.get('filename')})")
+                            except Exception as e:
+                                logger.error(f"Failed to insert document for email {inserted_email_id}: {e}")
                         # Update emails row with document_ids if any attachments
                         if document_ids:
-                            await connection.execute(
-                                "UPDATE emails SET document_ids = $1 WHERE id = $2",
-                                document_ids,
-                                inserted_email_id
-                            )
+                            try:
+                                await connection.execute(
+                                    "UPDATE emails SET document_ids = $1 WHERE id = $2",
+                                    document_ids,
+                                    inserted_email_id
+                                )
+                                logger.info(f"Updated email {inserted_email_id} with document_ids: {document_ids}")
+                            except Exception as e:
+                                logger.error(f"Failed to update email {inserted_email_id} with document_ids: {e}")
     except Exception as e:
         logger.error(f"[Scheduler] Error during email check: {e}")
     finally:

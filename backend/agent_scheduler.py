@@ -27,6 +27,7 @@ from mcp import ClientSession
 # logging.basicConfig(level=logging.INFO) # Already configured in backend_main.py, avoid reconfiguring.
 # Instead, get a logger instance if needed for this specific module:
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  # <--- explizit setzen!
 # logging.getLogger("aiohttp").setLevel(logging.WARNING) # Optional: Quieten aiohttp's own logs
 
 # Configure Gemini API Key
@@ -165,6 +166,65 @@ async def example_send_email(to, subject, body):
 # scheduler.schedule_cron(example_send_email, 3600, "cron@example.com", "Cron", "Every hour!")
 # scheduler.schedule_agent_event(example_agent_func, "trigger", 300, example_send_email, "agent@example.com", "Agent Event", "Condition met!")
 
+import re
+
+def parse_mcp_email_list(raw_content):
+    # Split by double newlines (jede Mail ist ein Block)
+    blocks = [block.strip() for block in raw_content.strip().split('\n\n') if block.strip()]
+    emails = []
+    for block in blocks:
+        # Extrahiere Felder mit Regex
+        id_match = re.search(r'ID: (.+)', block)
+        subject_match = re.search(r'Subject: (.+)', block)
+        from_match = re.search(r'From: (.+)', block)
+        date_match = re.search(r'Date: (.+)', block)
+        # Extrahiere alle Attachments (kann mehrfach vorkommen)
+        attachment_matches = re.findall(r'Attachment: (.+)', block)
+        emails.append({
+            'id': id_match.group(1) if id_match else None,
+            'subject': subject_match.group(1) if subject_match else None,
+            'sender': from_match.group(1) if from_match else None,
+            'date': date_match.group(1) if date_match else None,
+            'attachments': attachment_matches if attachment_matches else []
+            
+        })
+    return emails
+def parse_full_email(text: str):
+    """
+    Parst den vollständigen E-Mail-Text aus der MCP read_email-Antwort.
+    Gibt ein Dict mit Feldern wie thread_id, subject, from, to, date, body, attachments zurück.
+    """
+    result = {}
+    # Header-Felder
+    thread_id = re.search(r'Thread ID: (.+)', text)
+    subject = re.search(r'Subject: (.+)', text)
+    sender = re.search(r'From: (.+)', text)
+    to = re.search(r'To: (.+)', text)
+    date = re.search(r'Date: (.+)', text)
+    result['thread_id'] = thread_id.group(1).strip() if thread_id else None
+    result['subject'] = subject.group(1).strip() if subject else None
+    result['from'] = sender.group(1).strip() if sender else None
+    result['to'] = to.group(1).strip() if to else None
+    result['date'] = date.group(1).strip() if date else None
+
+    # Body (alles nach der letzten Header-Zeile bis zu Attachments oder bis zum Ende)
+    body_match = re.search(r'Date: .+\n\n(.*?)(?:\n\nAttachments|\Z)', text, re.DOTALL)
+    result['body'] = body_match.group(1).strip() if body_match else ""
+
+    # Attachments (optional)
+    attachments = []
+    attachments_block = re.search(r'Attachments.*?:\n((?:- .+\n?)+)', text)
+    if attachments_block:
+        for line in attachments_block.group(1).splitlines():
+            att_match = re.match(r'- (.+) \((.+), ([^)]+)\)', line.strip())
+            if att_match:
+                attachments.append({
+                    'filename': att_match.group(1),
+                    'content_type': att_match.group(2),
+                    'size': att_match.group(3)
+                })
+    result['attachments'] = attachments
+    return result
 
 async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 60):
     """
@@ -214,11 +274,44 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                 if not raw_content or not raw_content.strip():
                     logger.warning("MCP tool 'search_emails' returned empty or whitespace-only response. Skipping email processing.")
                     return
-                try:
-                    emails_from_tool = json.loads(raw_content)
-                except Exception as e:
-                    logger.error(f"Error parsing emails from MCP tool: {e}. Raw response: {raw_content!r}")
+                
+                logger.info(f"Raw MCP tool response length: {type(raw_content)} characters")
+                emails=parse_mcp_email_list(raw_content)
+                if not emails:
+                    logger.error("No new emails found in MCP tool response.")
                     return
+                async def read_emails_and_log(email):
+                    """
+                    For each email in the parsed list, try to fetch the full email content via MCP (if a suitable tool exists), log the result, and return a list of (id, content) tuples.
+                    """
+                    results = []
+                    message_id = email.get('id')
+                    if not message_id:
+                        logger.warning(f"Email without ID: {email}")
+                        return
+                    try:
+                        logger.info(f"Reading full email for message_id={message_id} using MCP tool read_email")
+                        result = await session.call_tool("read_email", arguments={"messageId": message_id})
+                        parsed_mail= parse_full_email(result.content[0].text) if result and result.content and len(result.content) > 0 else None
+                        logger.info(f"Read email result: {parsed_mail}")
+                        # content = result.content[0].text if result and result.content and len(result.content) > 0 else None
+                        # logger.info(f"Read email {message_id}: {content[:500] if content else 'No content'}")
+                        # results.append((message_id, content))
+                    except Exception as e:
+                        logger.error(f"Error reading email {message_id}: {e}")
+                    return results
+                for email in emails:
+                    results = await read_emails_and_log(email)
+                    logger.info(f"Parsed email data: {results}")
+                # try:
+                #     emails_from_tool = raw_content.splitlines()
+                #     emails_from_tool = [json.loads(email.strip()) for email in emails_from_tool if email.strip()]
+                # except Exception as e:
+                #     logger.error(f"Raw MCP tool response length: {type(raw_content)} characters")
+                #     logger.error(f"Error parsing emails from MCP tool: {e}. Raw response: {(raw_content)!r}")
+                #     return
+
+                return                
                 async with db_pool.acquire() as connection:
                     for email_data in emails_from_tool:
                         message_id = email_data.get('id')
@@ -317,6 +410,62 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                                 )
                             else:
                                 logger.info(f"No document_processing step in workflow for task {task_id}.")
+                        # --- 1b. ATTACHMENT HANDLING ---
+                        attachments = []
+                        try:
+                            # Try to fetch attachments/documents for this email via MCP tool if available
+                            mcp_attachment_tool = None
+                            for tool in mcp_tools:
+                                if hasattr(tool, 'name') and tool.name in ['get_attachments', 'download_attachments', 'fetch_attachments']:
+                                    mcp_attachment_tool = tool
+                                    break
+                            if mcp_attachment_tool:
+                                logger.info(f"Fetching attachments for message_id={message_id} using MCP tool '{mcp_attachment_tool.name}'")
+                                att_result = await session.call_tool(mcp_attachment_tool.name, arguments={"message_id": message_id})
+                                att_content = att_result.content[0].text if att_result and att_result.content and len(att_result.content) > 0 else None
+                                if att_content:
+                                    try:
+                                        attachments = json.loads(att_content)
+                                        logger.info(f"Fetched {len(attachments)} attachments for message_id={message_id}")
+                                    except Exception as e:
+                                        logger.warning(f"Could not parse attachments JSON for message_id={message_id}: {e}")
+                                else:
+                                    logger.info(f"No attachments found for message_id={message_id}")
+                            else:
+                                logger.info("No MCP attachment tool found, skipping attachment fetch.")
+                        except Exception as e:
+                            logger.error(f"Error fetching attachments for message_id={message_id}: {e}")
+                        document_ids = []
+                        for att in attachments:
+                            try:
+                                doc_id = await connection.fetchval(
+                                    """
+                                    INSERT INTO documents (email_id, filename, content_type, data_b64, is_processed, created_at)
+                                    VALUES ($1, $2, $3, $4, $5, $6)
+                                    RETURNING id
+                                    """,
+                                    inserted_email_id,
+                                    att.get('filename', 'unnamed'),
+                                    att.get('content_type', 'application/octet-stream'),
+                                    att.get('data_b64', ''),
+                                    False,
+                                    received_at
+                                )
+                                document_ids.append(doc_id)
+                                logger.info(f"Inserted document ID {doc_id} for email {inserted_email_id} (attachment: {att.get('filename')})")
+                            except Exception as e:
+                                logger.error(f"Failed to insert document for email {inserted_email_id}: {e}")
+                        # Update emails row with document_ids if any attachments
+                        if document_ids:
+                            try:
+                                await connection.execute(
+                                    "UPDATE emails SET document_ids = $1 WHERE id = $2",
+                                    document_ids,
+                                    inserted_email_id
+                                )
+                                logger.info(f"Updated email {inserted_email_id} with document_ids: {document_ids}")
+                            except Exception as e:
+                                logger.error(f"Failed to update email {inserted_email_id} with document_ids: {e}")
     except Exception as e:
         logger.error(f"[Scheduler] Error during email check: {e}")
     finally:
@@ -428,3 +577,5 @@ async def process_document_step(task_id: int, email_id: int, db_conn_for_audit: 
             )
         except Exception as log_e:
             logger.error(f"Audit log failure (generic error): {log_e}")
+
+
