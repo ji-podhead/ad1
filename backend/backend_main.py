@@ -83,6 +83,21 @@ class SchedulerTask(BaseModel):
     workflow_config: Optional[dict] = None
     workflow_name: Optional[str] = None
 
+class SchedulerTaskCreate(BaseModel):
+    type: str
+    description: str
+    trigger_type: str
+    status: str = "active"
+    workflow_name: Optional[str] = None
+    workflow_config: Optional[dict] = None
+    to: Optional[str] = None
+    subject: Optional[str] = None
+    body: Optional[str] = None
+    date: Optional[str] = None
+    interval: Optional[int] = None
+    condition: Optional[str] = None
+    actionDesc: Optional[str] = None
+
 class CreateUserRequest(BaseModel):
     email: str
     password: str
@@ -143,62 +158,31 @@ class SetTaskStatusRequest(BaseModel):
 @app.on_event("startup")
 async def startup():
     app.state.db = await asyncpg.create_pool(DATABASE_URL)
-    # Initialize and store scheduler
     app.state.scheduler = AgentScheduler()
-    # Schedule the default email checking job (if needed, or replace with a cron workflow)
-    # app.state.scheduler.schedule_cron(check_new_emails, 60, app.state.db)
-    # print("Scheduled default email checking job to run every 60 seconds.")
 
-    # Load and schedule active cron workflows from the database
+    # --- GLOBAL EMAIL CHECKING CRONJOB ---
+    # On startup, schedule only ONE global cronjob for check_new_emails
+    # Get global frequency from settings
+    db_pool = app.state.db
+    freq_type_row = await db_pool.fetchrow("SELECT value FROM settings WHERE key = 'email_grabber_frequency_type'")
+    freq_value_row = await db_pool.fetchrow("SELECT value FROM settings WHERE key = 'email_grabber_frequency_value'")
+    freq_type = freq_type_row['value'] if freq_type_row and freq_type_row['value'] else 'days'
+    freq_value_str = freq_value_row['value'] if freq_value_row and freq_value_row['value'] else '1'
     try:
-        active_cron_tasks = await app.state.db.fetch(
-            "SELECT id, workflow_name, workflow_config, status, trigger_type FROM scheduler_tasks WHERE status = 'active' AND trigger_type = 'cron'"
-        )
-        print(f"Found {len(active_cron_tasks)} active cron workflows to schedule.")
-
-        for task_record in active_cron_tasks:
-            task_id = task_record['id']
-            workflow_name = task_record['workflow_name']
-            workflow_config = task_record['workflow_config']
-
-            # Calculate interval_seconds from workflow_config (frequency_type/frequency_value)
-            interval_seconds = 86400 # Default: 1 Tag
-            if workflow_config:
-                freq_type = workflow_config.get('frequency_type')
-                freq_value = workflow_config.get('frequency_value')
-                if freq_type == 'days' and freq_value is not None:
-                    try:
-                        interval_seconds = int(freq_value) * 86400
-                    except ValueError:
-                        print(f"Warning: Invalid frequency_value for workflow {workflow_name} ({task_id}). Using default 1 day interval.")
-                elif freq_type == 'minutes' and freq_value is not None:
-                     try:
-                        interval_seconds = int(freq_value) * 60
-                     except ValueError:
-                        print(f"Warning: Invalid frequency_value for workflow {workflow_name} ({task_id}). Using default 1 day interval.")
-
-            # Define the async function to be executed by the scheduler
-            async def workflow_cron_job(db_pool, task_details):
-                print(f"[Scheduler] Executing cron workflow {task_details['workflow_name']} ({task_details['id']})...")
-                # TODO: Implement the actual workflow execution logic here
-                # This function should parse task_details['workflow_config']'] and execute the defined steps
-                # For now, it just prints a message.
-                # Example: Trigger check_new_emails if that's part of the workflow
-                # await check_new_emails(db_pool)
-                pass
-
-            # Schedule the task
-            app.state.scheduler.schedule_cron(
-                workflow_cron_job,
-                interval_seconds,
-                app.state.db, # Pass db_pool as argument
-                dict(task_record) # Pass task details as argument
-            )
-            print(f"Scheduled cron workflow '{workflow_name}' ({task_id}) to run every {interval_seconds} seconds.")
-
-    except Exception as e:
-        print(f"Error loading or scheduling cron workflows on startup: {e}")
-        # Depending on severity, you might want to raise the exception or log more verbosely
+        freq_value = int(freq_value_str)
+        if freq_type == 'days':
+            interval_seconds = freq_value * 86400
+        elif freq_type == 'minutes':
+            interval_seconds = freq_value * 60
+        else:
+            interval_seconds = 86400
+    except Exception:
+        interval_seconds = 86400
+    # Schedule the global email checking job
+    app.state.scheduler.schedule_cron(
+        'global_email_cron', check_new_emails, interval_seconds, app.state.db
+    )
+    print(f"Scheduled global email checking job to run every {interval_seconds} seconds.")
 
     # Process ADMIN_EMAILS
     admin_emails_str = os.getenv("ADMIN_EMAILS")
@@ -280,47 +264,98 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.get("/api/scheduler/tasks", response_model=List[SchedulerTask])
 async def get_scheduler_tasks(request: Request):
     rows = await request.app.state.db.fetch("SELECT id, type, description, status, nextRun, to_email as \"to\", subject, body, date_val as \"date\", interval_seconds as \"interval\", condition, actionDesc, trigger_type, workflow_config, workflow_name FROM scheduler_tasks")
-    return [dict(row) for row in rows]
+    tasks = []
+    for row in rows:
+        row_dict = dict(row)
+        if row_dict.get('workflow_config') is not None:
+            try:
+                row_dict['workflow_config'] = json.loads(row_dict['workflow_config'])
+            except Exception:
+                row_dict['workflow_config'] = None
+        tasks.append(row_dict)
+    return tasks
 
 @app.post("/api/scheduler/task", response_model=SchedulerTask)
-async def create_scheduler_task(task: SchedulerTask, request: Request):
+async def create_scheduler_task(task_create_data: SchedulerTaskCreate, request: Request):
     import math
-    task.id = str(uuid.uuid4())
-    if task.status is None:
-        task.status = "active"
+    import traceback
+    try:
+        task_id = str(uuid.uuid4())
+        if task_create_data.status is None:
+            task_create_data.status = "active"
 
-    await request.app.state.db.execute(
-        """
-        INSERT INTO scheduler_tasks (id, type, description, status, nextRun, to_email, subject, body, date_val, interval_seconds, condition, actionDesc, trigger_type, workflow_config, workflow_name)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-        """,
-        task.id, task.type, task.description, task.status, task.nextRun,
-        task.to, task.subject, task.body, task.date, task.interval,
-        task.condition, task.actionDesc, task.trigger_type, task.workflow_config, task.workflow_name
-    )
-    # Register cron workflow in scheduler if type is 'cron' and active
-    if task.trigger_type == 'cron' and task.status == 'active':
-        # Berechne Intervall in Sekunden aus workflow_config (frequency_type/frequency_value)
-        interval_seconds = 86400 # Default: 1 Tag
-        if task.workflow_config:
-            freq_type = task.workflow_config.get('frequency_type')
-            freq_value = task.workflow_config.get('frequency_value')
-            if freq_type == 'days' and freq_value:
-                interval_seconds = int(freq_value) * 86400
-            elif freq_type == 'minutes' and freq_value:
-                interval_seconds = int(freq_value) * 60
-        # Definiere die auszuführende Workflow-Funktion
-        async def workflow_func():
-            print(f"[Scheduler] Triggering workflow {task.workflow_name} ({task.id}) via cron.")
-            # Hier gewünschte Backend-Logik einfügen, z.B. check_new_emails(request.app.state.db)
-            pass # TODO: Implementiere die gewünschte Logik
-        request.app.state.scheduler.schedule_cron(workflow_func, interval_seconds)
-    await log_generic_action(
-        db_pool=request.app.state.db,
-        action_description=f"Workflow '{task.workflow_name}' (ID: {task.id}) of type '{task.trigger_type}' created.",
-        username="user_api"
-    )
-    return task
+        # Ensure workflow_config is a JSON-serializable string or None
+        workflow_config = task_create_data.workflow_config
+        if workflow_config is not None:
+            if not isinstance(workflow_config, dict):
+                try:
+                    workflow_config = json.loads(json.dumps(workflow_config))
+                except Exception as e:
+                    raise HTTPException(status_code=400, detail=f"workflow_config is not serializable: {e}")
+            workflow_config = json.dumps(workflow_config)  # Serialize dict to JSON string
+        print(f"Creating scheduler task with workflow_config: {workflow_config}")
+        await request.app.state.db.execute(
+            """
+            INSERT INTO scheduler_tasks (id, type, description, status, nextRun, to_email, subject, body, date_val, interval_seconds, condition, actionDesc, trigger_type, workflow_config, workflow_name)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            """,
+            task_id, task_create_data.type, task_create_data.description, task_create_data.status, None, # nextRun is managed by scheduler
+            task_create_data.to, task_create_data.subject, task_create_data.body, task_create_data.date, task_create_data.interval,
+            task_create_data.condition, task_create_data.actionDesc, task_create_data.trigger_type, workflow_config, task_create_data.workflow_name
+        )
+
+        # Fetch the created task to return the full SchedulerTask model
+        created_task_record = await request.app.state.db.fetchrow(
+            "SELECT id, type, description, status, nextRun, to_email as \"to\", subject, body, date_val as \"date\", interval_seconds as \"interval\", condition, actionDesc, trigger_type, workflow_config, workflow_name FROM scheduler_tasks WHERE id = $1",
+            task_id
+        )
+        created_task_dict = dict(created_task_record)
+        if created_task_dict.get('workflow_config') is not None:
+            try:
+                created_task_dict['workflow_config'] = json.loads(created_task_dict['workflow_config'])
+            except Exception:
+                created_task_dict['workflow_config'] = None
+        created_task = SchedulerTask(**created_task_dict)
+
+        # Register cron workflow in scheduler if trigger_type is 'cron' and status is 'active'
+        if created_task.trigger_type == 'cron' and created_task.status == 'active':
+            # Fetch global email grabber frequency settings
+            db_pool = request.app.state.db
+            freq_type_row = await db_pool.fetchrow("SELECT value FROM settings WHERE key = 'email_grabber_frequency_type'")
+            freq_value_row = await db_pool.fetchrow("SELECT value FROM settings WHERE key = 'email_grabber_frequency_value'")
+
+            freq_type = freq_type_row['value'] if freq_type_row and freq_type_row['value'] else 'days' # Default to 'days'
+            freq_value_str = freq_value_row['value'] if freq_value_row and freq_value_row['value'] else '1' # Default to '1'
+
+            interval_seconds = 86400 # Default: 1 Tag
+            try:
+                freq_value = int(freq_value_str)
+                if freq_type == 'days':
+                    interval_seconds = freq_value * 86400
+                elif freq_type == 'minutes':
+                    interval_seconds = freq_value * 60
+            except ValueError:
+                logging.warning(f"Invalid global frequency_value '{freq_value_str}'. Using default 1 day interval for workflow {created_task.workflow_name} ({created_task.id}).")
+                interval_seconds = 86400
+
+            # Definiere die auszuführende Workflow-Funktion
+            async def workflow_func():
+                print(f"[Scheduler] Triggering workflow {created_task.workflow_name} ({created_task.id}) via cron.")
+                # Hier gewünschte Backend-Logik einfügen, z.B. check_new_emails(request.app.state.db)
+                pass # TODO: Implementiere die gewünschte Logik
+            request.app.state.scheduler.schedule_cron(workflow_func, interval_seconds, created_task.id)
+            logging.info(f"Scheduled cron workflow '{created_task.workflow_name}' ({created_task.id}) to run every {interval_seconds} seconds based on global settings.")
+
+        await log_generic_action(
+            db_pool=request.app.state.db,
+            action_description=f"Workflow '{created_task.workflow_name}' (ID: {created_task.id}) of type '{created_task.trigger_type}' created.",
+            username="user_api"
+        )
+        return created_task
+    except Exception as e:
+        tb = traceback.format_exc()
+        logging.error(f"Error in create_scheduler_task: {e}\n{tb}")
+        return JSONResponse(status_code=500, content={"error": str(e), "trace": tb})
 
 @app.post("/api/scheduler/task/{task_id}/pause")
 async def pause_scheduler_task(task_id: str, request: Request):
@@ -354,10 +389,10 @@ async def delete_scheduler_task(task_id: str, request: Request):
     if result == "DELETE 0": # Should ideally be caught by the check above, but as a safeguard
         raise HTTPException(status_code=404, detail="Task not found after check.")
 
-    # Unscheduling logic from AgentScheduler
-    if task_record['trigger_type'] == 'cron':
-        request.app.state.scheduler.cancel_task(task_id)
-        logging.info(f"Cancelled cron task {task_id} in scheduler.") # Use logging.info
+    # Unscheduling logic from AgentScheduler (veraltet, da nur noch globaler Cronjob)
+    # if task_record['trigger_type'] == 'cron':
+    #     request.app.state.scheduler.cancel_task(task_id)
+    #     logging.info(f"Cancelled cron task {task_id} in scheduler.")
 
     await log_generic_action(
         db_pool=request.app.state.db,
@@ -732,3 +767,75 @@ async def set_task_status(task_id: int, status_request: SetTaskStatusRequest, re
     # updated_task = await request.app.state.db.fetchrow("SELECT * FROM tasks WHERE id = $1", task_id)
     # return dict(updated_task)
     return {"status": "success", "message": f"Task {task_id} status updated to {status_request.status}."}
+
+@app.put("/api/scheduler/task/{task_id}", response_model=SchedulerTask)
+async def update_scheduler_task(task_id: str, task_update_data: SchedulerTaskCreate, request: Request):
+    import traceback
+    try:
+        # Ensure workflow_config is a JSON-serializable string or None
+        workflow_config = task_update_data.workflow_config
+        if workflow_config is not None:
+            if not isinstance(workflow_config, dict):
+                try:
+                    workflow_config = json.loads(json.dumps(workflow_config))
+                except Exception as e:
+                    raise HTTPException(status_code=400, detail=f"workflow_config is not serializable: {e}")
+            workflow_config = json.dumps(workflow_config)  # Serialize dict to JSON string
+        # Update the scheduler task in the DB
+        result = await request.app.state.db.execute(
+            """
+            UPDATE scheduler_tasks SET
+                type = $1,
+                description = $2,
+                status = $3,
+                to_email = $4,
+                subject = $5,
+                body = $6,
+                date_val = $7,
+                interval_seconds = $8,
+                condition = $9,
+                actionDesc = $10,
+                trigger_type = $11,
+                workflow_config = $12,
+                workflow_name = $13
+            WHERE id = $14
+            """,
+            task_update_data.type,
+            task_update_data.description,
+            task_update_data.status,
+            task_update_data.to,
+            task_update_data.subject,
+            task_update_data.body,
+            task_update_data.date,
+            task_update_data.interval,
+            task_update_data.condition,
+            task_update_data.actionDesc,
+            task_update_data.trigger_type,
+            workflow_config,
+            task_update_data.workflow_name,
+            task_id
+        )
+        if result == "UPDATE 0":
+            raise HTTPException(status_code=404, detail="Task not found")
+        # Fetch the updated task to return the full SchedulerTask model
+        updated_task_record = await request.app.state.db.fetchrow(
+            "SELECT id, type, description, status, nextRun, to_email as \"to\", subject, body, date_val as \"date\", interval_seconds as \"interval\", condition, actionDesc, trigger_type, workflow_config, workflow_name FROM scheduler_tasks WHERE id = $1",
+            task_id
+        )
+        updated_task_dict = dict(updated_task_record)
+        if updated_task_dict.get('workflow_config') is not None:
+            try:
+                updated_task_dict['workflow_config'] = json.loads(updated_task_dict['workflow_config'])
+            except Exception:
+                updated_task_dict['workflow_config'] = None
+        # Log the update
+        await log_generic_action(
+            db_pool=request.app.state.db,
+            action_description=f"Workflow '{task_id}' updated.",
+            username="user_api" # Placeholder
+        )
+        return SchedulerTask(**updated_task_dict)
+    except Exception as e:
+        tb = traceback.format_exc()
+        logging.error(f"Error in update_scheduler_task: {e}\n{tb}")
+        return JSONResponse(status_code=500, content={"error": str(e), "trace": tb})

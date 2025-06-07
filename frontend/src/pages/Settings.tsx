@@ -14,7 +14,7 @@ const Settings: React.FC = () => {
   const [emailTypes, setEmailTypes] = useState<{ topic: string; description: string }[]>([]);
   const [newEmailType, setNewEmailType] = useState({ topic: '', description: '' });
 
-  // Key features
+  // Key features - Add back global state
   const [keyFeatures, setKeyFeatures] = useState<string[]>([]);
   const [newKeyFeature, setNewKeyFeature] = useState('');
 
@@ -38,7 +38,8 @@ const Settings: React.FC = () => {
     model: '', // This will be set from the main 'model' state
     maxTokens: '', // This will be set from the main 'maxTokens' state
     subject: '',
-    keyFeature: '',
+    // Change keyFeature to an array for multiple selection
+    keyFeatures: [] as string[],
     selectedTopic: '', // Add selectedTopic to state
   });
 
@@ -68,6 +69,7 @@ const Settings: React.FC = () => {
         setFrequencyType(data.email_grabber_frequency_type || 'days');
         setFrequencyValue(data.email_grabber_frequency_value || '');
         setEmailTypes(data.email_types || []);
+        // Add back fetching and setting global key features
         setKeyFeatures(data.key_features.map((kf: { name: string }) => kf.name) || []); // Map key features to string array
       } catch (err: any) {
         setSettingsError(err.message);
@@ -98,7 +100,7 @@ const Settings: React.FC = () => {
     setEmailTypes(emailTypes.filter((_, i) => i !== idx));
   };
 
-  // Key Features
+  // Key Features - Add back global handlers
   const addKeyFeature = () => {
     if (newKeyFeature && !keyFeatures.includes(newKeyFeature)) {
       setKeyFeatures([...keyFeatures, newKeyFeature]);
@@ -117,6 +119,7 @@ const Settings: React.FC = () => {
       email_grabber_frequency_type: frequencyType,
       email_grabber_frequency_value: Number(frequencyValue),
       email_types: emailTypes,
+      // Add back saving global key features
       key_features: keyFeatures.map(kf => ({ name: kf })), // Map string array back to object array
     };
 
@@ -162,13 +165,15 @@ const Settings: React.FC = () => {
       max_tokens: maxTokens === '' ? undefined : parseInt(maxTokens as string, 10), // Use main maxTokens state
       steps: selectedSteps,
       initial_status: 'pending', // Default, can be made configurable
-      frequency_type: frequencyType, // Include frequency in workflow config
-      frequency_value: frequencyValue, // Include frequency in workflow config
-      // Include email action fields in workflow_config if needed by backend workflow execution
-      to: newWorkflowForm.emailTarget,
-      subject: newWorkflowForm.subject,
-      body: newWorkflowForm.emailBody,
-      key_feature: newWorkflowForm.keyFeature, // Include key feature
+      // Remove frequency from workflow config as it's a global setting
+      // frequency_type: frequencyType, // Include frequency in workflow config
+      // frequency_value: frequencyValue, // Include frequency in workflow config
+      // Remove email action fields from workflow_config
+      // to: newWorkflowForm.emailTarget,
+      // subject: newWorkflowForm.subject,
+      // body: newWorkflowForm.emailBody,
+      // Change key_feature to key_features and use the array
+      key_features: newWorkflowForm.keyFeatures, // Include selected key features (array)
       selected_topic: newWorkflowForm.selectedTopic, // Include selected topic
     };
 
@@ -179,11 +184,16 @@ const Settings: React.FC = () => {
       workflow_config: workflowConfigData,
       type: 'cron', // Aligning SchedulerTask.type with the triggerType for now
       status: 'active', // Status of the scheduler task itself
+      // Add email action fields at the top level
+      to: newWorkflowForm.emailTarget,
+      subject: newWorkflowForm.subject,
+      body: newWorkflowForm.emailBody,
     };
 
     // Clean up undefined optional fields before sending
     Object.keys(payload).forEach(key => {
-        if (payload[key] === undefined || payload[key] === null || payload[key] === '') {
+        // Keep 'description' even if it's an empty string, as it's a required field in the backend
+        if (key !== 'description' && (payload[key] === undefined || payload[key] === null || payload[key] === '')) {
              delete payload[key];
         }
     });
@@ -194,6 +204,8 @@ const Settings: React.FC = () => {
             }
         });
     }
+
+    console.log('Sending workflow payload:', payload); // Add this line for debugging
 
     const method = editingWorkflowId ? 'PUT' : 'POST';
     const url = editingWorkflowId ? `/api/scheduler/task/${editingWorkflowId}` : '/api/scheduler/task';
@@ -226,7 +238,8 @@ const Settings: React.FC = () => {
           model: '',
           maxTokens: '',
           subject: '',
-          keyFeature: '',
+          // Reset keyFeatures array
+          keyFeatures: [],
           selectedTopic: '', // Reset selectedTopic
         });
         setEditingWorkflowId(null); // Clear editing state
@@ -272,12 +285,13 @@ const Settings: React.FC = () => {
     setMaxTokens(workflow.workflow_config?.max_tokens || 1024);
     setNewWorkflowForm({
       type: '', // Assuming type is not directly editable via this form
-      emailBody: workflow.workflow_config?.body || '',
-      emailTarget: workflow.workflow_config?.to || '',
+      emailBody: workflow.body || '', // Get from top level
+      emailTarget: workflow.to || '', // Get from top level
       model: '', // This will be overwritten by setModel
       maxTokens: '', // This will be overwritten by setMaxTokens
-      subject: workflow.workflow_config?.subject || '',
-      keyFeature: workflow.workflow_config?.key_feature || '',
+      subject: workflow.subject || '', // Get from top level
+      // Populate keyFeatures with the array from workflow_config
+      keyFeatures: workflow.workflow_config?.key_features || [],
       selectedTopic: workflow.workflow_config?.selected_topic || '',
     });
   };
@@ -297,7 +311,8 @@ const Settings: React.FC = () => {
       model: '',
       maxTokens: '',
       subject: '',
-      keyFeature: '',
+      // Reset keyFeatures array
+      keyFeatures: [],
       selectedTopic: '',
     });
   };
@@ -322,285 +337,316 @@ const Settings: React.FC = () => {
   if (settingsError) return <div className="p-6 text-center text-red-500">Error loading settings: {settingsError}</div>;
 
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-8">
-      {/* Email Grabber Frequency */}
-      <section>
-        <h2 className="text-xl font-bold mb-2">Email Grabber Frequenz</h2>
-        <div className="flex gap-2 items-center">
-          <select value={frequencyType} onChange={handleFrequencyChange} className="border rounded px-2 py-1">
-            {frequencyOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-          <input
-            type="number"
-            min={1}
-            value={frequencyValue}
-            onChange={handleFrequencyValueChange}
-            className="border rounded px-2 py-1 w-24"
-            placeholder="Anzahl"
-            required
-          />
-          <span>{frequencyType === 'days' ? 'Tag(e)' : 'Minute(n)'}</span>
-        </div>
-      </section>
-
-      {/* Emailtypen */}
-      <section>
-        <h2 className="text-xl font-bold mb-2">Emailtypen</h2>
-        <div className="flex gap-2 mb-2">
-          <input
-            type="text"
-            placeholder="Topic"
-            value={newEmailType.topic}
-            onChange={e => setNewEmailType({ ...newEmailType, topic: e.target.value })}
-            className="border rounded px-2 py-1"
-          />
-          <input
-            type="text"
-            placeholder="Beschreibung"
-            value={newEmailType.description}
-            onChange={e => setNewEmailType({ ...newEmailType, description: e.target.value })}
-            className="border rounded px-2 py-1"
-          />
-          <button onClick={addEmailType} className="bg-blue-500 text-white px-3 py-1 rounded">Hinzufügen</button>
-        </div>
-        <ul className="space-y-1">
-          {emailTypes.map((et, idx) => (
-            <li key={idx} className="flex gap-2 items-center">
-              <span className="font-semibold">{et.topic}</span>
-              <span className="text-gray-500">{et.description}</span>
-              <button onClick={() => removeEmailType(idx)} className="text-red-500 ml-2">Entfernen</button>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* Key Features */}
-      <section>
-        <h2 className="text-xl font-bold mb-2">Key Features</h2>
-        <div className="flex gap-2 mb-2">
-          <input
-            type="text"
-            placeholder="z.B. Name, Adresse, ..."
-            value={newKeyFeature}
-            onChange={e => setNewKeyFeature(e.target.value)}
-            className="border rounded px-2 py-1"
-          />
-          <button onClick={addKeyFeature} className="bg-blue-500 text-white px-3 py-1 rounded">Hinzufügen</button>
-        </div>
-        <ul className="space-y-1">
-          {keyFeatures.map((kf, idx) => (
-            <li key={idx} className="flex gap-2 items-center">
-              <span>{kf}</span>
-              <button onClick={() => removeKeyFeature(idx)} className="text-red-500 ml-2">Entfernen</button>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* Save Settings Button */}
-      <div className="pt-4">
-        <button
-          onClick={handleSaveSettings}
-          disabled={savingSettings}
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-        >
-          {savingSettings ? 'Speichern...' : 'Einstellungen speichern'}
-        </button>
-      </div>
-
-      {/* Workflows (Integrated from WorkflowBuilder) */}
-      <section>
-        <h2 className="text-xl font-bold mb-2">Workflows</h2>
-        <form onSubmit={handleWorkflowSubmit} className="space-y-4 mb-4 p-4 border rounded-md bg-gray-50">
-          {/* Workflow Name */}
-          <div>
-            <label htmlFor="workflowName" className="block text-sm font-medium text-gray-700 mb-1">
-              Workflow Name
-            </label>
-            <input
-              type="text"
-              id="workflowName"
-              value={workflowName}
-              onChange={(e) => setWorkflowName(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              placeholder="e.g., Daily Email Summary"
-              required
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              placeholder="Describe what this workflow does"
-            />
-          </div>
-
-          {/* Workflow Steps Selection */}
-          <fieldset className="border p-4 rounded-md">
-            <legend className="text-lg font-medium text-gray-700 px-1">Workflow Steps</legend>
-            <div className="space-y-2 mt-2">
-              {availableSteps.map(step => (
-                <div key={step.id} className="flex items-center">
-                  <input
-                    id={`step-${step.id}`}
-                    name={`step-${step.id}`}
-                    type="checkbox"
-                    checked={selectedSteps.includes(step.id)}
-                    onChange={() => handleStepChange(step.id)}
-                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                  />
-                  <label htmlFor={`step-${step.id}`} className="ml-2 block text-sm text-gray-900">
-                    {step.label}
-                  </label>
-                </div>
-              ))}
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex flex-col md:flex-row gap-10 w-full max-w-6xl p-6">
+        {/* Main Settings Left */}
+        <div className="flex-1 min-w-[320px] max-w-xl space-y-8 bg-white rounded-lg shadow-md p-6">
+          {/* Email Grabber Frequency */}
+          <section>
+            <h2 className="text-xl font-bold mb-2">Email Grabber Frequenz</h2>
+            <div className="flex gap-2 items-center">
+              <select value={frequencyType} onChange={handleFrequencyChange} className="border rounded px-2 py-1">
+                {frequencyOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <input
+                type="number"
+                min={1}
+                value={frequencyValue}
+                onChange={handleFrequencyValueChange}
+                className="border rounded px-2 py-1 w-24"
+                placeholder="Anzahl"
+                required
+              />
+              <span>{frequencyType === 'days' ? 'Tag(e)' : 'Minute(n)'}</span>
             </div>
-          </fieldset>
+          </section>
 
-          {/* Model Configuration - General for workflows that might use an LLM */}
-          <fieldset className="border p-4 rounded-md">
-            <legend className="text-lg font-medium text-gray-700 px-1">LLM Configuration (Optional)</legend>
-            <div className="space-y-4 mt-2">
-              <div>
-                <label htmlFor="model" className="block text-sm font-medium text-gray-700 mb-1">
-                  Model Name
-                </label>
+          {/* Emailtypen */}
+          <section>
+            <h2 className="text-xl font-bold mb-2">Emailtypen</h2>
+            <div className="flex flex-col gap-2 mb-2">
+              <div className="flex gap-2">
                 <input
                   type="text"
-                  id="model"
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  placeholder="e.g., gpt-4, gemini-pro"
+                  placeholder="Topic"
+                  value={newEmailType.topic}
+                  onChange={e => setNewEmailType({ ...newEmailType, topic: e.target.value })}
+                  className="border rounded px-2 py-1"
                 />
-              </div>
-              <div>
-                <label htmlFor="maxTokens" className="block text-sm font-medium text-gray-700 mb-1">
-                  Max Tokens
-                </label>
-                <input
-                  type="number"
-                  id="maxTokens"
-                  value={maxTokens}
-                  onChange={(e) => setMaxTokens(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  placeholder="e.g., 1024"
-                />
-              </div>
-            </div>
-          </fieldset>
-
-          {/* Email Action Specific Fields - These could be part of a specific "action step" in a more complex builder */}
-          <fieldset className="border p-4 rounded-md">
-            <legend className="text-lg font-medium text-gray-700 px-1">Email Action Configuration (If Applicable)</legend>
-            <div className="space-y-4 mt-2">
-              {/* Selected Topic Dropdown */}
-              <div>
-                <label htmlFor="selectedTopic" className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Topic
-                </label>
-                <select
-                  id="selectedTopic"
-                  value={newWorkflowForm.selectedTopic}
-                  onChange={(e) => setNewWorkflowForm({ ...newWorkflowForm, selectedTopic: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                >
-                  <option value="">-- Select a Topic --</option>
-                  {emailTypes.map((et, idx) => (
-                    <option key={idx} value={et.topic}>{et.topic}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="toEmail" className="block text-sm font-medium text-gray-700 mb-1">
-                  Recipient Email (To)
-                </label>
-                <input
-                  type="email"
-                  id="toEmail"
-                  value={newWorkflowForm.emailTarget} // Use newWorkflowForm state
-                  onChange={(e) => setNewWorkflowForm({ ...newWorkflowForm, emailTarget: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  placeholder="recipient@example.com"
-                />
-              </div>
-              <div>
-                <label htmlFor="emailSubject" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email Subject
-                </label>
                 <input
                   type="text"
-                  id="emailSubject"
-                  value={newWorkflowForm.subject} // Use newWorkflowForm state
-                  onChange={(e) => setNewWorkflowForm({ ...newWorkflowForm, subject: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  placeholder="Your Email Subject"
+                  placeholder="Beschreibung"
+                  value={newEmailType.description}
+                  onChange={e => setNewEmailType({ ...newEmailType, description: e.target.value })}
+                  className="border rounded px-2 py-1"
                 />
               </div>
-              <div>
-                <label htmlFor="emailBody" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email Body
-                </label>
-                <textarea
-                  id="emailBody"
-                  value={newWorkflowForm.emailBody} // Use newWorkflowForm state
-                  onChange={(e) => setNewWorkflowForm({ ...newWorkflowForm, emailBody: e.target.value })}
-                  rows={4}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  placeholder="Compose your email body here..."
-                />
-              </div>
+              <button onClick={addEmailType} className="bg-blue-500 text-white px-3 py-1 rounded self-start">Hinzufügen</button>
             </div>
-          </fieldset>
-
-          <div className="pt-2">
-            <button
-              type="submit"
-              disabled={savingWorkflow}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-            >
-              {savingWorkflow ? (editingWorkflowId ? 'Updating...' : 'Saving...') : (editingWorkflowId ? 'Update Workflow' : 'Save Workflow')}
-            </button>
-            {editingWorkflowId && (
-              <button
-                type="button"
-                onClick={handleCancelEdit}
-                className="mt-2 w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Cancel Edit
-              </button>
-            )}
-          </div>
-        </form>
-
-        {/* Saved Workflows List */}
-        <div className="mt-8">
-          <h2 className="text-xl font-bold mb-2">Gespeicherte Workflows</h2>
-          <div className="max-h-60 overflow-y-auto border rounded-md p-2">
-            <ul>
-              {savedWorkflows.map(wf => (
-                <li key={wf.id} className="flex items-center gap-2 border-b py-2">
-                  <span className="flex-1">{wf.workflow_name} ({wf.workflow_config?.frequency_value} {wf.workflow_config?.frequency_type}) - Topic: {wf.workflow_config?.selected_topic}</span>
-                  {/* Add Edit Button */}
-                  <button onClick={() => handleEditWorkflow(wf)} className="bg-yellow-500 text-white px-2 py-1 rounded text-xs">Bearbeiten</button>
-                  <button onClick={() => handleDeleteWorkflow(wf.id)} className="bg-red-500 text-white px-2 py-1 rounded text-xs">Löschen</button>
+            <ul className="space-y-1">
+              {emailTypes.map((et, idx) => (
+                <li key={idx} className="flex gap-2 items-center">
+                  <span className="font-semibold">{et.topic}</span>
+                  <span className="text-gray-500">{et.description}</span>
+                  <button onClick={() => removeEmailType(idx)} className="text-red-500 ml-2">Entfernen</button>
                 </li>
               ))}
-              {savedWorkflows.length === 0 && <li className="text-gray-500">Keine Workflows gespeichert.</li>}
             </ul>
+          </section>
+
+          {/* Key Features - Add back global section */}
+          <section>
+            <h2 className="text-xl font-bold mb-2">Key Features</h2>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text"
+                placeholder="z.B. Name, Adresse, ..."
+                value={newKeyFeature}
+                onChange={e => setNewKeyFeature(e.target.value)}
+                className="border rounded px-2 py-1"
+              />
+              <button onClick={addKeyFeature} className="bg-blue-500 text-white px-3 py-1 rounded">Hinzufügen</button>
+            </div>
+            <ul className="space-y-1">
+              {keyFeatures.map((kf, idx) => (
+                <li key={idx} className="flex gap-2 items-center">
+                  <span>{kf}</span>
+                  <button onClick={() => removeKeyFeature(idx)} className="text-red-500 ml-2">Entfernen</button>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {/* Save Settings Button */}
+          <div className="pt-4">
+            <button
+              onClick={handleSaveSettings}
+              disabled={savingSettings}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+            >
+              {savingSettings ? 'Speichern...' : 'Einstellungen speichern'}
+            </button>
           </div>
         </div>
-      </section>
+
+        {/* Workflows Right */}
+        <div className="flex-1 min-w-[320px] max-w-xl bg-white rounded-lg shadow-md p-6">
+          <section>
+            <h2 className="text-xl font-bold mb-2">Workflows</h2>
+            <form onSubmit={handleWorkflowSubmit} className="space-y-4 mb-4 p-4 border rounded-md bg-gray-50">
+              {/* Workflow Name */}
+              <div>
+                <label htmlFor="workflowName" className="block text-sm font-medium text-gray-700 mb-1">
+                  Workflow Name
+                </label>
+                <input
+                  type="text"
+                  id="workflowName"
+                  value={workflowName}
+                  onChange={(e) => setWorkflowName(e.target.value)}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  placeholder="e.g., Daily Email Summary"
+                  required
+                />
+              </div>
+              {/* Description */}
+              <div>
+                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  placeholder="Describe what this workflow does"
+                />
+              </div>
+              {/* Workflow Steps Selection */}
+              <fieldset className="border p-4 rounded-md">
+                <legend className="text-lg font-medium text-gray-700 px-1">Workflow Steps</legend>
+                <div className="space-y-2 mt-2">
+                  {availableSteps.map(step => (
+                    <div key={step.id} className="flex items-center">
+                      <input
+                        id={`step-${step.id}`}
+                        name={`step-${step.id}`}
+                        type="checkbox"
+                        checked={selectedSteps.includes(step.id)}
+                        onChange={() => handleStepChange(step.id)}
+                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      />
+                      <label htmlFor={`step-${step.id}`} className="ml-2 block text-sm text-gray-900">
+                        {step.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </fieldset>
+              {/* Model Configuration - General for workflows that might use an LLM */}
+              <fieldset className="border p-4 rounded-md">
+                <legend className="text-lg font-medium text-gray-700 px-1">LLM Configuration (Optional)</legend>
+                <div className="space-y-4 mt-2">
+                  <div>
+                    <label htmlFor="model" className="block text-sm font-medium text-gray-700 mb-1">
+                      Model Name
+                    </label>
+                    <input
+                      type="text"
+                      id="model"
+                      value={model}
+                      onChange={(e) => setModel(e.target.value)}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      placeholder="e.g., gpt-4, gemini-pro"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="maxTokens" className="block text-sm font-medium text-gray-700 mb-1">
+                      Max Tokens
+                    </label>
+                    <input
+                      type="number"
+                      id="maxTokens"
+                      value={maxTokens}
+                      onChange={(e) => setMaxTokens(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      placeholder="e.g., 1024"
+                    />
+                  </div>
+                </div>
+              </fieldset>
+              {/* Email Action Specific Fields - These could be part of a specific "action step" in a more complex builder */}
+              <fieldset className="border p-4 rounded-md">
+                <legend className="text-lg font-medium text-gray-700 px-1">Email Action Configuration (If Applicable)</legend>
+                <div className="space-y-4 mt-2">
+                  {/* Selected Topic Dropdown */}
+                  <div>
+                    <label htmlFor="selectedTopic" className="block text-sm font-medium text-gray-700 mb-1">
+                      Select Topic
+                    </label>
+                    <select
+                      id="selectedTopic"
+                      value={newWorkflowForm.selectedTopic}
+                      onChange={(e) => setNewWorkflowForm({ ...newWorkflowForm, selectedTopic: e.target.value })}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    >
+                      <option value="">-- Select a Topic --</option>
+                      {emailTypes.map((et, idx) => (
+                        <option key={idx} value={et.topic}>{et.topic}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {/* Selected Key Features Checkboxes */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Select Key Features
+                    </label>
+                    <div className="space-y-1">
+                      {keyFeatures.map((kf, idx) => (
+                        <div key={idx} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id={`key-feature-${idx}`}
+                            checked={newWorkflowForm.keyFeatures.includes(kf)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setNewWorkflowForm(prevState => ({ ...prevState, keyFeatures: [...prevState.keyFeatures, kf] }));
+                              } else {
+                                setNewWorkflowForm(prevState => ({ ...prevState, keyFeatures: prevState.keyFeatures.filter(item => item !== kf) }));
+                              }
+                            }}
+                            className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                          />
+                          <label htmlFor={`key-feature-${idx}`} className="ml-2 block text-sm text-gray-900">
+                            {kf}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="toEmail" className="block text-sm font-medium text-gray-700 mb-1">
+                      Recipient Email (To)
+                    </label>
+                    <input
+                      type="email"
+                      id="toEmail"
+                      value={newWorkflowForm.emailTarget} // Use newWorkflowForm state
+                      onChange={(e) => setNewWorkflowForm({ ...newWorkflowForm, emailTarget: e.target.value })}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      placeholder="recipient@example.com"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="emailSubject" className="block text-sm font-medium text-gray-700 mb-1">
+                      Email Subject
+                    </label>
+                    <input
+                      type="text"
+                      id="emailSubject"
+                      value={newWorkflowForm.subject} // Use newWorkflowForm state
+                      onChange={(e) => setNewWorkflowForm({ ...newWorkflowForm, subject: e.target.value })}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      placeholder="Your Email Subject"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="emailBody" className="block text-sm font-medium text-gray-700 mb-1">
+                      Email Body
+                    </label>
+                    <textarea
+                      id="emailBody"
+                      value={newWorkflowForm.emailBody} // Use newWorkflowForm state
+                      onChange={(e) => setNewWorkflowForm({ ...newWorkflowForm, emailBody: e.target.value })}
+                      rows={4}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      placeholder="Compose your email body here..."
+                    />
+                  </div>
+                </div>
+              </fieldset>
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={savingWorkflow}
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                >
+                  {savingWorkflow ? (editingWorkflowId ? 'Updating...' : 'Saving...') : (editingWorkflowId ? 'Update Workflow' : 'Save Workflow')}
+                </button>
+                {editingWorkflowId && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="mt-2 w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    Cancel Edit
+                  </button>
+                )}
+              </div>
+            </form>
+            {/* Saved Workflows List */}
+            <div className="mt-8">
+              <h2 className="text-xl font-bold mb-2">Gespeicherte Workflows</h2>
+              <div className="max-h-60 overflow-y-auto border rounded-md p-2">
+                <ul>
+                  {savedWorkflows.map(wf => (
+                    <li key={wf.id} className="flex items-center gap-2 border-b py-2">
+                      <span className="flex-1">{wf.workflow_name} ({wf.workflow_config?.frequency_value} {wf.workflow_config?.frequency_type}) - Topic: {wf.workflow_config?.selected_topic}</span>
+                      {/* Add Edit Button */}
+                      <button onClick={() => handleEditWorkflow(wf)} className="bg-yellow-500 text-white px-2 py-1 rounded text-xs">Bearbeiten</button>
+                      <button onClick={() => handleDeleteWorkflow(wf.id)} className="bg-red-500 text-white px-2 py-1 rounded text-xs">Löschen</button>
+                    </li>
+                  ))}
+                  {savedWorkflows.length === 0 && <li className="text-gray-500">Keine Workflows gespeichert.</li>}
+                </ul>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
     </div>
   );
 };

@@ -171,7 +171,7 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
     Checks for new emails, summarizes them by topic, and executes all active workflows matching the topic.
     Uses MCP SSE session and tools for all email operations.
     """
-    logger.info(f"[Scheduler] Checking for new emails (with SSE/MCP)... Interval: {interval_seconds}s")
+    logger.info(f"[Scheduler] Checking for new emails (with SSE/MCP)... Interval: {interval_seconds}s (IGNORED, using 24h window for testing)")
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
     MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp-server/sse/")
     try:
@@ -184,29 +184,18 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                 if not mcp_tools:
                     logger.warning("No MCP tools available.")
                     return
-                # Use the correct tool: search_emails with query 'after:<ts> before:<ts>'
-                search_emails_tool = None
-                logger.info("[Scheduler] Loaded MCP tools:")
-                for tool in mcp_tools:
-                    logger.info(f" - {tool.name}")
-                    if hasattr(tool, 'name') and tool.name == 'search_emails':
-                        search_emails_tool = tool
-                        break
-                if not search_emails_tool:
-                    logger.warning("No 'search_emails' tool found in MCP tools.")
-                    return
-                # Calculate the correct time window for the query
+                # Use a fixed 24h window for testing
                 now_utc = datetime.datetime.now(datetime.timezone.utc)
-                after_dt = now_utc - datetime.timedelta(hours=interval_seconds)
-                # Convert to Unix timestamps (seconds since epoch)
+                after_dt = now_utc - datetime.timedelta(hours=24)
                 after_ts = int(after_dt.timestamp())
                 before_ts = int(now_utc.timestamp())
                 # Build Gmail-style query string
                 gmail_query = f"after:{after_ts} before:{before_ts}"
-                logger.info(f"Using Gmail query: {gmail_query}")
+                logger.info(f"Using Gmail query (24h): {gmail_query}")
                 # Call the tool via the session with the correct parameters
                 result = await session.call_tool(search_emails_tool.name, arguments={"query": gmail_query})
                 logger.info(result)
+                print(result)
                 logger.info(f"Search result from MCP tool: {result}")
                 # Defensive: Log and check the raw response before parsing
                 raw_content = result.content[0].text if result and result.content and len(result.content) > 0 else None
@@ -214,6 +203,8 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                 if not raw_content or not raw_content.strip():
                     logger.warning("MCP tool 'search_emails' returned empty or whitespace-only response. Skipping email processing.")
                     return
+                logger.info("Parsing emails from MCP tool response...")
+                logger.info(f"Raw content length: {(raw_content)}")
                 try:
                     emails_from_tool = json.loads(raw_content)
                 except Exception as e:
@@ -317,6 +308,33 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                                 )
                             else:
                                 logger.info(f"No document_processing step in workflow for task {task_id}.")
+                        # --- 1b. ATTACHMENT HANDLING ---
+                        # TODO: Replace with actual attachment download logic from Gmail/MCP
+                        # Example: attachments = await download_attachments_for_email(message_id)
+                        attachments = []  # Should be a list of dicts: {filename, content_type, data_b64}
+                        document_ids = []
+                        for att in attachments:
+                            doc_id = await connection.fetchval(
+                                """
+                                INSERT INTO documents (email_id, filename, content_type, data_b64, is_processed, created_at)
+                                VALUES ($1, $2, $3, $4, $5, $6)
+                                RETURNING id
+                                """,
+                                inserted_email_id,
+                                att['filename'],
+                                att['content_type'],
+                                att['data_b64'],
+                                False,
+                                received_at
+                            )
+                            document_ids.append(doc_id)
+                        # Update emails row with document_ids if any attachments
+                        if document_ids:
+                            await connection.execute(
+                                "UPDATE emails SET document_ids = $1 WHERE id = $2",
+                                document_ids,
+                                inserted_email_id
+                            )
     except Exception as e:
         logger.error(f"[Scheduler] Error during email check: {e}")
     finally:

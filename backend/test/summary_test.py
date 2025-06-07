@@ -35,7 +35,7 @@ async def categorize_email(email_body):
                 return "unknown"
             response = client.models.generate_content(
                 model="gemini-2.0-flash",
-                contents=["write email to yousif@orchestra-nexus.com, from leo@orchestra-nexus.com tell him that the gmail bot works now and give a short introduction about you and what you can do regarding your tools. it works now."],
+                contents=["get all my emails that have bin sent in the last 24 hours and summarize them"],
                 config=GenerateContentConfig(
                     system_instruction=["You are a Gmail agent. Your task is to use the available tools."],
                     tools=mcp_tools

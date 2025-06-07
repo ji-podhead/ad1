@@ -365,3 +365,24 @@ Contact the author for licensing options. All rights remain with the project own
 - Für Änderungen am Backend-Code oder an den Abhängigkeiten muss das Image neu gebaut werden.
 
 ---
+
+## Global Email Processing & Workflow Execution (ab 2025)
+
+- Es gibt **nur noch einen globalen Cronjob**, der regelmäßig (Intervall einstellbar in den Settings) nach neuen E-Mails sucht.
+- Für jede neue E-Mail wird automatisch eine LLM-Summary erstellt und das Topic (z.B. "Rechnung", "Support", etc.) bestimmt.
+- Anschließend werden **alle aktiven Workflows** ("scheduler_tasks" mit Status 'active' und Trigger 'cron') durchlaufen, deren Topic (`selected_topic` im Workflow-Config) zum erkannten Topic der E-Mail passt.
+- Für jede passende Workflow-Konfiguration wird ein Task angelegt und die im Workflow definierten Schritte (z.B. Compliance-Agent, Dokumentenverarbeitung, Human Verification, etc.) ausgeführt.
+- Die Zuordnung von Key Features und Topics erfolgt global in den Settings, die Auswahl pro Workflow erfolgt über die Workflow-Konfiguration.
+- Die Frequenz des globalen Cronjobs wird zentral in den Settings verwaltet (nicht pro Workflow).
+
+**Ablauf:**
+1. Globaler Cronjob ruft regelmäßig `check_new_emails` auf.
+2. Neue E-Mails werden klassifiziert (LLM) und in die Datenbank eingetragen.
+3. Für jede E-Mail werden alle passenden Workflows (nach Topic) ausgeführt.
+4. Für jeden Workflow wird ein Task angelegt und die definierten Schritte abgearbeitet.
+5. Ergebnisse und Status sind im Task- und Audit-Log nachvollziehbar.
+
+**Vorteile:**
+- Nur ein zentraler E-Mail-Check, keine parallelen Cronjobs pro Workflow nötig.
+- Workflows sind flexibel nach Topic und Key Features konfigurierbar.
+- Übersichtliche, nachvollziehbare Verarbeitung und Audit-Trail.

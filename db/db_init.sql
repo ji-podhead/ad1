@@ -8,7 +8,8 @@ CREATE TABLE emails (
     received_at TIMESTAMP NOT NULL DEFAULT NOW(),
     label TEXT,
     type TEXT,
-    short_description TEXT DEFAULT NULL
+    short_description TEXT DEFAULT NULL,
+    document_ids INTEGER[] DEFAULT '{}'
 );
 
 CREATE TABLE audit_trail (
@@ -99,4 +100,16 @@ VALUES (
   'doctor@clinic.ch',
   'https://m.media-amazon.com/images/I/61QnQn6YwGL._AC_SL1200_.jpg',
   'sick-note-demo'
+);
+
+-- --- DOCUMENTS TABLE (unified for raw/processed) ---
+CREATE TABLE IF NOT EXISTS documents (
+    id SERIAL PRIMARY KEY,
+    email_id INTEGER REFERENCES emails(id),
+    filename TEXT NOT NULL,
+    content_type TEXT NOT NULL,
+    data_b64 TEXT, -- raw base64 data, nullable if processed only
+    processed_data JSONB, -- processed/extracted data, nullable if raw only
+    is_processed BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
