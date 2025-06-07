@@ -16,16 +16,18 @@ from dotenv import load_dotenv
 import os
 import logging
 from tools_wrapper import (
-    list_emails, get_email, label_email, send_email, draft_email, read_email, search_emails, modify_email, delete_email, list_email_labels, create_label, update_label, delete_label, get_or_create_label, batch_modify_emails, batch_delete_emails
+    list_emails, get_email, label_email, send_email, draft_email, read_email, search_emails, modify_email, delete_email, list_email_labels, create_label, update_label, delete_label, get_or_create_label, batch_modify_emails, batch_delete_emails,
+    download_attachment
 )
 import asyncpg
+import aiohttp # For catching specific exceptions from tools_wrapper
 from agent_ws import agent_websocket
 from fastapi import HTTPException
 import uuid
 import datetime
 from agent_scheduler import AgentScheduler, check_new_emails # Import check_new_emails
-from fastapi.responses import JSONResponse
-from fastapi import Request
+from fastapi.responses import JSONResponse, StreamingResponse, Response
+from fastapi import Request, Depends # Added Depends
 
 # Logging configuration
 logging.basicConfig(level=logging.ERROR)
@@ -227,6 +229,121 @@ async def get_email(email_id: int):
     row = await app.state.db.fetchrow("SELECT id, subject, sender, body, label, type, short_description FROM emails WHERE id=$1", email_id)
     print(row)
     return dict(row)
+
+# Placeholder for User model and get_current_user dependency
+# These would typically be in a separate auth module.
+class CurrentUser(BaseModel):
+    id: int # Database ID of the user
+    email: str
+    # Add other fields like is_active, roles etc. as needed by your auth system
+
+async def get_current_user_placeholder() -> CurrentUser:
+    # In a real app, this would involve token validation (e.g., JWT)
+    # and fetching user details from the DB or token claims.
+    # For this subtask, we'll return a dummy user.
+    # This user's email must exist in the 'users' table with a 'google_access_token'.
+    logger.warning("Using placeholder authentication. Replace with actual security measures.")
+    # Ensure you have a user in your DB with ID 1 and a valid google_access_token for testing.
+    # Or, adjust the email to match a user in your DB that has a token.
+    return CurrentUser(id=1, email="user_with_token@example.com") # Replace with a testable user
+
+@app.get("/api/emails/{internal_email_id}/attachments/{document_db_id}")
+async def api_download_attachment(
+    internal_email_id: int,
+    document_db_id: int,
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user_placeholder) # Use placeholder
+):
+    """
+    Downloads an attachment using Gmail API via tools_wrapper.
+    - internal_email_id: The database ID of the email in our 'emails' table.
+    - document_db_id: The database ID of the document in our 'documents' table.
+    """
+    db_pool = request.app.state.db
+
+    # 1. Fetch document and related email metadata from DB
+    # Assumes 'documents' has 'google_attachment_id' (Gmail's attachment ID for that part)
+    # Assumes 'emails' has 'source_message_id' (Gmail's message ID)
+    query = """
+    SELECT
+        d.filename,
+        d.content_type,
+        d.google_attachment_id,  -- Stores Gmail's own attachment ID (from part.body.attachmentId)
+        e.source_message_id      -- Stores Gmail's message ID
+    FROM documents d
+    JOIN emails e ON d.email_id = e.id
+    WHERE d.id = $1 AND e.id = $2
+    """
+
+    try:
+        metadata_record = await db_pool.fetchrow(query, document_db_id, internal_email_id)
+    except Exception as e:
+        logger.error(f"Database error fetching attachment metadata for doc_id {document_db_id}, email_id {internal_email_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error accessing attachment metadata.")
+
+    if not metadata_record:
+        raise HTTPException(status_code=404, detail=f"Attachment or email metadata not found for document ID {document_db_id} and email ID {internal_email_id}.")
+
+    retrieved_filename = metadata_record['filename']
+    retrieved_content_type = metadata_record['content_type'] or "application/octet-stream"
+    google_message_id = metadata_record['source_message_id']
+    google_attachment_id = metadata_record['google_attachment_id']
+
+    if not google_message_id or not google_attachment_id:
+        logger.error(f"Missing Google message ID or attachment ID for document {document_db_id}. Cannot download from Gmail.")
+        raise HTTPException(status_code=500, detail="Attachment metadata incomplete (missing Google identifiers).")
+
+    # 2. Retrieve user's Google Access Token
+    access_token: Optional[str] = None
+    try:
+        # Using current_user.email from the placeholder dependency
+        user_token_record = await db_pool.fetchrow(
+            "SELECT google_access_token FROM users WHERE email = $1", current_user.email
+        )
+        if not user_token_record or not user_token_record['google_access_token']:
+            logger.warning(f"Google access token not found for user: {current_user.email}")
+            raise HTTPException(status_code=401, detail="User not authenticated with Google or token missing.")
+        access_token = user_token_record['google_access_token']
+    except HTTPException:
+        raise # Re-raise if it's our own HTTPException (like 401)
+    except Exception as e:
+        logger.error(f"Error fetching access token for user {current_user.email}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Could not retrieve user authentication token.")
+
+    # 3. Call tools_wrapper.download_attachment
+    attachment_bytes: bytes
+    try:
+        logger.info(f"Calling tools_wrapper.download_attachment for Gmail msg_id: {google_message_id}, att_id: {google_attachment_id}, user: 'me'")
+        attachment_bytes = await download_attachment(
+            user_id='me',  # For Gmail API, 'me' refers to the authenticated user whose token is used
+            message_id=google_message_id,
+            attachment_id=google_attachment_id,
+            access_token=access_token
+        )
+    except aiohttp.ClientResponseError as e:
+        logger.error(f"Gmail API error downloading attachment (msg_id {google_message_id}, att_id {google_attachment_id}): {e.status} {e.message}", exc_info=True)
+        if e.status == 404:
+            raise HTTPException(status_code=404, detail="Attachment not found on Gmail server.")
+        elif e.status == 401 or e.status == 403:
+             raise HTTPException(status_code=e.status, detail=f"Gmail API authentication/authorization error: {e.message}")
+        else:
+            raise HTTPException(status_code=502, detail=f"Gmail API error: {e.message}") # 502 Bad Gateway for upstream errors
+    except ValueError as e: # From tools_wrapper for decoding or missing data
+        logger.error(f"Data error for attachment (msg_id {google_message_id}, att_id {google_attachment_id}): {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error processing attachment data: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error calling download_attachment for (msg_id {google_message_id}, att_id {google_attachment_id}): {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error during attachment download.")
+
+    # 4. Return StreamingResponse
+    headers = {
+        # Ensure filename is quoted and properly escaped if it contains special characters.
+        # FastAPI/Starlette's StreamingResponse might handle some of this, but being explicit is safer.
+        "Content-Disposition": f"attachment; filename=\"{retrieved_filename.replace('\"', '_')}\""
+    }
+
+    import io
+    return StreamingResponse(io.BytesIO(attachment_bytes), media_type=retrieved_content_type, headers=headers)
 
 @app.post("/api/emails/{email_id}/label")
 async def label_email(email_id: int, label: str):

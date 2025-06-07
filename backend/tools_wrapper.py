@@ -153,3 +153,111 @@ async def batch_delete_emails(messageIds: list, batchSize: int = 50) -> Dict[str
         async with session.post(f"{MCP_BASE_URL}/batch_delete_emails", json=payload) as resp:
             resp.raise_for_status()
             return await resp.json()
+
+import base64
+import logging
+import binascii
+
+logger = logging.getLogger(__name__)
+
+async def download_attachment(user_id: str, message_id: str, attachment_id: str, access_token: str) -> bytes:
+    """
+    Downloads an attachment from Gmail using the Gmail API and OAuth2 token.
+    user_id: string ("me" for authentifizierten User oder echte E-Mail-Adresse)
+    message_id: string
+    attachment_id: string
+    access_token: string (OAuth2 access token for Gmail API)
+    Returns the decoded attachment data as bytes.
+    Raises aiohttp.ClientResponseError for HTTP errors, ValueError for missing 'data' or decoding errors.
+    """
+    url = f"https://www.googleapis.com/gmail/v1/users/{user_id}/messages/{message_id}/attachments/{attachment_id}"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json"  # Gmail API for attachments returns JSON
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=headers) as resp:
+            resp.raise_for_status()  # Raises aiohttp.ClientResponseError for bad responses (4xx or 5xx)
+            try:
+                json_response = await resp.json()
+                if 'data' not in json_response:
+                    logger.error(f"Gmail API response missing 'data' field for attachment {attachment_id} in message {message_id}")
+                    raise ValueError("Attachment data field missing in API response")
+
+                base64url_data = json_response['data']
+                # Python's urlsafe_b64decode handles padding issues automatically if needed.
+                decoded_bytes = base64.urlsafe_b64decode(base64url_data)
+                return decoded_bytes
+            except json.JSONDecodeError as e: # Catch error if response is not valid JSON
+                logger.error(f"Failed to decode JSON response from Gmail API for attachment {attachment_id}: {e}")
+                raise ValueError(f"Invalid JSON response from Gmail API: {await resp.text()}")
+            except KeyError: # Should be caught by 'data' not in json_response, but as a safeguard
+                logger.error(f"Gmail API response missing 'data' field for attachment {attachment_id} (KeyError)")
+                raise ValueError("Attachment data field missing (KeyError)")
+            except (binascii.Error, TypeError) as e: # TypeError can occur with incorrect base64 string types
+                logger.error(f"Base64 decoding error for attachment {attachment_id}: {e}")
+                raise ValueError(f"Base64 decoding failed for attachment data: {e}")
+            except Exception as e: # Catch any other unexpected errors
+                logger.error(f"Unexpected error processing attachment {attachment_id} from Gmail API: {e}")
+                raise # Re-raise other exceptions to understand them better
+
+
+async def get_gmail_email_details(user_id: str, message_id: str, access_token: str) -> Dict[str, Any]:
+    """
+    Fetches the full details of an email from the Gmail API.
+    user_id: User's email address or "me".
+    message_id: The ID of the message to fetch.
+    access_token: OAuth 2.0 access token for authorization.
+    Returns the parsed JSON response from Gmail API (the full message resource).
+    """
+    url = f"https://www.googleapis.com/gmail/v1/users/{user_id}/messages/{message_id}?format=FULL"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json"
+    }
+    logger.debug(f"Fetching full email details for message ID: {message_id} for user: {user_id}")
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(url, headers=headers) as resp:
+                resp.raise_for_status()  # Raises for 4xx/5xx responses
+                email_details = await resp.json()
+                logger.debug(f"Successfully fetched email details for message ID: {message_id}")
+                return email_details
+        except aiohttp.ClientResponseError as e:
+            logger.error(f"HTTP error calling Gmail API for message {message_id}: {e.status} {e.message}")
+            raise  # Re-raise to allow specific handling by the caller
+        except Exception as e:
+            logger.error(f"Unexpected error fetching email details for message {message_id} via Gmail API: {e}")
+            raise RuntimeError(f"An unexpected error occurred while fetching email details: {e}")
+
+
+async def list_gmail_messages(user_id: str, access_token: str, query: str = 'is:unread', max_results: int = 10) -> List[Dict[str, Any]]:
+    """
+    Lists messages in the user's mailbox matching the query.
+    user_id: User's email address or "me".
+    access_token: OAuth 2.0 access token.
+    query: String query to filter messages (e.g., 'is:unread label:my_label').
+    max_results: Maximum number of messages to return.
+    Returns a list of message resources (id and threadId).
+    """
+    url = f"https://www.googleapis.com/gmail/v1/users/{user_id}/messages"
+    params = {"q": query, "maxResults": max_results}
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json"
+    }
+    logger.debug(f"Listing Gmail messages for user {user_id} with query: {query}")
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(url, headers=headers, params=params) as resp:
+                resp.raise_for_status()
+                response_data = await resp.json()
+                messages = response_data.get('messages', [])
+                logger.info(f"Found {len(messages)} messages for user {user_id}.")
+                return messages # List of {'id': '...', 'threadId': '...'}
+        except aiohttp.ClientResponseError as e:
+            logger.error(f"HTTP error listing Gmail messages for user {user_id}: {e.status} {e.message}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error listing Gmail messages for user {user_id}: {e}")
+            raise RuntimeError(f"An unexpected error occurred while listing messages: {e}")
