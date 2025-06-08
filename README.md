@@ -386,3 +386,63 @@ Contact the author for licensing options. All rights remain with the project own
 - Nur ein zentraler E-Mail-Check, keine parallelen Cronjobs pro Workflow nötig.
 - Workflows sind flexibel nach Topic und Key Features konfigurierbar.
 - Übersichtliche, nachvollziehbare Verarbeitung und Audit-Trail.
+
+## Troubleshooting: Google OAuth & Container Startup
+
+### Problem: OAuth/Google Login or Gmail API does not work ("No refresh token is set" or similar)
+
+Sometimes, after a fresh setup or when running the containers on a new machine, you may encounter OAuth or Gmail API errors such as:
+
+```
+gmail-1 | Please visit this URL to authenticate: https://accounts.google.com/o/oauth2/v2/auth?...&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Foauth2callback
+mw-backend | INFO:agent_scheduler:Raw MCP tool response: 'Error: No refresh token is set.'
+```
+
+#### Solution: Manual OAuth Authentication Flow
+
+1. **Start the containers as usual:**
+   ```bash
+   sudo docker compose up --build
+   ```
+2. **Watch the logs of the `gmail` (or `gmail-1`) container.**
+   - You will see a line like:
+     ```
+     gmail-1 | Please visit this URL to authenticate: https://accounts.google.com/o/oauth2/v2/auth?...&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Foauth2callback
+     ```
+3. **Copy the full URL from the logs and open it in your browser.**
+   - Log in with your Google account and grant the requested permissions.
+   - The redirect URI should match one of those in your `gcp-oauth.keys.json` and Google Cloud Console.
+4. **After successful login, the container will store the refresh token.**
+   - You should see a log like:
+     ```
+     gmail-1 | Authentication completed successfully
+     ```
+5. **Rebuild and restart the containers:**
+   ```bash
+   sudo docker compose up --build
+   ```
+   This ensures the token is available for all services.
+
+#### Example Log Output
+```
+gmail-1 | Please visit this URL to authenticate: https://accounts.google.com/o/oauth2/v2/auth?...&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Foauth2callback
+gmail-1 | Authentication completed successfully
+mw-backend | INFO:agent_scheduler:Raw MCP tool response: 'Error: No refresh token is set.'
+```
+
+#### Notes
+- If you see `Error: No refresh token is set.`, repeat the above steps.
+- Make sure your `gcp-oauth.keys.json` is mounted correctly in all relevant containers.
+- The redirect URI in the browser must match the one in your Google Cloud Console and `gcp-oauth.keys.json`.
+- If you change OAuth credentials or move to a new machine, you may need to repeat this process.
+
+#### Code Example: Container Startup
+```bash
+sudo docker compose up --build
+```
+
+#### Code Example: Log Output
+```
+gmail-1 | Please visit this URL to authenticate: https://accounts.google.com/o/oauth2/v2/auth?...&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Foauth2callback
+gmail-1 | Authentication completed successfully
+```
