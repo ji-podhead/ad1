@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom'; // Import hooks
 
 const frequencyOptions = [
   { value: 'days', label: 'Tage' },
@@ -47,6 +48,12 @@ const Settings: React.FC = () => {
   const [savingSettings, setSavingSettings] = useState<boolean>(false); // New state for saving settings
   const [settingsError, setSettingsError] = useState<string | null>(null); // New state for settings errors
 
+  // New state for Gmail auth status
+  const [gmailAuthStatus, setGmailAuthStatus] = useState<'success' | 'failure' | null>(null);
+
+  const location = useLocation(); // Get location object
+  const navigate = useNavigate(); // Get navigate function
+
   const availableSteps = [
     { id: 'compliance_agent', label: 'Compliance Agent' },
     { id: 'human_verification', label: 'Human Verification' },
@@ -78,8 +85,18 @@ const Settings: React.FC = () => {
         setLoadingSettings(false);
       }
     };
+
+    // Check for OAuth callback parameters
+    const params = new URLSearchParams(location.search);
+    const authStatus = params.get('auth');
+    if (authStatus === 'success' || authStatus === 'failure') {
+      setGmailAuthStatus(authStatus);
+      // Clean up the URL
+      navigate(location.pathname, { replace: true });
+    }
+
     fetchSettings();
-  }, []); // Empty dependency array means this runs once on mount
+  }, [location.search, navigate]); // Add location.search and navigate to dependencies
 
   // Handlers for Email Grabber Frequency
   const handleFrequencyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -109,6 +126,27 @@ const Settings: React.FC = () => {
   };
   const removeKeyFeature = (idx: number) => {
     setKeyFeatures(keyFeatures.filter((_, i) => i !== idx));
+  };
+
+  // Handler to initiate Gmail OAuth flow
+  const handleGmailConnect = async () => {
+    try {
+      const response = await fetch('/api/gmail/auth-url');
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to get auth URL: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+      const data = await response.json();
+      if (data.auth_url) {
+        window.location.href = data.auth_url; // Redirect user to Google auth URL
+      } else {
+        throw new Error('Auth URL not received from backend.');
+      }
+    } catch (err: any) {
+      console.error("Gmail connect error:", err);
+      alert(`Error connecting to Gmail: ${err.message}`);
+      setGmailAuthStatus('failure'); // Indicate failure in case of frontend error
+    }
   };
 
   // Handler for saving all settings
@@ -417,6 +455,24 @@ const Settings: React.FC = () => {
                 </li>
               ))}
             </ul>
+          </section>
+
+          {/* Gmail Integration Section */}
+          <section>
+            <h2 className="text-xl font-bold mb-2">Gmail Integration</h2>
+            <p className="text-sm text-gray-600 mb-4">Connect your Gmail account to enable email processing features.</p>
+            <button
+              onClick={handleGmailConnect}
+              className="bg-red-500 text-white px-4 py-2 rounded-md shadow-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            >
+              Connect Gmail
+            </button>
+            {gmailAuthStatus === 'success' && (
+              <p className="mt-4 text-green-600 font-semibold">Gmail connected successfully!</p>
+            )}
+            {gmailAuthStatus === 'failure' && (
+              <p className="mt-4 text-red-600 font-semibold">Failed to connect Gmail. Please try again.</p>
+            )}
           </section>
 
           {/* Save Settings Button */}

@@ -9,3 +9,5 @@ python-dotenv
 pydantic
 mcp
 aiohttp
+google-auth-oauthlib
+google-api-python-client

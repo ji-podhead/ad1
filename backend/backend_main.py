@@ -1,8 +1,9 @@
 # FastAPI backend for Ornex Mail
 # Entry point: main.py
 
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, Query # Import Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse # Import RedirectResponse
 from pydantic import BaseModel
 from typing import List, Optional, Union
 import json
@@ -26,6 +27,7 @@ import datetime
 from agent_scheduler import AgentScheduler, check_new_emails # Import check_new_emails
 from fastapi.responses import JSONResponse
 from fastapi import Request
+from gmail_auth import generate_auth_url, handle_oauth_callback # Import the functions
 
 # Logging configuration
 logging.basicConfig(level=logging.ERROR)
@@ -637,6 +639,25 @@ async def list_users():
     rows = await app.state.db.fetch("SELECT id, email, is_admin, roles, google_id FROM users")
     return [dict(row) for row in rows]
 
+
+@app.get("/oauth2callback")
+async def oauth2callback(code: str = Query(...), state: str = Query(None)):
+    """
+    Handles the OAuth2 callback from Google, exchanges the code for tokens,
+    and stores the credentials.
+    """
+    logger.info("-----------------------------------------")
+    logger.info(f"Received OAuth2 callback with code: {code}, state: {state}")
+    success = handle_oauth_callback(code, state)
+
+    if success:
+        # Redirect to a frontend page indicating success
+        # You might want to pass a success parameter or redirect to a specific route
+        return RedirectResponse(url="http://localhost:5173/settings?auth=success")
+    else:
+        # Redirect to a frontend page indicating failure
+        return RedirectResponse(url="http://localhost:5173/settings?auth=failure")
+
 @app.get("/api/oauth-config")
 def get_oauth_config():
     path = os.path.join(os.path.dirname(__file__), 'auth/gcp-oauth.keys.json')
@@ -849,3 +870,15 @@ async def save_user_token(email: str, data: dict, request: Request):
         "UPDATE users SET google_access_token=$1 WHERE email=$2", token, email
     )
     return {"status": "ok"}
+
+@app.get("/api/gmail/auth-url")
+async def get_gmail_auth_url():
+    """
+    Generates the Gmail OAuth authorization URL and returns it to the frontend.
+    """
+    logger.info("Generating Gmail OAuth authorization URL...")
+    auth_url, state = generate_auth_url()
+    # In a real app, you would store the state server-side and associate it with the user's session
+    # and potentially return it to the frontend to be sent back in the callback for verification.
+    # For this example, we are just returning the URL.
+    return {"auth_url": auth_url}

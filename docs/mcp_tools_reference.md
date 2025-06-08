@@ -26,7 +26,7 @@ Below is a list of available MCP tools and their arguments (input parameters).
 - **threadId**: string — Thread ID to reply to
 - **inReplyTo**: string — Message ID being replied to
 
-## 3. read_email
+## 3.  a
 - **messageId**: string — ID of the email message to retrieve (required)
 
 ## 4. search_emails
