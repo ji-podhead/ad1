@@ -3,7 +3,7 @@ import pickle
 import logging
 from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request
-
+import asyncpg # Assuming asyncpg is used for database connection
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -93,3 +93,16 @@ def get_authenticated_service():
     logger.info("Authenticated Gmail session available.")
     # For now, just return the credentials object or a simple indicator of success
     return credentials  # Or the built service object
+
+
+
+
+async def fetch_access_token_for_user(db_pool: asyncpg.pool.Pool, user_email: str) -> str:
+        logger.info(f"Attempting to fetch access token for user: {user_email} for message fetch test.")
+        user_row = await db_pool.fetchrow("SELECT google_access_token FROM users")
+        if not user_row or not user_row['google_access_token']:
+            logger.error(f"Google access token not found for user: {user_email}. Cannot perform message fetch test.")
+            return None
+        user_oauth_token = user_row['google_access_token']
+        logger.info(f"Successfully fetched access token for user: {user_email} for message fetch test.")
+        return user_oauth_token
