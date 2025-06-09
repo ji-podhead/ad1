@@ -9,3 +9,8 @@
 
 *   **Description:** The frontend fails to parse the response from `/api/oauth-config` as JSON because it receives an HTML page instead. This is due to an incorrect file path construction in `backend/backend_main.py` for the `gcp-oauth.keys.json` file, leading to a 404 or server error that returns HTML.
 *   **Status:** Fixed. The path in `backend_main.py`'s `get_oauth_config` function has been corrected from `os.path.join(os.path.dirname(__file__), '../auth/gcp-oauth.keys.json')` to `os.path.join(os.path.dirname(__file__), 'auth/gcp-oauth.keys.json')`.
+
+## 3. Backend: Google OAuth Access Token Refresh Logic
+
+*   **Description:** The current implementation for downloading Gmail attachments (`download_gmail_attachment` in `agent_scheduler.py`) uses the stored Google Access Token directly. Access Tokens have a limited lifespan and will expire, leading to 401 Unauthorized errors when attempting to download attachments. The Google Refresh Token is stored but not used to obtain new Access Tokens.
+*   **Status:** Identified. Requires implementing a token refresh mechanism. This involves checking token validity, using the Refresh Token to get new Access and Refresh Tokens from Google, updating the database, and retrying the API call with the new Access Token.

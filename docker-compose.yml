@@ -91,6 +91,14 @@ services:
     #   retries: 3
     #   start_period: 60s
 
+  adminer:
+    image: adminer
+    restart: always
+    depends_on:
+      - db
+    ports:
+      - 9000:8080
+
 volumes:
   db_data:
   doc_processing_cache: # New volume for doc processing model cache

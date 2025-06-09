@@ -1,8 +1,8 @@
 # FastAPI backend for Ornex Mail
 # Entry point: main.py
-
-from fastapi import FastAPI, WebSocket, Query # Import Query
 from fastapi.middleware.cors import CORSMiddleware
+
+from fastapi import FastAPI, WebSocket, Query, Request # Import Request
 from fastapi.responses import RedirectResponse # Import RedirectResponse
 from pydantic import BaseModel
 from typing import List, Optional, Union
@@ -27,7 +27,11 @@ import datetime
 from agent_scheduler import AgentScheduler, check_new_emails # Import check_new_emails
 from fastapi.responses import JSONResponse
 from fastapi import Request
-from gmail_auth import generate_auth_url, handle_oauth_callback # Import the functions
+# Import Flow for handling OAuth in the endpoint
+from google_auth_oauthlib.flow import Flow
+# Remove import of handle_oauth_callback from gmail_auth as logic is moved here
+# from gmail_auth import generate_auth_url, handle_oauth_callback # Import the functions
+from gmail_auth import generate_auth_url # Keep generate_auth_url
 
 # Logging configuration
 logging.basicConfig(level=logging.ERROR)
@@ -120,7 +124,10 @@ class User(BaseModel):
     password: str | None = None
     is_admin: bool = False
     roles: list[str] = []
-    google_id: Optional[str] = None # Added for Google OAuth
+    google_id: Optional[str] = None
+    mcp_token: Optional[str] = None # Added for MCP token
+    google_access_token: Optional[str] = None # Ensure this is here
+    google_refresh_token: Optional[str] = None # Added for Google refresh token
 
 class ProcessingTask(BaseModel):
     id: int # from tasks table
@@ -155,6 +162,16 @@ class SettingsData(BaseModel):
 
 class SetTaskStatusRequest(BaseModel):
     status: str
+
+# Document model
+class Document(BaseModel):
+    id: int
+    email_id: int
+    filename: str
+    content_type: str
+    data_b64: str # Base64 encoded content
+    is_processed: bool
+    created_at: datetime.datetime
 
 # DB pool
 @app.on_event("startup")
@@ -500,8 +517,8 @@ async def addUser(user_create_request: CreateUserRequest):
     hashed_password = pwd_context.hash(user_create_request.password)
     try:
         query = """
-            INSERT INTO users (email, password, is_admin, roles, google_id)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO users (email, password, is_admin, roles, google_id, google_access_token, google_refresh_token)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING id, email, is_admin, roles, google_id
         """
         row = await app.state.db.fetchrow(
@@ -510,7 +527,9 @@ async def addUser(user_create_request: CreateUserRequest):
             hashed_password,
             user_create_request.is_admin,
             user_create_request.roles,
-            user_create_request.google_id
+            user_create_request.google_id,
+            '',  # google_access_token leer
+            ''   # google_refresh_token leer
         )
         if row:
             created_user = User(**dict(row))
@@ -564,13 +583,17 @@ async def setUser(user_identifier: Union[int, str], user_update_request: UpdateU
         update_fields["roles"] = user_update_request.roles
     if user_update_request.google_id is not None and user_update_request.google_id != existing_user.get("google_id"): # Use .get for safety
         update_fields["google_id"] = user_update_request.google_id
+    if user_update_request.google_access_token is not None and user_update_request.google_access_token != existing_user.get("google_access_token"):
+        update_fields["google_access_token"] = user_update_request.google_access_token
+    if user_update_request.google_refresh_token is not None and user_update_request.google_refresh_token != existing_user.get("google_refresh_token"):
+        update_fields["google_refresh_token"] = user_update_request.google_refresh_token
 
     if not update_fields:
         # Return existing user data if no changes are requested
         return User(**existing_user)
 
-    set_clauses = ", ".join([f"{field} = ${i+2}" for i, field in enumerate(update_fields.keys())])
-    query = f"UPDATE users SET {set_clauses} WHERE {condition_column} = $1 RETURNING id, email, is_admin, roles, google_id"
+    set_clauses = ", ".join([f"{field} = ${{i+2}}" for i, field in enumerate(update_fields.keys())])
+    query = f"UPDATE users SET {set_clauses} WHERE {condition_column} = $1 RETURNING id, email, is_admin, roles, google_id, google_access_token, google_refresh_token"
 
     try:
         updated_user_row = await app.state.db.fetchrow(query, user_identifier, *update_fields.values())
@@ -641,20 +664,66 @@ async def list_users():
 
 
 @app.get("/oauth2callback")
-async def oauth2callback(code: str = Query(...), state: str = Query(None)):
+async def oauth2callback(request: Request, code: str = Query(...), state: str = Query(None)): # Corrected signature
     """
     Handles the OAuth2 callback from Google, exchanges the code for tokens,
-    and stores the credentials.
+    and stores the credentials in the database.
     """
     logger.info("-----------------------------------------")
     logger.info(f"Received OAuth2 callback with code: {code}, state: {state}")
-    success = handle_oauth_callback(code, state)
 
-    if success:
-        # Redirect to a frontend page indicating success
-        # You might want to pass a success parameter or redirect to a specific route
-        return RedirectResponse(url="http://localhost:5173/settings?auth=success")
+    # Extract user ID from state (based on the format used in get_gmail_auth_url)
+    user_id = None
+    if state and '-' in state:
+        try:
+            # Assuming state format is "original_state-user_id"
+            user_id = int(state.split('-')[-1])
+            logger.info(f"Extracted user ID from state: {user_id}")
+        except ValueError:
+            logger.error(f"Could not parse user ID from state: {state}")
+            # Handle invalid state - potentially redirect with an error
+            return RedirectResponse(url="http://localhost:5173/settings?auth=failure")
     else:
+         logger.error(f"State parameter missing or in unexpected format: {state}")
+         # Handle missing or invalid state
+         return RedirectResponse(url="http://localhost:5173/settings?auth=failure")
+
+
+    flow = Flow.from_client_secrets_file(
+        './auth/gcp-oauth.keys.json',
+        scopes=['https://mail.google.com/'],
+        redirect_uri='http://localhost:8001/oauth2callback')
+
+    try:
+        # Exchange the authorization code for tokens
+        flow.fetch_token(code=code)
+
+        # Get credentials
+        credentials = flow.credentials
+
+        # Extract access and refresh tokens
+        access_token = credentials.token
+        refresh_token = credentials.refresh_token # This might be None if not requested or first time
+
+        logger.info(f"Obtained access token. Refresh token available: {refresh_token is not None}")
+        rows = await app.state.db.fetch("SELECT * FROM users")
+        logger.info(rows)
+        # Save tokens to the database for the user
+        db_pool = request.app.state.db
+        await db_pool.execute(
+            "UPDATE users SET google_access_token = $1, google_refresh_token = $2 WHERE id = $3",
+            access_token, refresh_token, user_id
+        )
+
+        logger.info(f"Successfully obtained and stored Gmail credentials for user ID: {user_id}")
+
+        # Redirect to a frontend page indicating success
+        return RedirectResponse(url="http://localhost:5173/settings?auth=success")
+
+    except Exception as e:
+        logger.error(f"Error fetching token or saving credentials: {e}")
+        rows = await app.state.db.fetch("SELECT * FROM users")
+        logger.error(rows)
         # Redirect to a frontend page indicating failure
         return RedirectResponse(url="http://localhost:5173/settings?auth=failure")
 
@@ -678,6 +747,7 @@ async def userinfo(request: Request):
         raise HTTPException(status_code=400, detail="Missing email")
     # Also fetch google_id if it's relevant for userinfo response
     row = await app.state.db.fetchrow("SELECT is_admin, roles, google_id FROM users WHERE email=$1", email)
+    logger.info(f"Userinfo query for email: {email} returned row: {row}")
     if not row:
         return {"is_admin": False, "roles": [], "google_id": None} # Ensure consistent response structure
     return {"is_admin": row["is_admin"], "roles": row["roles"], "google_id": row["google_id"]}
@@ -872,13 +942,176 @@ async def save_user_token(email: str, data: dict, request: Request):
     return {"status": "ok"}
 
 @app.get("/api/gmail/auth-url")
-async def get_gmail_auth_url():
+async def get_gmail_auth_url(request: Request):
     """
     Generates the Gmail OAuth authorization URL and returns it to the frontend.
+    Includes user ID in the state parameter.
     """
     logger.info("Generating Gmail OAuth authorization URL...")
-    auth_url, state = generate_auth_url()
-    # In a real app, you would store the state server-side and associate it with the user's session
-    # and potentially return it to the frontend to be sent back in the callback for verification.
-    # For this example, we are just returning the URL.
-    return {"auth_url": auth_url}
+    # In a real app, get the user ID from the authenticated request
+    # For demonstration, using a placeholder user ID (e.g., 1)
+    user_id = 1 # Replace with actual user ID retrieval
+    auth_url, state = generate_auth_url() # generate_auth_url already includes a state
+    # Append user_id to the state (simple approach, consider signing state in production)
+    state_with_user = f"{state}-{user_id}"
+    auth_url_with_state = auth_url.replace(f"state={state}", f"state={state_with_user}")
+
+    logger.info(f"Generated auth URL: {auth_url_with_state}")
+    return {"auth_url": auth_url_with_state}
+
+# Add endpoint to get MCP auth URL
+@app.get("/api/mcp/auth-url")
+async def get_mcp_auth_url():
+    """
+    Provides the frontend with the URL to initiate MCP server login.
+    (Placeholder - replace with actual MCP auth URL generation)
+    """
+    # Replace with the actual URL to initiate MCP server login
+    # You might need to pass a redirect_uri parameter to the MCP server
+    mcp_login_url = "http://your-mcp-server/auth/login?redirect_uri=http://localhost:8001/mcpcallback"
+    return {"auth_url": mcp_login_url}
+
+# Add endpoint to handle MCP callback and save token
+@app.get("/mcpcallback")
+async def mcp_callback(token: str = Query(...), user_email: str = Query(...)):
+    """
+    Handles the callback from the MCP server, receives the token,
+    and saves it to the database for the specified user.
+    (Assumes token and user_email are passed as query parameters)
+    """
+    logger.info(f"Received MCP callback for user: {user_email}")
+
+    # Find the user by email and save the MCP token
+    user_row = await app.state.db.fetchrow("SELECT id FROM users WHERE email = $1", user_email)
+
+    if user_row:
+        await app.state.db.execute(
+            "UPDATE users SET mcp_token = $1 WHERE id = $2",
+            token, user_row['id']
+        )
+        logger.info(f"MCP token saved for user: {user_email}")
+        # Redirect to a frontend page indicating success
+        return RedirectResponse(url="http://localhost:5173/settings?mcpauth=success")
+    else:
+        logger.error(f"User not found for MCP callback: {user_email}")
+        # Redirect to a frontend page indicating failure
+        return RedirectResponse(url="http://localhost:5173/settings?mcpauth=failure")
+
+# --- AgentScheduler Control Endpoints ---
+from fastapi import status as fastapi_status
+
+@app.post("/api/scheduler/start")
+async def start_scheduler():
+    if hasattr(app.state, 'scheduler'):
+        app.state.scheduler.start()
+        return {"status": "running"}
+    return JSONResponse(status_code=500, content={"error": "Scheduler not available"})
+
+@app.post("/api/scheduler/stop")
+async def stop_scheduler():
+    if hasattr(app.state, 'scheduler'):
+        app.state.scheduler.cancel_all()
+        return {"status": "stopped"}
+    return JSONResponse(status_code=500, content={"error": "Scheduler not available"})
+
+@app.get("/api/scheduler/status")
+async def scheduler_status():
+    if hasattr(app.state, 'scheduler'):
+        running = app.state.scheduler.is_running() if hasattr(app.state.scheduler, 'is_running') else None
+        if running is True:
+            return {"status": "running"}
+        elif running is False:
+            return {"status": "stopped"}
+        else:
+            return {"status": "unknown"}
+    return JSONResponse(status_code=500, content={"error": "Scheduler not available"})
+
+# --- Endpoint to check if Google refresh token is set for a user ---
+@app.get("/api/users/{user_identifier}/has_google_refresh_token")
+async def has_google_refresh_token(user_identifier: Union[int, str]):
+    # Determine if identifier is email or ID
+    if isinstance(user_identifier, str) and "@" in user_identifier:
+        condition_column = "email"
+    elif isinstance(user_identifier, int) or (isinstance(user_identifier, str) and user_identifier.isdigit()):
+        condition_column = "id"
+        try:
+            user_identifier = int(user_identifier)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid user ID format.")
+    else:
+        raise HTTPException(status_code=400, detail="Invalid user identifier. Must be email or ID.")
+
+    row = await app.state.db.fetchrow(f"SELECT google_refresh_token FROM users WHERE {condition_column} = $1", user_identifier)
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found.")
+    refresh_token = row["google_refresh_token"]
+    if not refresh_token or refresh_token in ('', 'none', None):
+        raise HTTPException(status_code=fastapi_status.HTTP_400_BAD_REQUEST, detail="Google refresh token not set for this user.")
+    return {"has_refresh_token": True}
+
+@app.delete("/api/emails/{email_id}")
+async def delete_email(email_id: int, request: Request):
+    """Deletes an email by its ID."""
+    # Check if email exists before attempting deletion
+    existing_email = await request.app.state.db.fetchrow("SELECT id FROM emails WHERE id = $1", email_id)
+    if not existing_email:
+        raise HTTPException(status_code=404, detail=f"Email with id {email_id} not found")
+
+    result = await request.app.state.db.execute("DELETE FROM emails WHERE id = $1", email_id)
+
+    if result == "DELETE 0":
+        # This case should ideally not be reached due to the check above, but as a safeguard
+        raise HTTPException(status_code=404, detail=f"Email with id {email_id} not found after check.")
+
+    await log_generic_action(
+        db_pool=request.app.state.db,
+        action_description=f"Email ID {email_id} deleted.",
+        username="user_api", # Placeholder for actual user
+        email_id=email_id
+    )
+    return {"status": "ok", "message": f"Email {email_id} deleted successfully."}
+
+@app.delete("/api/documents/{document_id}")
+async def delete_document(document_id: int, request: Request):
+    """Deletes a document by its ID."""
+    # Check if document exists before attempting deletion
+    existing_document = await request.app.state.db.fetchrow("SELECT id FROM documents WHERE id = $1", document_id)
+    if not existing_document:
+        raise HTTPException(status_code=404, detail=f"Document with id {document_id} not found")
+
+    result = await request.app.state.db.execute("DELETE FROM documents WHERE id = $1", document_id)
+
+    if result == "DELETE 0":
+        # This case should ideally not be reached due to the check above, but as a safeguard
+        raise HTTPException(status_code=404, detail=f"Document with id {document_id} not found after check.")
+
+    await log_generic_action(
+        db_pool=request.app.state.db,
+        action_description=f"Document ID {document_id} deleted.",
+        username="user_api" # Placeholder for actual user
+        # No email_id for document deletion directly unless linked
+    )
+    return {"status": "ok", "message": f"Document {document_id} deleted successfully."}
+
+@app.get("/api/documents", response_model=List[Document])
+async def get_documents(request: Request):
+    """Lists all documents."""
+    rows = await request.app.state.db.fetch("SELECT id, email_id, filename, content_type, data_b64, is_processed, created_at FROM documents ORDER BY created_at DESC")
+    return [dict(row) for row in rows]
+
+@app.get("/api/documents/{document_id}/content")
+async def get_document_content(document_id: int, request: Request):
+    """Fetches the content of a specific document."""
+    row = await request.app.state.db.fetchrow("SELECT data_b64, content_type, filename FROM documents WHERE id = $1", document_id)
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Document with id {document_id} not found")
+
+    # Decode base64 content
+    try:
+        content_bytes = base64.b64decode(row['data_b64'])
+    except Exception as e:
+        logger.error(f"Error decoding base64 for document {document_id}: {e}")
+        raise HTTPException(status_code=500, detail="Error decoding document content")
+
+    # Return content with appropriate media type
+    return Response(content=content_bytes, media_type=row['content_type'], headers={'Content-Disposition': f'inline; filename="{row['filename']}'})

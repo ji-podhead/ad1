@@ -81,6 +81,33 @@ const Documents: React.FC = () => {
     // }
   };
 
+  const handleDeleteDocument = async (docId: number) => {
+    if (window.confirm(`Are you sure you want to delete document with ID ${docId}?`)) {
+      try {
+        const response = await fetch(`/api/emails/${docId}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to delete document: ${response.statusText}`);
+        }
+
+        // Remove the deleted document from the state
+        setDocs(prevDocs => prevDocs.filter(doc => doc.id !== docId));
+        alert(`Document with ID ${docId} deleted successfully.`);
+
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError('An unknown error occurred during deletion');
+        }
+        console.error("Error deleting document:", err);
+        alert(`Failed to delete document with ID ${docId}.`);
+      }
+    }
+  };
+
   const filteredDocs = docs.filter(doc =>
     doc.subject.toLowerCase().includes(search.toLowerCase()) ||
     doc.sender.toLowerCase().includes(search.toLowerCase()) ||
@@ -171,7 +198,12 @@ const Documents: React.FC = () => {
                 {/* Simplified actions for now */}
                 <button className="bg-blue-500 text-white px-2 py-1 rounded text-xs" onClick={() => setModalDoc(doc)}>View</button>
                 {/* <button className="bg-green-500 text-white px-2 py-1 rounded text-xs" onClick={() => setModalDoc(doc)}>Validate</button> */}
-                <button className="bg-gray-300 text-gray-800 px-2 py-1 rounded text-xs">Delete (NYI)</button>
+                <button
+                  className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600"
+                  onClick={() => handleDeleteDocument(doc.id)}
+                >
+                  Delete
+                </button>
               </td>
             </tr>
           ))}

@@ -11,9 +11,10 @@ import datetime
 import json
 import os
 import asyncpg # Assuming asyncpg is used for database connection
-import google.genai as genai
-from google.genai.types import GenerateContentConfig, HttpOptions
-from google.adk.agents import Agent
+# Remove direct google.genai import if pydantic_ai handles it internally, or keep if needed for types
+# from google import genai
+# from google.genai.types import GenerateContentConfig, HttpOptions
+from google.adk.agents import Agent as AdkAgent # Alias to avoid name conflict
 from google.adk.models.lite_llm import LiteLlm
 from litellm import experimental_mcp_client
 from tools_wrapper import list_emails # Import list_emails
@@ -22,6 +23,18 @@ import logging # Added for explicit logging
 import base64 # For dummy PDF
 from mcp.client.sse import sse_client
 from mcp import ClientSession
+from pydantic import BaseModel # Import BaseModel from pydantic
+from pydantic_ai import Agent # Import Agent from pydantic_ai
+from pydantic_ai.models.gemini import GeminiModel, GeminiModelSettings # Import GeminiModel and Settings
+
+# Define Pydantic models for LLM response
+class ClassificationResult(BaseModel):
+    type: str
+    score: float
+
+class EmailClassificationResponse(BaseModel):
+    classifications: List[ClassificationResult]
+    short_description: str
 
 # Setup basic logging if not already configured elsewhere globally
 # logging.basicConfig(level=logging.INFO) # Already configured in backend_main.py, avoid reconfiguring.
@@ -32,75 +45,142 @@ logger.setLevel(logging.INFO)  # <--- explizit setzen!
 
 # Configure Gemini API Key
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if GEMINI_API_KEY:
-    client = genai.Client(api_key=GEMINI_API_KEY)
+# The pydantic_ai GeminiModel should pick up the API key from the environment variable
+# if GEMINI_API_KEY:
+#     client = genai.Client(api_key=GEMINI_API_KEY)
 
-else:
-    print("Warning: GEMINI_API_KEY not found in environment. LLM features will not work.")
+# else:
+#     print("Warning: GEMINI_API_KEY not found in environment. LLM features will not work.")
+
 
 # Helper function to get summary and type from LLM
-async def get_summary_and_type_from_llm(email_subject: str, email_body: str, llm_model_name: str) -> Dict[str, str]:
+async def get_summary_and_type_from_llm(
+    email_subject: str,
+    email_body: str,
+    llm_model_name: str,
+    possible_types: List[str], # Add possible types parameter
+    system_instruction: Optional[str] = None, # Add configurable system instruction
+    max_tokens: Optional[int] = None, # Add configurable max tokens
+    attachments_info: Optional[List[Dict[str, Any]]] = None # Add attachments info parameter
+) -> Dict[str, Any]: # Return type can be more specific, but Dict[str, Any] is flexible
     """
-    Analyzes email content using an LLM to determine document type and a short description.
-    Returns a dictionary with "document_type" and "short_description".
+    Analyzes email content using an LLM to determine document type, a short description,
+    and provides scores for a list of possible types using pydantic_ai.
+    Includes attachment information in the prompt if available.
+    Returns a dictionary with "document_type", "short_description", and "classifications".
     """
+    logger.info(f"get_summary_and_type_from_llm called with model: {llm_model_name}")
     if not GEMINI_API_KEY:
-        print("Error: Gemini API key not configured. Cannot get summary from LLM.")
-        return {"document_type": "Default/Unknown (LLM Error)", "short_description": "Summary not available (LLM Error)."}
+        logger.error("Error: GEMINI_API_KEY not configured. Cannot get summary from LLM.")
+        return {
+            "document_type": "Default/Unknown (LLM Error)",
+            "short_description": "Gemini not available (LLM Error).",
+            "classifications": []
+        }
 
-    prompt = f"""Analyze the following email content and provide a document type and a short description.
-Return your response *only* as a valid JSON object with keys "document_type" and "short_description".
-Ensure the "document_type" is a concise category (e.g., "Invoice", "Support Request", "Marketing Email", "Sick Note", "Order Confirmation").
-Ensure the "short_description" is a 1-2 sentence summary of the email's main content.
+    # Update prompt to include possible types and ask for scores
+    prompt = f"""Analyze the following email content and provide a short description and a classification score for each of the following document types: {', '.join(possible_types)}.
+    Return your response *only* as a valid JSON object matching the following structure:
+    {{
+    "classifications": [
+        {{"type": "Type1", "score": 0.9}},
+        {{"type": "Type2", "score": 0.1}}
+    ],
+    "short_description": "A short summary of the email."
+    }}
+    Ensure scores are between 0.0 and 1.0.
 
-Subject: {email_subject}
+    Subject: {email_subject}
 
-Body:
-{email_body[:4000]}
-""" # Limiting body length to manage token usage, adjust as needed
+    Body:
+    {email_body[:4000]}
+    """ # Limiting body length to manage token usage, adjust as needed
+
+    # Add attachment information to the prompt if available
+    if attachments_info:
+        attachment_list_str = ", ".join([f"{att.get('filename', 'unnamed')} ({att.get('mimeType', 'unknown type')})" for att in attachments_info])
+        prompt += f"\n\nThis email has the following attachments: {attachment_list_str}. Please include information about the attachments in the short description if relevant."
 
 
+    logger.info(f"Sending prompt to LLM ({llm_model_name}) for subject: {email_subject}")
 
-    print(f"Sending prompt to LLM ({llm_model_name}) for subject: {email_subject}")
+    response = None # Initialize response to None
+
     try:
-        model = genai.GenerativeModel(llm_model_name)
-        response = await model.generate_content_async(prompt)
-        response = client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=[ prompt],
-                config=GenerateContentConfig(
-                    system_instruction=["summarize the email and classify it into a document type."],
-                    ),
-            )
-        # Debug: Print raw response text
-        # print(f"LLM raw response: {response.text}")
+        # Configure model settings using GeminiModelSettings
+        model_settings = GeminiModelSettings(
+            system_instruction=[system_instruction] if system_instruction else None, # Pass system instruction as a list
+            max_output_tokens=max_tokens,
+            # Add other settings like safety_settings if needed from workflow config
+            # gemini_safety_settings=[...]
+        )
 
-        # Attempt to clean and parse the JSON response
-        # LLMs sometimes add markdown backticks or "json" prefix
-        cleaned_response_text = response.text.strip()
-        if cleaned_response_text.startswith("```json"):
-            cleaned_response_text = cleaned_response_text[7:]
-        elif cleaned_response_text.startswith("```"):
-             cleaned_response_text = cleaned_response_text[3:]
-        if cleaned_response_text.endswith("```"):
-            cleaned_response_text = cleaned_response_text[:-3]
+        # Create GeminiModel and Agent instances
+        model = GeminiModel(llm_model_name)
+        agent = Agent(model, model_settings=model_settings)
 
-        cleaned_response_text = cleaned_response_text.strip()
-
-        try:
-            data = json.loads(cleaned_response_text)
-            doc_type = data.get("document_type", "Default/Unknown (LLM Parse Error)")
-            short_desc = data.get("short_description", "Summary not available (LLM Parse Error).")
-            print(f"LLM result - Type: {doc_type}, Description: {short_desc}")
-            return {"document_type": str(doc_type), "short_description": str(short_desc)}
-        except json.JSONDecodeError as e:
-            print(f"Error decoding JSON from LLM response: {e}")
-            print(f"LLM response text that failed parsing: '{cleaned_response_text}'")
-            return {"document_type": "Default/Unknown (JSON Error)", "short_description": "Summary not available (JSON Error)."}
-
+        # Use the async run method from the pydantic_ai Agent
+        response = await agent.run(prompt)
+        logger.info(f"LLM call completed, response received.")
+        logger.info(f"LLM response: {response}")  # Log full response for debugging
     except Exception as e:
-        print(f"Error during LLM call: {e}")
-        return {"document_type": "Default/Unknown (API Error)", "short_description": "Summary not available (API Error)."}
+        logger.error(f"Error during LLM call using pydantic_ai: {e}")
+        return {
+            "document_type": "Default/Unknown (API Error)",
+            "short_description": "Summary not available (API Error).",
+            "classifications": []
+        }
+
+    # Check if response is None or missing the 'output' attribute
+    if response is None or not hasattr(response, 'output') or response.output is None:
+         logger.error("LLM response is None or missing output attribute.")
+
+         return {
+            "document_type": "Default/Unknown (API Error)",
+            "short_description": "Summary not available (API Error).",
+            "classifications": []
+        }
+
+    logger.info(f"LLM response text: {response.output}") # Log raw response text (using .output)
+
+    # Attempt to clean and parse the JSON response using Pydantic
+    cleaned_response_text = response.output.strip() # Use .output here
+    if cleaned_response_text.startswith("```json"):
+        cleaned_response_text = cleaned_response_text[7:]
+    elif cleaned_response_text.startswith("```"):
+         cleaned_response_text = cleaned_response_text[3:]
+    if cleaned_response_text.endswith("```"):
+        cleaned_response_text = cleaned_response_text[:-3]
+
+    cleaned_response_text = cleaned_response_text.strip()
+
+    try:
+        # Parse with Pydantic model
+        classification_response = EmailClassificationResponse.model_validate_json(cleaned_response_text)
+
+        # Determine the document_type based on the highest score
+        document_type = "Default/Unknown (No Classifications)"
+        if classification_response.classifications:
+            # Sort by score descending and pick the top one
+            best_classification = sorted(classification_response.classifications, key=lambda x: x.score, reverse=True)[0]
+            document_type = best_classification.type
+
+        logger.info(f"LLM result - Type: {document_type}, Description: {classification_response.short_description}, Classifications: {classification_response.classifications}")
+
+        return {
+            "document_type": document_type,
+            "short_description": classification_response.short_description,
+            "classifications": [c.model_dump() for c in classification_response.classifications] # Return as dicts
+        }
+
+    except Exception as e: # Catch Pydantic validation errors or other parsing issues
+        logger.error(f"Error parsing or validating JSON from LLM response: {e}")
+        logger.error(f"LLM response text that failed parsing: '{cleaned_response_text}'")
+        return {
+            "document_type": "Default/Unknown (JSON Error)",
+            "short_description": "Summary not available (JSON Error).",
+            "classifications": []
+        }
 
 class AgentScheduler:
     def __init__(self):
@@ -141,6 +221,21 @@ class AgentScheduler:
             task.cancel()
             logger.info(f"Cancelled task {task_id} during shutdown.")
         self.tasks.clear()
+
+    def start(self, db_pool=None, interval_seconds=86400):
+        """Startet den globalen Cronjob erneut (z.B. nach Stop)."""
+        # Verhindere mehrfaches Starten
+        if 'global_email_cron' in self.tasks and not self.tasks['global_email_cron'].done():
+            logger.info("Globaler Cronjob läuft bereits.")
+            return
+        from backend_main import check_new_emails  # Import hier, um Zirkularität zu vermeiden
+        self.schedule_cron('global_email_cron', check_new_emails, interval_seconds, db_pool)
+        logger.info(f"Globaler Cronjob wurde gestartet (alle {interval_seconds} Sekunden).")
+
+    def is_running(self):
+        """Gibt True zurück, wenn der globale Cronjob läuft."""
+        task = self.tasks.get('global_email_cron')
+        return task is not None and not task.done()
 
     async def _run_cron(self, func, interval_seconds, *args, **kwargs):
         while True:
@@ -189,42 +284,6 @@ def parse_mcp_email_list(raw_content):
             
         })
     return emails
-def parse_full_email(text: str):
-    """
-    Parst den vollständigen E-Mail-Text aus der MCP read_email-Antwort.
-    Gibt ein Dict mit Feldern wie thread_id, subject, from, to, date, body, attachments zurück.
-    """
-    result = {}
-    # Header-Felder
-    thread_id = re.search(r'Thread ID: (.+)', text)
-    subject = re.search(r'Subject: (.+)', text)
-    sender = re.search(r'From: (.+)', text)
-    to = re.search(r'To: (.+)', text)
-    date = re.search(r'Date: (.+)', text)
-    result['thread_id'] = thread_id.group(1).strip() if thread_id else None
-    result['subject'] = subject.group(1).strip() if subject else None
-    result['from'] = sender.group(1).strip() if sender else None
-    result['to'] = to.group(1).strip() if to else None
-    result['date'] = date.group(1).strip() if date else None
-
-    # Body (alles nach der letzten Header-Zeile bis zu Attachments oder bis zum Ende)
-    body_match = re.search(r'Date: .+\n\n(.*?)(?:\n\nAttachments|\Z)', text, re.DOTALL)
-    result['body'] = body_match.group(1).strip() if body_match else ""
-
-    # Attachments (optional)
-    attachments = []
-    attachments_block = re.search(r'Attachments.*?:\n((?:- .+\n?)+)', text)
-    if attachments_block:
-        for line in attachments_block.group(1).splitlines():
-            att_match = re.match(r'- (.+) \((.+), ([^)]+)\)', line.strip())
-            if att_match:
-                attachments.append({
-                    'filename': att_match.group(1),
-                    'content_type': att_match.group(2),
-                    'size': att_match.group(3)
-                })
-    result['attachments'] = attachments
-    return result
 
 async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 60):
     """
@@ -240,6 +299,8 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                 logger.info("[Scheduler] MCP session established.")
                 await session.initialize()
                 logger.info("getting tools.")
+                oauth_token = await fetch_access_token_for_user(db_pool,"leo@orchestra-nexus.com")
+                logger.info(f"OAuth token for user obtained.") # Removed token from log
                 mcp_tools = await experimental_mcp_client.load_mcp_tools(session=session, format="mcp")
                 if not mcp_tools:
                     logger.warning("No MCP tools available.")
@@ -266,15 +327,14 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                 logger.info(f"Using Gmail query: {gmail_query}")
                 # Call the tool via the session with the correct parameters
                 result = await session.call_tool(search_emails_tool.name, arguments={"query": gmail_query})
-                logger.info(result)
-                logger.info(f"Search result from MCP tool: {result}")
+                logger.info(f"Search result from MCP tool: {result}") # Removed raw result from log
                 # Defensive: Log and check the raw response before parsing
                 raw_content = result.content[0].text if result and result.content and len(result.content) > 0 else None
                 logger.info(f"Raw MCP tool response: {raw_content!r}")
                 if not raw_content or not raw_content.strip():
                     logger.warning("MCP tool 'search_emails' returned empty or whitespace-only response. Skipping email processing.")
                     return
-                
+
                 logger.info(f"Raw MCP tool response length: {type(raw_content)} characters")
                 emails=parse_mcp_email_list(raw_content)
                 if not emails:
@@ -290,197 +350,260 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                         logger.warning(f"Email without ID: {email}")
                         return
                     try:
-                        result = await session.call_tool("read_email", arguments={"messageId": message_id})
-                        parsed_mail = parse_full_email(result.content[0].text) if result and result.content and len(result.content) > 0 else None
-                        logger.info(f"Reading full email for message_id={parsed_mail} using MCP tool read_email")
+                        email= await get_email(db_pool,"leo@orchestra-nexus.com", message_id,oauth_token) # TODO: Get actual user email
+                        logger.info(f"Processing email ID: {message_id} - Subject: {email.get('subject', 'N/A')}") # Added subject to log
+                        results.append(email)  # Store the full email data for later processing
 
-                        # --- Attachment Download Schritt ---
-                        downloaded_attachments = []
-                        if parsed_mail and len(parsed_mail.get('attachments'))>0:
-                            # Suche passendes MCP-Tool
-                            for atachment in parsed_mail['attachments']:
-                                try:
-                                    filename = atachment['filename']
-                                    logger.info(f"Attachment found: {filename} ({atachment['content_type']})")
-                                    # Argumente ggf. anpassen je nach Tool-API
-                                    gmail_att = await download_gmail_attachment("leo@orchestra-nexus.com", message_id, filename)
-                                    if gmail_att:
-                                        logger.info(f"Downloaded attachment '{filename}' via Gmail API: {len(gmail_att['data'])} bytes")
-                                        downloaded_attachments.append(gmail_att)
-                                    else:
-                                        logger.error(f"Failed to download attachment '{filename}' via Gmail API.")
-                                except Exception as e:
-                                    logger.error(f"Error downloading attachment '{filename}' for message_id={message_id}: {e}")
-                        results.append({"email": parsed_mail, "attachments": downloaded_attachments})
                     except Exception as e:
                         logger.error(f"Error reading email {message_id}: {e}")
                     return results
+
+                processed_emails = []
                 for email in emails:
                     results = await read_emails_and_log(email)
-                    #logger.info(f"Parsed email data: {results.get('email', {}).get('subject', 'No Subject')} (ID: {email.get('id')})")
-                # try:
-                #     emails_from_tool = raw_content.splitlines()
-                #     emails_from_tool = [json.loads(email.strip()) for email in emails_from_tool if email.strip()]
-                # except Exception as e:
-                #     logger.error(f"Raw MCP tool response length: {type(raw_content)} characters")
-                #     logger.error(f"Error parsing emails from MCP tool: {e}. Raw response: {(raw_content)!r}")
-                #     return
+                    processed_emails.extend(results)
 
-                return                
                 async with db_pool.acquire() as connection:
-                    for email_data in emails_from_tool:
+                    logger.info("[Scheduler] Acquired DB connection for email processing.")
+                    logger.info(f"Found {len(processed_emails)} new emails to process.")
+                    for email_data in processed_emails:
+                        logger.info(f"Processing email data keys: {email_data.keys()}") # Log keys for debugging
+                        headers = email_data.get('headers', {}) # Get the headers dictionary
                         message_id = email_data.get('id')
-                        email_subject_str = email_data.get('subject', 'No Subject')
-                        sender = email_data.get('sender', 'Unknown Sender')
+                        email_subject_str = headers.get('Subject', 'No Subject') # Extract Subject from headers
+                        sender = headers.get('From', 'Unknown Sender') # Extract From from headers
+
                         email_body_str = email_data.get('body', '')
-                        received_at = datetime.datetime.now(datetime.timezone.utc)
-                        if isinstance(sender, dict) and 'email' in sender:
-                            sender_email = sender['email']
-                        elif isinstance(sender, str):
-                            sender_email = sender
-                        else:
-                            sender_email = 'Unknown Sender'
-                        if not message_id:
-                            logger.warning(f"Skipping email due to missing message ID: {email_data}")
-                            continue
-                        # Check if email already exists
-                        existing_email = await connection.fetchrow(
-                            "SELECT id FROM emails WHERE subject = $1 AND sender = $2 AND body = $3",
-                            email_subject_str, sender_email, email_body_str
-                        )
-                        if existing_email:
-                            logger.info(f"Email already exists, skipping: Subject='{email_subject_str}', Sender='{sender_email}'")
-                            continue
-                        # --- 1. SUMMARY/LLM STEP ---
-                        llm_model_to_use = "gemini-pro"
-                        llm_summary_data = await get_summary_and_type_from_llm(
-                            email_subject=email_subject_str,
-                            email_body=email_body_str,
-                            llm_model_name=llm_model_to_use
-                        )
-                        topic = llm_summary_data.get("document_type", "Default/LLMError")
-                        short_description = llm_summary_data.get("short_description", "Summary N/A (LLMError)")
-                        logger.info(f"LLM summary: topic={topic}, desc={short_description}")
-                        # Insert email
-                        inserted_email_id = await connection.fetchval(
-                            """
-                            INSERT INTO emails (subject, sender, body, received_at, label, type, short_description)
-                            VALUES ($1, $2, $3, $4, $5, $6, $7)
-                            RETURNING id
-                            """,
-                            email_subject_str,
-                            sender_email,
-                            email_body_str,
-                            received_at,
-                            None,  # Default label
-                            topic,
-                            short_description
-                        )
-                        logger.info(f"Inserted new email ID: {inserted_email_id}, Topic: {topic}")
-                        await connection.execute(
-                            "INSERT INTO audit_trail (email_id, action, username, timestamp) VALUES ($1, $2, $3, NOW())",
-                            inserted_email_id,
-                            f"New email received. Subject: '{email_subject_str}'. Assigned ID: {inserted_email_id}",
-                            "system_email_processing"
-                        )
-                        # --- 2. WORKFLOW MATCHING & EXECUTION ---
-                        workflow_rows = await connection.fetch(
-                            "SELECT id, workflow_name, workflow_config FROM scheduler_tasks WHERE status = 'active' AND trigger_type = 'cron'"
-                        )
-                        for wf_row in workflow_rows:
-                            wf_config = wf_row['workflow_config']
-                            if isinstance(wf_config, str):
+                        # Convert received_at to timezone-naive UTC before inserting into DB
+                        received_at = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+
+                        logger.info(f"Processing email: ID={message_id}, Subject='{email_subject_str}', Sender='{sender}'")
+
+                        inserted_email_id = None # Initialize inserted_email_id to None
+
+                        try: # Add try-except block here
+                            # The 'sender' extracted from headers is likely a string like 'Name <email@example.com>'
+                            # We need to parse the email address from this string.
+                            # A simple approach is to find the email within the angle brackets.
+                            sender_email_match = re.search(r'<(.+?)>', sender)
+                            if sender_email_match:
+                                sender_email = sender_email_match.group(1)
+                            elif isinstance(sender, str):
+                                # If no angle brackets, assume the whole string is the email
+                                sender_email = sender
+                            else:
+                                sender_email = 'Unknown Sender'
+                            logger.info(f"Extracted sender email: {sender_email}")
+
+
+                            if not message_id:
+                                logger.info(f"Skipping email due to missing message ID: {email_data}")
+                                continue
+
+                            # Check if email already exists
+                            logger.info(f"Checking for existing email with Subject='{email_subject_str}', Sender='{sender_email}'")
+                            existing_email = await connection.fetchrow(
+                                "SELECT id FROM emails WHERE subject = $1 AND sender = $2 AND body = $3",
+                                email_subject_str, sender_email, email_body_str
+                            )
+                            if existing_email:
+                                existing_email_id = existing_email['id']
+                                logger.info(f"Duplicate email found. Deleting existing email ID: {existing_email_id} and associated audit trail entries.")
+
+                                # Delete associated audit trail entries first
+                                await connection.execute("DELETE FROM audit_trail WHERE email_id = $1", existing_email_id)
+                                logger.info(f"Deleted audit trail entries for email ID: {existing_email_id}")
+
+                                # Now delete the existing email
+                                await connection.execute("DELETE FROM emails WHERE id = $1", existing_email_id)
+                                logger.info(f"Deleted existing email ID: {existing_email_id}")
+
+                                # Log the deletion of the duplicate email (this log entry itself won't have an email_id reference anymore)
                                 try:
-                                    wf_config = json.loads(wf_config)
-                                except Exception:
-                                    wf_config = {}
-                            selected_topic = wf_config.get('selected_topic')
-                            if selected_topic and selected_topic != topic:
-                                continue  # Only run workflows matching this topic
-                            logger.info(f"Executing workflow '{wf_row['workflow_name']}' for topic '{topic}' on email {inserted_email_id}")
-                            task_id = await connection.fetchval(
+                                    await connection.execute(
+                                        "INSERT INTO audit_trail (action, username, timestamp) VALUES ($1, $2, NOW())",
+                                        f"Duplicate email received. Deleted existing email ID: {existing_email_id}. Subject: '{email_subject_str}'",
+                                        "system_email_processing"
+                                    )
+                                except Exception as log_e:
+                                    logger.error(f"Audit log failure for duplicate email deletion: {log_e}")
+                                # Continue processing to insert the new email
+
+                            logger.info(f"New email detected: Subject='{email_subject_str}', Sender='{sender_email}'. Proceeding with summary and processing.")
+
+                            # --- 1. SUMMARY/LLM STEP ---
+                            llm_model_to_use = "gemini-1.5-flash"
+                            # Define possible types for classification
+                            possible_types = ["Google", "Important", "Health", "Marketing", "Spam", "Other"] # Example types, adjust as needed
+
+                            # Prepare attachments info for the LLM
+                            attachments_info_for_llm = []
+                            downloaded_attachments = email_data.get('attachments', [])
+                            for att in downloaded_attachments:
+                                attachments_info_for_llm.append({
+                                    'filename': att.get('filename', 'unnamed'),
+                                    'mimeType': att.get('mimeType', 'application/octet-stream')
+                                })
+                            logger.info(f"Calling get_summary_and_type_from_llm for email ID: {message_id} with attachments: {attachments_info_for_llm}")
+
+                            llm_summary_data = await get_summary_and_type_from_llm(
+                                email_subject=email_subject_str,
+                                email_body=email_body_str,
+                                llm_model_name=llm_model_to_use,
+                                possible_types=possible_types, # Pass possible types
+                                attachments_info=attachments_info_for_llm # Pass attachments info
+                            )
+                            logger.info(f"Received LLM summary data for email ID {message_id}: {llm_summary_data}")
+                            topic = llm_summary_data.get("document_type", "Default/LLMError")
+                            short_description = llm_summary_data.get("short_description", "Summary N/A (LLMError)")
+                            logger.info(f"LLM summary for email ID {message_id}: topic={topic}, desc={short_description}")
+
+                            # Insert email
+                            logger.info(f"Inserting email ID {message_id} into database.")
+                            inserted_email_id = await connection.fetchval(
                                 """
-                                INSERT INTO tasks (email_id, status, created_at, updated_at, workflow_type)
-                                VALUES ($1, $2, $3, $4, $5)
+                                INSERT INTO emails (subject, sender, body, received_at, label, type, short_description)
+                                VALUES ($1, $2, $3, $4, $5, $6, $7)
                                 RETURNING id
                                 """,
-                                inserted_email_id,
-                                wf_config.get('initial_status', 'pending'),
-                                received_at,
-                                received_at,
-                                topic
+                                email_subject_str,
+                                sender_email, # Use the extracted sender_email
+                                email_body_str,
+                                received_at, # Use timezone-naive datetime
+                                None,  # Default label
+                                topic,
+                                short_description
                             )
+                            logger.info(f"Inserted new email ID: {inserted_email_id}, Topic: {topic}")
+
                             await connection.execute(
                                 "INSERT INTO audit_trail (email_id, action, username, timestamp) VALUES ($1, $2, $3, NOW())",
                                 inserted_email_id,
-                                f"Task created for workflow '{wf_row['workflow_name']}' (Task ID: {task_id}) for topic '{topic}'",
-                                "system_workflow_init"
+                                f"New email received. Subject: '{email_subject_str}'. Assigned ID: {inserted_email_id}",
+                                "system_email_processing"
                             )
-                            if wf_config and "document_processing" in wf_config.get("steps", []):
-                                await process_document_step(
-                                    task_id=task_id,
-                                    email_id=inserted_email_id,
-                                    db_conn_for_audit=connection,
-                                    workflow_config=wf_config
-                                )
-                            else:
-                                logger.info(f"No document_processing step in workflow for task {task_id}.")
-                        # --- 1b. ATTACHMENT HANDLING ---
-                        attachments = []
-                        try:
-                            # Try to fetch attachments/documents for this email via MCP tool if available
-                            mcp_attachment_tool = None
-                            for tool in mcp_tools:
-                                if hasattr(tool, 'name') and tool.name in ['get_attachments', 'download_attachments', 'fetch_attachments']:
-                                    mcp_attachment_tool = tool
-                                    break
-                            if mcp_attachment_tool:
-                                logger.info(f"Fetching attachments for message_id={message_id} using MCP tool '{mcp_attachment_tool.name}'")
-                                att_result = await session.call_tool(mcp_attachment_tool.name, arguments={"message_id": message_id})
-                                att_content = att_result.content[0].text if att_result and att_result.content and len(att_result.content) > 0 else None
-                                if att_content:
+
+                            # --- 2. WORKFLOW MATCHING & EXECUTION ---
+                            logger.info(f"Fetching active workflows for email ID {inserted_email_id}.")
+                            workflow_rows = await connection.fetch(
+                                "SELECT id, workflow_name, workflow_config FROM scheduler_tasks WHERE status = 'active' AND trigger_type = 'cron'"
+                            )
+                            logger.info(f"Found {len(workflow_rows)} active workflows for email ID {inserted_email_id}.")
+                            for wf_row in workflow_rows:
+                                wf_config = wf_row['workflow_config']
+                                if isinstance(wf_config, str):
                                     try:
-                                        attachments = json.loads(att_content)
-                                        logger.info(f"Fetched {len(attachments)} attachments for message_id={message_id}")
-                                    except Exception as e:
-                                        logger.warning(f"Could not parse attachments JSON for message_id={message_id}: {e}")
-                                else:
-                                    logger.info(f"No attachments found for message_id={message_id}")
-                            else:
-                                logger.info("No MCP attachment tool found, skipping attachment fetch.")
-                        except Exception as e:
-                            logger.error(f"Error fetching attachments for message_id={message_id}: {e}")
-                        document_ids = []
-                        for att in attachments:
-                            try:
-                                doc_id = await connection.fetchval(
+                                        wf_config = json.loads(wf_config)
+                                    except Exception:
+                                        wf_config = {}
+
+                                selected_topic = wf_config.get('selected_topic')
+                                if selected_topic and selected_topic != topic:
+                                    logger.info(f"Skipping workflow '{wf_row['workflow_name']}' for email ID {inserted_email_id} due to topic mismatch (required: {selected_topic}, email topic: {topic}).")
+                                    continue  # Only run workflows matching this topic
+
+                                logger.info(f"Executing workflow '{wf_row['workflow_name']}' for topic '{topic}' on email {inserted_email_id}")
+
+                                task_id = await connection.fetchval(
                                     """
-                                    INSERT INTO documents (email_id, filename, content_type, data_b64, is_processed, created_at)
-                                    VALUES ($1, $2, $3, $4, $5, $6)
+                                    INSERT INTO tasks (email_id, status, created_at, updated_at, workflow_type)
+                                    VALUES ($1, $2, $3, $4, $5)
                                     RETURNING id
                                     """,
                                     inserted_email_id,
-                                    att.get('filename', 'unnamed'),
-                                    att.get('content_type', 'application/octet-stream'),
-                                    att.get('data_b64', ''),
-                                    False,
-                                    received_at
+                                    wf_config.get('initial_status', 'pending'),
+                                    received_at,
+                                    received_at,
+                                    topic
                                 )
-                                document_ids.append(doc_id)
-                                logger.info(f"Inserted document ID {doc_id} for email {inserted_email_id} (attachment: {att.get('filename')})")
-                            except Exception as e:
-                                logger.error(f"Failed to insert document for email {inserted_email_id}: {e}")
-                        # Update emails row with document_ids if any attachments
-                        if document_ids:
-                            try:
                                 await connection.execute(
-                                    "UPDATE emails SET document_ids = $1 WHERE id = $2",
-                                    document_ids,
-                                    inserted_email_id
+                                    "INSERT INTO audit_trail (email_id, action, username, timestamp) VALUES ($1, $2, $3, NOW())",
+                                    inserted_email_id,
+                                    f"Task created for workflow '{wf_row['workflow_name']}' (Task ID: {task_id}) for topic '{topic}'",
+                                    "system_workflow_init"
                                 )
-                                logger.info(f"Updated email {inserted_email_id} with document_ids: {document_ids}")
-                            except Exception as e:
-                                logger.error(f"Failed to update email {inserted_email_id} with document_ids: {e}")
+
+                                if wf_config and "document_processing" in wf_config.get("steps", []):
+                                    logger.info(f"Initiating document processing step for task {task_id}, email ID {inserted_email_id}.")
+                                    await process_document_step(
+                                        task_id=task_id,
+                                        email_id=inserted_email_id,
+                                        db_conn_for_audit=connection,
+                                        workflow_config=wf_config
+                                    )
+                                else:
+                                    logger.info(f"No document_processing step in workflow for task {task_id}.")
+
+                            # --- 1b. ATTACHMENT HANDLING ---
+                            logger.info(f"Processing attachments for email ID {inserted_email_id}.")
+                            document_ids = []
+                            # downloaded_attachments is already available from the get_email call
+                            # downloaded_attachments = email_data.get('attachments', []) # This line is redundant
+                            logger.info(f"Found {len(downloaded_attachments)} downloaded attachments for email ID {inserted_email_id}.")
+                            for att_data in downloaded_attachments:
+                                try:
+                                    logger.info(f"Inserting attachment '{att_data.get('filename', 'unnamed')}' for email ID {inserted_email_id} into database.")
+                                    # The 'data' field in downloaded_att is bytes, encode it to base64 for the database
+                                    data_b64 = base64.b64encode(att_data['data']).decode('utf-8')
+
+                                    doc_id = await connection.fetchval(
+                                        """
+                                        INSERT INTO documents (email_id, filename, content_type, data_b64, is_processed, created_at)
+                                        VALUES ($1, $2, $3, $4, $5, $6)
+                                        RETURNING id
+                                        """,
+                                        inserted_email_id, # Use the inserted email ID
+                                        att_data.get('filename', 'unnamed'),
+                                        att_data.get('mimeType', 'application/octet-stream'),
+                                        data_b64, # Use the base64 encoded data
+                                        False, # is_processed
+                                        received_at # created_at
+                                    )
+                                    document_ids.append(doc_id)
+                                    logger.info(f"Inserted document ID {doc_id} for email {inserted_email_id} (attachment: {att_data.get('filename')})")
+                                except Exception as e:
+                                    logger.error(f"Failed to insert document for email {inserted_email_id} (attachment: {att_data.get('filename')}): {e}")
+
+                            # Update emails row with document_ids if any attachments
+                            if document_ids:
+                                try:
+                                    logger.info(f"Updating email {inserted_email_id} with document_ids: {document_ids}")
+                                    await connection.execute(
+                                        "UPDATE emails SET document_ids = $1 WHERE id = $2",
+                                        document_ids,
+                                        inserted_email_id
+                                    )
+                                    logger.info(f"Updated email {inserted_email_id} with document_ids: {document_ids}")
+                                except Exception as e:
+                                    logger.error(f"Failed to update email {inserted_email_id} with document_ids: {e}")
+                            logger.info(f"Finished processing email ID {message_id}.")
+
+                        except Exception as e: # Catch exceptions during processing of a single email
+                            logger.error(f"Error processing email (Subject: '{email_subject_str}', Sender: '{sender_email}', Message ID: {message_id}): {e}")
+                            # Log to audit trail only if email insertion was successful
+                            if inserted_email_id is not None:
+                                try:
+                                    await connection.execute(
+                                        "INSERT INTO audit_trail (email_id, action, username, timestamp) VALUES ($1, $2, $3, NOW())",
+                                        inserted_email_id,
+                                        f"Error processing email after insertion. Subject: '{email_subject_str}'. Error: {str(e)}",
+                                        "system_email_processing_error"
+                                    )
+                                except Exception as log_e:
+                                    logger.error(f"Audit log failure for email processing error (after insert): {log_e}")
+                            else:
+                                # Log a generic error if email insertion failed
+                                try:
+                                     await connection.execute(
+                                        "INSERT INTO audit_trail (action, username, timestamp) VALUES ($1, $2, NOW())",
+                                        f"Error processing email (insertion failed). Subject: '{email_subject_str}', Message ID: {message_id}. Error: {str(e)}",
+                                        "system_email_processing_error"
+                                    )
+                                except Exception as log_e:
+                                    logger.error(f"Audit log failure for email processing error (before insert): {log_e}")
+
+                            continue # Continue to the next email
+
     except Exception as e:
         logger.error(f"[Scheduler] Error during email check: {e}")
     finally:
@@ -596,38 +719,221 @@ async def process_document_step(task_id: int, email_id: int, db_conn_for_audit: 
 import aiohttp
 import base64
 
-async def download_gmail_attachment(user_id: str, message_id: str, attachment_id: str, ):
+async def fetch_access_token_for_user(db_pool: asyncpg.pool.Pool, user_email: str) -> str:
+        logger.info(f"Attempting to fetch access token for user: {user_email} for message fetch test.")
+        user_row = await db_pool.fetchrow("SELECT google_access_token FROM users")
+        if not user_row or not user_row['google_access_token']:
+            logger.error(f"Google access token not found for user: {user_email}. Cannot perform message fetch test.")
+            return None
+        user_oauth_token = user_row['google_access_token']
+        logger.info(f"Successfully fetched access token for user: {user_email} for message fetch test.")
+        return user_oauth_token
+
+async def get_email(db_pool: asyncpg.pool.Pool, user_email: str, message_id: str, access_token: str):
+    """
+    Fetches the full email message from Gmail API, extracts attachment IDs, and downloads attachments.
+    Prioritizes text/plain body over text/html.
+    db_pool: asyncpg.pool.Pool - Database connection pool.
+    user_email: string - The email address of the user whose token to use.
+    message_id: string - The ID of the email message.
+    access_token: string - The OAuth2 access token for the user.
+    Returns a dict containing email details and a list of downloaded attachments.
+    """
+    logger = logging.getLogger(__name__)
+    try:
+        url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json"
+        }
+        logger.info(f"Attempting to fetch full message {message_id} from Gmail API.")
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as resp:
+                logger.info(f"Full message fetch response status: {resp.status}")
+                response_data = await resp.json()
+                # logger.info(f"Full message fetch response data: {json.dumps(response_data, indent=2)}") # Logge die Antwort - kann sehr groß sein
+                if resp.status != 200:
+                    logger.error(f"Failed to fetch full message {message_id}: HTTP {resp.status}")
+                    return None
+
+                email_details = {
+                    'id': response_data.get('id'),
+                    'threadId': response_data.get('threadId'),
+                    'snippet': response_data.get('snippet'),
+                    'payload': response_data.get('payload'),
+                    'sizeEstimate': response_data.get('sizeEstimate'),
+                    'historyId': response_data.get('historyId'),
+                    'internalDate': response_data.get('internalDate'),
+                    'headers': {},
+                    'body': '', # Will be populated below
+                    'attachments': [] # List to store downloaded attachment data
+                }
+
+                # Extract headers
+                if 'payload' in response_data and 'headers' in response_data['payload']:
+                    for header in response_data['payload']['headers']:
+                        email_details['headers'][header['name']] = header['value']
+
+                # --- Extract Body and Attachment Info ---
+                body_content = ''
+                attachment_info_list = []
+                body_parts = [] # To collect potential body parts
+
+                def find_email_content_recursive(parts):
+                    """Recursively finds body parts and attachment info."""
+                    current_body_parts = []
+                    current_attachments = []
+                    for part in parts:
+                        # Collect potential body parts (plain and html)
+                        if part.get('mimeType') in ['text/plain', 'text/html'] and 'body' in part and 'data' in part['body']:
+                            current_body_parts.append(part)
+                        # Collect attachment info
+                        elif 'body' in part and 'attachmentId' in part['body'] and part.get('filename'):
+                             current_attachments.append({
+                                'attachmentId': part['body']['attachmentId'],
+                                'filename': part['filename'],
+                                'mimeType': part.get('mimeType'),
+                                'size': part['body'].get('size', 0)
+                            })
+                             logger.info(f"Found attachment info: {part.get('filename')} (ID: {part['body']['attachmentId']}) in message {message_id}")
+
+                        # Recurse into nested parts
+                        if 'parts' in part:
+                            nested_body, nested_attachments = find_email_content_recursive(part['parts'])
+                            current_body_parts.extend(nested_body)
+                            current_attachments.extend(nested_attachments)
+                    return current_body_parts, current_attachments
+
+                # Handle simple emails first (payload has body data directly)
+                if 'payload' in response_data and 'body' in response_data['payload'] and 'data' in response_data['payload']['body']:
+                     try:
+                        body_content = base64.urlsafe_b64decode(response_data['payload']['body']['data'] + '==').decode('utf-8')
+                        logger.info(f"Decoded simple email body for message {message_id}.")
+                     except Exception as e:
+                        logger.warning(f"Could not decode simple email body for message {message_id}: {e}")
+                # If not a simple email, process parts recursively
+                elif 'payload' in response_data and 'parts' in response_data['payload']:
+                    body_parts, attachment_info_list = find_email_content_recursive(response_data['payload']['parts'])
+
+                    # Prioritize text/plain body
+                    preferred_body_part = None
+                    for part in body_parts:
+                        if part.get('mimeType') == 'text/plain':
+                            preferred_body_part = part
+                            break # Found plain text, use this one
+
+                    # If no text/plain, look for text/html
+                    if preferred_body_part is None:
+                        for part in body_parts:
+                            if part.get('mimeType') == 'text/html':
+                                preferred_body_part = part
+                                break # Found html, use this one
+
+                    # Decode the preferred body part if found
+                    if preferred_body_part:
+                        try:
+                            body_content = base64.urlsafe_b64decode(preferred_body_part['body']['data'] + '==').decode('utf-8')
+                            logger.info(f"Decoded preferred body part ({preferred_body_part.get('mimeType')}) for message {message_id}.")
+                            # Note: If text/html is used, this will still contain HTML tags.
+                        except Exception as e:
+                            logger.warning(f"Could not decode preferred body part ({preferred_body_part.get('mimeType')}) for message {message_id}: {e}")
+
+                email_details['body'] = body_content
+
+                # Download attachments using the collected info
+                downloaded_attachments = []
+                email_details['attachments']= []  # Reset to empty list for downloaded attachments
+                for att_info in attachment_info_list:
+                    downloaded_att = await download_gmail_attachment(
+                        db_pool,
+                        user_email,
+                        message_id,
+                        att_info['attachmentId'],
+                        att_info['filename'],
+                        access_token
+                    )
+                    if downloaded_att:
+                        downloaded_att['mimeType'] = att_info['mimeType']  # Add mimeType to downloaded attachment info
+                        downloaded_att["email_id"] = email_details['id']  # Link to email
+                        
+                        downloaded_attachments.append(downloaded_att)
+                        
+                        email_details['attachments'].append(att_info['attachmentId'])
+                        
+                        logger.info(f"Successfully downloaded attachment: {downloaded_att.keys()} for message {message_id}.")
+
+                    else:
+                        logger.error(f"Failed to download attachment: {att_info['filename']} for message {message_id}.")
+
+                # email_details['attachments'] = downloaded_attachments
+                
+                filename=message_id
+                # Define save directory and create if it doesn't exist
+                backend_dir = os.path.dirname(__file__)
+                save_dir = os.path.join(backend_dir, 'attachments')
+                os.makedirs(save_dir, exist_ok=True)
+
+                # Create a unique filename using message_id and original filename
+                # Sanitize filename to avoid issues with special characters
+                safe_filename = "".join([c for c in filename if c.isalnum() or c in ('.', '_', '-')])
+                if not safe_filename:
+                    safe_filename = "attachment" # Fallback if filename is empty or invalid
+
+                file_path = os.path.join(save_dir, f"{message_id}_{safe_filename}.json")
+
+                # Save the file
+                try:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                            json.dump(email_details, f, ensure_ascii=False, indent=4)
+                    logger.info(f"Saved attachment to: {file_path}")
+                    return email_details # Return the path to the saved file
+                except Exception as e:
+                    logger.error(f"Failed to save attachment {filename} for message {message_id} to {file_path}: {e}")
+                    return None
+                return email_details
+
+    except Exception as e:
+        logger.error(f"Exception during full message fetch and attachment download for message {message_id}: {e}")
+        return None
+
+async def download_gmail_attachment(db_pool: asyncpg.pool.Pool, user_email: str, message_id: str, attachment_id: str, filename: str, user_oauth_token: str) -> dict:
     """
     Downloads an attachment from Gmail using the Gmail API and OAuth2 token.
-    user_id: string ("me" für authentifizierten User oder echte E-Mail-Adresse)
+    db_pool: asyncpg.pool.Pool - Database connection pool.
+    user_email: string - The email address of the user whose token to use.
     message_id: string
     attachment_id: string
     filename: string (nur für Logging/DB)
     Returns a dict with filename, data (bytes), size (int), attachment_id (str)
     """
     logger = logging.getLogger(__name__)
-    user_oauth_token = os.getenv("GMAIL_OAUTH_TOKEN")  # TODO: Hole Token dynamisch pro User
-    url = f"https://gmail.googleapis.com/gmail/v1/users/{user_id}/messages/{message_id}/attachments/{attachment_id}"
+    # Use 'me' for the authenticated user in the Gmail API URL
+    url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}/attachments/{attachment_id}"
     headers = {
         "Authorization": f"Bearer {user_oauth_token}",
         "Accept": "application/json"
     }
     try:
+        logger.info(f"Attempting to download attachment {attachment_id} for message {message_id} using token.") # Added log
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=headers) as resp:
+                logger.info(f"Attachment download response status: {resp.status}") # Added log
                 if resp.status != 200:
-                    logger.error(f"Failed to download attachment {attachment_id} (ID: {attachment_id}) for message {message_id}: HTTP {resp.status}")
+                    logger.error(f"Failed to download attachment {attachment_id} for message {message_id}: HTTP {resp.status}")
                     return None
                 data = await resp.json()
+
                 b64data = data.get("data")
                 size = data.get("size")
                 att_id = data.get("attachmentId")
                 if not b64data:
                     logger.error(f"No data field in Gmail API response for attachment {attachment_id}")
                     return None
+                # Gmail API uses base64url encoding, which might not have padding
                 file_bytes = base64.urlsafe_b64decode(b64data + '==')
                 logger.info(f"Downloaded attachment '{filename}' ({size} bytes) from Gmail API.")
                 return {
+                    "filename": filename, # Add filename to the returned dict
                     "data": file_bytes,
                     "size": size,
                     "attachment_id": att_id

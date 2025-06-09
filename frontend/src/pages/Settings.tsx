@@ -50,6 +50,11 @@ const Settings: React.FC = () => {
 
   // New state for Gmail auth status
   const [gmailAuthStatus, setGmailAuthStatus] = useState<'success' | 'failure' | null>(null);
+  // State for MCP authentication status
+  const [mcpAuthStatus, setMcpAuthStatus] = useState<'success' | 'failure' | null>(null);
+
+  // AgentScheduler status
+  const [schedulerStatus, setSchedulerStatus] = useState<'running' | 'stopped' | 'unknown'>('unknown');
 
   const location = useLocation(); // Get location object
   const navigate = useNavigate(); // Get navigate function
@@ -89,8 +94,16 @@ const Settings: React.FC = () => {
     // Check for OAuth callback parameters
     const params = new URLSearchParams(location.search);
     const authStatus = params.get('auth');
+    const mcpAuthStatusParam = params.get('mcpauth');
+
     if (authStatus === 'success' || authStatus === 'failure') {
       setGmailAuthStatus(authStatus);
+      // Clean up the URL
+      navigate(location.pathname, { replace: true });
+    }
+
+    if (mcpAuthStatusParam === 'success' || mcpAuthStatusParam === 'failure') {
+      setMcpAuthStatus(mcpAuthStatusParam);
       // Clean up the URL
       navigate(location.pathname, { replace: true });
     }
@@ -146,6 +159,26 @@ const Settings: React.FC = () => {
       console.error("Gmail connect error:", err);
       alert(`Error connecting to Gmail: ${err.message}`);
       setGmailAuthStatus('failure'); // Indicate failure in case of frontend error
+    }
+  };
+
+  // Handler for initiating MCP login
+  const handleMcpLogin = async () => {
+    try {
+      const response = await fetch('/api/mcp/auth-url');
+      if (!response.ok) {
+        throw new Error(`Failed to get MCP auth URL: ${response.statusText}`);
+      }
+      const data = await response.json();
+      if (data.auth_url) {
+        // Redirect user to the MCP server login page
+        window.location.href = data.auth_url;
+      } else {
+        throw new Error('MCP auth URL not received from backend.');
+      }
+    } catch (error: any) {
+      console.error("MCP login initiation error:", error);
+      alert(`Error initiating MCP login: ${error.message}`);
     }
   };
 
@@ -367,9 +400,57 @@ const Settings: React.FC = () => {
     }
   };
 
+  // Fetch scheduler status
+  const fetchSchedulerStatus = async () => {
+    try {
+      const res = await fetch('/api/scheduler/status');
+      if (res.ok) {
+        const data = await res.json();
+        setSchedulerStatus(data.status === 'running' ? 'running' : data.status === 'stopped' ? 'stopped' : 'unknown');
+      } else {
+        setSchedulerStatus('unknown');
+      }
+    } catch {
+      setSchedulerStatus('unknown');
+    }
+  };
+
+  // Handler to start AgentScheduler
+  const handleStartScheduler = async () => {
+    try {
+      const res = await fetch('/api/scheduler/start', { method: 'POST' });
+      if (res.ok) {
+        setSchedulerStatus('running');
+      } else {
+        alert('Fehler beim Starten des AgentSchedulers');
+      }
+    } catch {
+      alert('Fehler beim Starten des AgentSchedulers');
+    }
+  };
+
+  // Handler to stop AgentScheduler
+  const handleStopScheduler = async () => {
+    try {
+      const res = await fetch('/api/scheduler/stop', { method: 'POST' });
+      if (res.ok) {
+        setSchedulerStatus('stopped');
+      } else {
+        alert('Fehler beim Stoppen des AgentSchedulers');
+      }
+    } catch {
+      alert('Fehler beim Stoppen des AgentSchedulers');
+    }
+  };
+
   useEffect(() => {
     fetchWorkflows();
   }, [savingWorkflow]); // Depend on savingWorkflow to refetch after save/delete
+
+  // Fetch scheduler status on component mount
+  useEffect(() => {
+    fetchSchedulerStatus();
+  }, []);
 
   if (loadingSettings) return <div className="p-6 text-center">Loading settings...</div>;
   if (settingsError) return <div className="p-6 text-center text-red-500">Error loading settings: {settingsError}</div>;
@@ -457,24 +538,6 @@ const Settings: React.FC = () => {
             </ul>
           </section>
 
-          {/* Gmail Integration Section */}
-          <section>
-            <h2 className="text-xl font-bold mb-2">Gmail Integration</h2>
-            <p className="text-sm text-gray-600 mb-4">Connect your Gmail account to enable email processing features.</p>
-            <button
-              onClick={handleGmailConnect}
-              className="bg-red-500 text-white px-4 py-2 rounded-md shadow-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-            >
-              Connect Gmail
-            </button>
-            {gmailAuthStatus === 'success' && (
-              <p className="mt-4 text-green-600 font-semibold">Gmail connected successfully!</p>
-            )}
-            {gmailAuthStatus === 'failure' && (
-              <p className="mt-4 text-red-600 font-semibold">Failed to connect Gmail. Please try again.</p>
-            )}
-          </section>
-
           {/* Save Settings Button */}
           <div className="pt-4">
             <button
@@ -485,6 +548,68 @@ const Settings: React.FC = () => {
               {savingSettings ? 'Speichern...' : 'Einstellungen speichern'}
             </button>
           </div>
+
+          {/* OAuth Buttons and Status (moved below save button) */}
+          <section className="pt-4">
+            <h2 className="text-xl font-bold mb-2">Integrationen</h2>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleGmailConnect}
+                className="bg-red-500 text-white px-3 py-1 rounded self-start"
+              >
+                Gmail verbinden
+              </button>
+              {gmailAuthStatus === 'success' && (
+                <p className="text-green-600 mt-2">Gmail authentication successful!</p>
+              )}
+              {gmailAuthStatus === 'failure' && (
+                <p className="text-red-600 mt-2">Gmail authentication failed. Please try again.</p>
+              )}
+              <button
+                onClick={handleMcpLogin}
+                className="bg-purple-500 text-white px-3 py-1 rounded self-start"
+              >
+                Mit MCP Server verbinden
+              </button>
+              {mcpAuthStatus === 'success' && (
+                <p className="text-green-600 mt-2">MCP server authentication successful!</p>
+              )}
+              {mcpAuthStatus === 'failure' && (
+                <p className="text-red-600 mt-2">MCP server authentication failed. Please try again.</p>
+              )}
+            </div>
+          </section>
+
+          {/* AgentScheduler Controls */}
+          <section className="pt-4">
+            <h2 className="text-xl font-bold mb-2">AgentScheduler Steuerung</h2>
+            <div className="flex gap-2 mb-2">
+              <button
+                onClick={handleStartScheduler}
+                className="bg-blue-500 text-white px-3 py-1 rounded"
+                disabled={schedulerStatus === 'running'}
+              >
+                AgentScheduler starten
+              </button>
+              <button
+                onClick={handleStopScheduler}
+                className="bg-gray-500 text-white px-3 py-1 rounded"
+                disabled={schedulerStatus === 'stopped'}
+              >
+                AgentScheduler stoppen
+              </button>
+            </div>
+            <div>
+              <span>Status: </span>
+              <span className={
+                schedulerStatus === 'running' ? 'text-green-600' :
+                schedulerStatus === 'stopped' ? 'text-red-600' : 'text-gray-600'
+              }>
+                {schedulerStatus === 'running' ? 'Läuft' : schedulerStatus === 'stopped' ? 'Gestoppt' : 'Unbekannt'}
+              </span>
+              <button onClick={fetchSchedulerStatus} className="ml-2 text-blue-600 underline text-xs">Aktualisieren</button>
+            </div>
+          </section>
         </div>
 
         {/* Workflows Right */}
