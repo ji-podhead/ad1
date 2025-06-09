@@ -579,7 +579,7 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                             logger.info(f"Finished processing email ID {message_id}.")
 
                         except Exception as e: # Catch exceptions during processing of a single email
-                            logger.error(f"Error processing email (Subject: '{email_subject_str}', Sender: '{sender_email}', Message ID: {message_id}): {e}")
+                            logger.error(f"Error processing email 1 (Subject: '{email_subject_str}', Sender: '{sender_email}', Message ID: {message_id}): {e}")
                             # Log to audit trail only if email insertion was successful
                             if inserted_email_id is not None:
                                 try:
@@ -596,7 +596,7 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                                 try:
                                      await connection.execute(
                                         "INSERT INTO audit_trail (action, username, timestamp) VALUES ($1, $2, NOW())",
-                                        f"Error processing email (insertion failed). Subject: '{email_subject_str}', Message ID: {message_id}. Error: {str(e)}",
+                                        f"Error processing email insert (insertion failed). Subject: '{email_subject_str}', Message ID: {message_id}. Error: {str(e)}",
                                         "system_email_processing_error"
                                     )
                                 except Exception as log_e:

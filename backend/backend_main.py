@@ -25,8 +25,8 @@ from fastapi import HTTPException
 import uuid
 import datetime
 from agent_scheduler import AgentScheduler, check_new_emails # Import check_new_emails
-from fastapi.responses import JSONResponse
-from fastapi import Request
+from fastapi.responses import JSONResponse, Response # Import Response
+import base64 # Import base64
 # Import Flow for handling OAuth in the endpoint
 from google_auth_oauthlib.flow import Flow
 # Remove import of handle_oauth_callback from gmail_auth as logic is moved here
@@ -1114,4 +1114,5 @@ async def get_document_content(document_id: int, request: Request):
         raise HTTPException(status_code=500, detail="Error decoding document content")
 
     # Return content with appropriate media type
-    return Response(content=content_bytes, media_type=row['content_type'], headers={'Content-Disposition': f'inline; filename="{row['filename']}'})
+    # Correcting the f-string syntax for the filename
+    return Response(content=content_bytes, media_type=row['content_type'], headers={'Content-Disposition': 'inline; filename="{}"'.format(row['filename'])})

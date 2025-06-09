@@ -57,6 +57,7 @@ ad1 is a secure, modular platform for automated email and document processing, d
   - For each new email, a corresponding entry is created in the `tasks` table with an initial status (e.g., 'pending'), linking the email to a processing workflow.
 - **Task & Document Workflow**: All documents and emails to be processed are tracked as tasks. Each task has a status (e.g., pending, processing, needs validation, validated, aborted, failed) and links to the original email/document.
 - **Database Structure Highlights**:
+    - **Database Table Overview**: For a detailed description of all database tables, refer to [README_db_tables.md](docs/README_db_tables.md).
     - `emails` table: Stores email content. Includes a `received_at` column to timestamp when the email was fetched.
     - `tasks` table: Tracks the state of each email processing job. Key columns include `id` (PK), `email_id` (FK to `emails`), `status`, `created_at`, and `updated_at` (automatically updated on modification).
     - `scheduler_tasks` table: Persists configurations for scheduled jobs, such as the polling interval for the email daemon.
@@ -278,6 +279,18 @@ The ad1 backend exposes a secure REST API for all core functions. All endpoints 
 - **/api/emails/{email_id}/label** (POST):
   - Set or update the label for an email.
 
+- **/api/emails/{email_id}** (DELETE):
+  - Deletes an email by its ID.
+
+- **/api/documents** (GET):
+  - Lists all documents (attachments) in the system.
+
+- **/api/documents/{document_id}/content** (GET):
+  - Fetches the content of a specific document by its ID.
+
+- **/api/documents/{document_id}** (DELETE):
+  - Deletes a document by its ID.
+
 - **/api/audit** (GET):
   - Retrieve the audit trail for compliance and traceability.
 
@@ -314,22 +327,6 @@ The ad1 backend exposes a secure REST API for all core functions. All endpoints 
 All endpoints return JSON. For more details, see the backend source code in `backend/backend_main.py`.
 
 ---
-
-## Original Mockup
-### Tasks
-![s2](https://github.com/user-attachments/assets/11df8006-6d92-486f-b0fd-603276fb254d)
-### Validation
-![s1](https://github.com/user-attachments/assets/6e5424b6-2d37-49d1-9374-5c56f79cc6a6)
-
-
-
-## License & Commercial Use
-
-**All rights reserved.**
-
-Any commercial use, resale, or distribution of this software (including SaaS, on-prem, or as part of another product) is strictly prohibited without a written contract with the copyright holder.
-
-Contact the author for licensing options. All rights remain with the project owner.
 
 ## Backend Docker Build & Compose Usage
 
@@ -427,7 +424,6 @@ mw-backend | INFO:agent_scheduler:Raw MCP tool response: 'Error: No refresh toke
 ```
 gmail-1 | Please visit this URL to authenticate: https://accounts.google.com/o/oauth2/v2/auth?...&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Foauth2callback
 gmail-1 | Authentication completed successfully
-mw-backend | INFO:agent_scheduler:Raw MCP tool response: 'Error: No refresh token is set.'
 ```
 
 #### Notes
@@ -446,3 +442,15 @@ sudo docker compose up --build
 gmail-1 | Please visit this URL to authenticate: https://accounts.google.com/o/oauth2/v2/auth?...&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Foauth2callback
 gmail-1 | Authentication completed successfully
 ```
+
+
+
+## License & Commercial Use
+
+**All rights reserved.**
+
+This project is the property of **ji-podhead (Leonardo J.)**. Full usage rights, including distribution, are granted to the **orchestra-nexus** GitHub organization, or **Robert Schröder**.
+
+Any other commercial use, resale, or distribution of this software (including SaaS, on-prem, or as part of another product) is strictly prohibited without a written contract with the copyright holder.
+
+Contact the author for licensing options. All rights remain with the project owner.

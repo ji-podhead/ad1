@@ -72,12 +72,18 @@ export function MainMenubar() { // Removed props: user, onLogin, onLogout
     { to: "/ipam", label: "IAM" },
     { to: "/chat", label: "Agent Chat" },
     { to: "/settings", label: "Settings" }, // Add Settings link
+    { to: "/about-us", label: "About Us" }, // Add About Us link
   ];
   // Determine if the User Management link should be shown
   const showUserManagementLink = user && user.is_admin;
 
   return (
     <div className="flex items-center h-12 bg-white border-b shadow-sm px-4">
+      {/* Ad1 Logo and Orchestra Nexus text */}
+      <div className="flex items-center mr-4">
+        <Link to="/" className="text-lg font-bold">Ad1</Link>
+        <span className="ml-2 text-xs text-gray-500">by orchestra-nexus</span>
+      </div>
       <div className="flex-1 flex">
         {pages.map(page => (
           <MenubarItem key={page.to} to={page.to}>{page.label}</MenubarItem>

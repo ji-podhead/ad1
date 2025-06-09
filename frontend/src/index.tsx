@@ -15,6 +15,7 @@ import About from './pages/About';
 import UserManagementPage from './pages/UserManagementPage'; // Import UserManagementPage
 import { AuthProvider } from './contexts/AuthContext';
 import Settings from './pages/Settings'; // Import Settings
+import AboutUs from './pages/AboutUs'; // Import AboutUs
 
 const App = () => (
   <BrowserRouter>
@@ -28,9 +29,10 @@ const App = () => (
         <Route path="/chat" element={<AgentChat />} />
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/ipam" element={<IPAMPage />} />
-        <Route path="/about" element={<About />} />
+        {/* <Route path="/about" element={<About />} /> */} {/* Remove old About route if exists */}
         <Route path="/user-management" element={<UserManagementPage />} />
         <Route path="/settings" element={<Settings />} /> {/* Add Settings route */}
+        <Route path="/about-us" element={<AboutUs />} /> {/* Add About Us route */}
         </Routes>
       </Layout>
     </AuthProvider>

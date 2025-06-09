@@ -5,13 +5,12 @@ import { useLocation } from 'react-router-dom';
 
 interface Document {
   id: number;
-  subject: string;
-  sender: string;
-  body: string; // Or a summary
-  received_at: string;
-  type: string | null;
-  short_description: string | null;
-  label: string | null; // Added to match backend Email model
+  email_id: number; // Link to the email
+  filename: string;
+  content_type: string;
+  is_processed: boolean;
+  created_at: string; // Use string for date/time from backend
+  // Removed email-specific fields: subject, sender, body, received_at, type, short_description, label
 }
 
 const Documents: React.FC = () => {
@@ -28,7 +27,7 @@ const Documents: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/emails'); // Assuming /api/emails is the endpoint for documents/emails
+      const response = await fetch('/api/documents'); // Change endpoint to fetch documents
       if (!response.ok) {
         throw new Error(`Failed to fetch documents: ${response.statusText}`);
       }
@@ -84,7 +83,7 @@ const Documents: React.FC = () => {
   const handleDeleteDocument = async (docId: number) => {
     if (window.confirm(`Are you sure you want to delete document with ID ${docId}?`)) {
       try {
-        const response = await fetch(`/api/emails/${docId}`, {
+        const response = await fetch(`/api/documents/${docId}`, {
           method: 'DELETE',
         });
 
@@ -109,9 +108,8 @@ const Documents: React.FC = () => {
   };
 
   const filteredDocs = docs.filter(doc =>
-    doc.subject.toLowerCase().includes(search.toLowerCase()) ||
-    doc.sender.toLowerCase().includes(search.toLowerCase()) ||
-    (doc.type && doc.type.toLowerCase().includes(search.toLowerCase()))
+    doc.filename.toLowerCase().includes(search.toLowerCase()) ||
+    doc.content_type.toLowerCase().includes(search.toLowerCase())
   );
 
   const formatDate = (dateString: string) => {
@@ -148,19 +146,17 @@ const Documents: React.FC = () => {
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Search by subject, sender, type..."
+          placeholder="Search by filename, content type..."
           className="border rounded px-2 py-1 ml-4 flex-1"
         />
       </div>
       <table className="w-full border bg-white rounded shadow">
         <thead>
           <tr className="bg-gray-100">
-            <th className="p-2 text-left">Subject</th>
-            <th className="p-2 text-left">Sender</th>
-            <th className="p-2 text-left">Received At</th>
-            <th className="p-2 text-left">Type</th>
-            <th className="p-2 text-left">Short Description</th>
-            {/* <th className="p-2 text-left">Status</th> */} {/* Status field removed for now, can be derived or added if needed */}
+            <th className="p-2 text-left">Filename</th>
+            <th className="p-2 text-left">Content Type</th>
+            <th className="p-2 text-left">Created At</th>
+            <th className="p-2 text-left">Processed</th>
             <th className="p-2 text-left">Actions</th>
           </tr>
         </thead>
@@ -169,35 +165,22 @@ const Documents: React.FC = () => {
             <tr key={doc.id} className="border-t group relative">
               <td
                 className="p-2 cursor-pointer text-blue-700 hover:underline relative"
-                onMouseEnter={() => setHovered(doc.id)}
-                onMouseLeave={() => setHovered(null)}
-                onClick={() => setModalDoc(doc)}
+                // Remove hover preview for now, will implement document preview separately
+                // onMouseEnter={() => setHovered(doc.id)}
+                // onMouseLeave={() => setHovered(null)}
+                // onClick={() => setModalDoc(doc)}
               >
-                {doc.subject}
-                {hovered === doc.id && (
-                  <div className="absolute left-0 top-full mt-1 z-30 bg-white border rounded shadow-lg p-3 w-auto min-w-[300px] max-w-md text-xs animate-fade-in-up">
-                    <div className="font-bold mb-1">{doc.subject}</div>
-                    <div className="mb-1 text-gray-600">From: {doc.sender}</div>
-                    <div className="mb-1 text-gray-500">Received: {formatDate(doc.received_at)}</div>
-                    <div className="mb-1 text-gray-400">Type: {doc.type || 'N/A'}</div>
-                    <div className="mb-1 text-gray-400">Summary: {doc.short_description || 'N/A'}</div>
-                    <div className="text-gray-700 whitespace-pre-line mt-2">
-                      Body Preview: {doc.body ? (doc.body.substring(0, 150) + (doc.body.length > 150 ? '...' : '')) : 'No body preview.'}
-                    </div>
-                  </div>
-                )}
+                {doc.filename}
+                {/* Remove email hover preview content */}
+                {/* {hovered === doc.id && (...) } */}
               </td>
-              <td className="p-2">{doc.sender}</td>
-              <td className="p-2">{formatDate(doc.received_at)}</td>
-              <td className="p-2">{doc.type || 'N/A'}</td>
-              <td className="p-2 truncate max-w-xs" title={doc.short_description || undefined}>{doc.short_description || 'N/A'}</td>
-              {/* <td className="p-2">
-                <span className={`px-2 py-1 rounded text-xs ${doc.status === 'Processing' ? 'bg-blue-200' : doc.status === 'Needs Validation' ? 'bg-yellow-200' : 'bg-green-200'}`}>{doc.status}</span>
-              </td> */}
+              <td className="p-2">{doc.content_type}</td>
+              <td className="p-2">{formatDate(doc.created_at)}</td>
+              <td className="p-2">{doc.is_processed ? 'Yes' : 'No'}</td>
               <td className="p-2 flex gap-2">
-                {/* Simplified actions for now */}
+                {/* Update View button to potentially open document preview modal */}
                 <button className="bg-blue-500 text-white px-2 py-1 rounded text-xs" onClick={() => setModalDoc(doc)}>View</button>
-                {/* <button className="bg-green-500 text-white px-2 py-1 rounded text-xs" onClick={() => setModalDoc(doc)}>Validate</button> */}
+                {/* Update Delete button to use the correct endpoint */}
                 <button
                   className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600"
                   onClick={() => handleDeleteDocument(doc.id)}
@@ -209,21 +192,12 @@ const Documents: React.FC = () => {
           ))}
         </tbody>
       </table>
+      {/* Update DocumentModal usage to pass document data */}
       {modalDoc && (
         <DocumentModal
           open={!!modalDoc}
           onClose={() => setModalDoc(null)}
-          doc={{ // Adapt DocumentModal props if necessary.
-            name: modalDoc.subject,
-            status: modalDoc.type || 'N/A',
-            uploaded: formatDate(modalDoc.received_at),
-            body: modalDoc.body,
-            // Potentially pass short_description to DocumentModal if it's designed to show it
-            short_description: modalDoc.short_description,
-            // Pass other fields as needed by DocumentModal, e.g. sender, type explicitly
-            sender: modalDoc.sender,
-            type: modalDoc.type,
-          }}
+          doc={modalDoc} // Pass the full document object
         />
       )}
     </div>
