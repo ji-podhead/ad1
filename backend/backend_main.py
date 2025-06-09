@@ -1,7 +1,6 @@
 # FastAPI backend for Ornex Mail
 # Entry point: main.py
 from fastapi.middleware.cors import CORSMiddleware
-
 from fastapi import FastAPI, WebSocket, Query, Request # Import Request
 from fastapi.responses import RedirectResponse # Import RedirectResponse
 from pydantic import BaseModel
@@ -16,37 +15,26 @@ except ImportError:
 from dotenv import load_dotenv
 import os
 import logging
-from backend.gmail.gmail_mcp_tools_wrapper import (
-    list_emails, get_email, label_email, send_email, draft_email, read_email, search_emails, modify_email, delete_email, list_email_labels, create_label, update_label, delete_label, get_or_create_label, batch_modify_emails, batch_delete_emails
-)
 import asyncpg
 from agent_ws import agent_websocket
 from fastapi import HTTPException
 import uuid
 import datetime
-from agent_scheduler import AgentScheduler, check_new_emails # Import check_new_emails
 from fastapi.responses import JSONResponse, Response # Import Response
 import base64 # Import base64
-# Import Flow for handling OAuth in the endpoint
 from google_auth_oauthlib.flow import Flow
-# Remove import of handle_oauth_callback from gmail_auth as logic is moved here
-# from gmail_auth import generate_auth_url, handle_oauth_callback # Import the functions
+from backend.agent.agent_scheduler import AgentScheduler, check_new_emails # Import check_new_emails
 from backend.gmail.gmail_auth import generate_auth_url # Keep generate_auth_url
-
-# Logging configuration
+from backend.gmail.gmail_mcp_tools_wrapper import (
+    list_emails, get_email, label_email, send_email, draft_email, read_email, search_emails, modify_email, delete_email, list_email_labels, create_label, update_label, delete_label, get_or_create_label, batch_modify_emails, batch_delete_emails
+)
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__) # Initialize logger
-
-# Load environment variables
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/mailwhisperer")
-
 app = FastAPI()
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# CORS for local frontend dev
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

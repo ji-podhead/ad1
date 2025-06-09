@@ -8,23 +8,13 @@ import asyncpg # Assuming asyncpg is used for database connection
 # Remove direct google.genai import if pydantic_ai handles it internally, or keep if needed for types
 # from google import genai
 # from google.genai.types import GenerateContentConfig, HttpOptions
-from tools_wrapper import list_emails # Import list_emails
+from backend.gmail_mcp_tools_wrapper import list_emails # Import list_emails
 import aiohttp
 import logging # Added for explicit logging
 import base64 # For dummy PDF
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)  # <--- explizit setzen!
 
-
-async def fetch_access_token_for_user(db_pool: asyncpg.pool.Pool, user_email: str) -> str:
-        logger.info(f"Attempting to fetch access token for user: {user_email} for message fetch test.")
-        user_row = await db_pool.fetchrow("SELECT google_access_token FROM users")
-        if not user_row or not user_row['google_access_token']:
-            logger.error(f"Google access token not found for user: {user_email}. Cannot perform message fetch test.")
-            return None
-        user_oauth_token = user_row['google_access_token']
-        logger.info(f"Successfully fetched access token for user: {user_email} for message fetch test.")
-        return user_oauth_token
 
 async def get_email(db_pool: asyncpg.pool.Pool, user_email: str, message_id: str, access_token: str):
     """

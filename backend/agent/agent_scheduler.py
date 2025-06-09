@@ -17,7 +17,7 @@ import asyncpg # Assuming asyncpg is used for database connection
 from google.adk.agents import Agent as AdkAgent # Alias to avoid name conflict
 from google.adk.models.lite_llm import LiteLlm
 from litellm import experimental_mcp_client
-from tools_wrapper import list_emails # Import list_emails
+from backend.gmail_mcp_tools_wrapper import list_emails # Import list_emails
 import aiohttp
 import logging # Added for explicit logging
 import base64 # For dummy PDF
@@ -27,9 +27,10 @@ from pydantic import BaseModel # Import BaseModel from pydantic
 from pydantic_ai import Agent # Import Agent from pydantic_ai
 from pydantic_ai.models.gemini import GeminiModel, GeminiModelSettings # Import GeminiModel and Settings
 
-from backend.gmail_utils import get_email # Import Gmail utils for email fetching and OAuth
-from  backend.document_utils import process_document_step # Import document processing step function
+from backend.gmail.gmail_fetch import get_email # Import Gmail utils for email fetching and OAuth
+from  backend.documents.document_utils import process_document_step # Import document processing step function
 from backend.gmail_auth import fetch_access_token_for_user
+
 # Define Pydantic models for LLM response
 class ClassificationResult(BaseModel):
     type: str
