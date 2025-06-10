@@ -14,10 +14,11 @@ CREATE TABLE emails (
 
 CREATE TABLE audit_trail (
     id SERIAL PRIMARY KEY,
-    email_id INTEGER REFERENCES emails(id),
-    action TEXT NOT NULL,
+    email_id INTEGER REFERENCES emails(id), -- Keep email_id as it's often the primary context
+    event_type TEXT, -- Added event_type column
     username TEXT NOT NULL,
-    timestamp TIMESTAMP NOT NULL DEFAULT NOW()
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    data JSONB -- Keep data type as JSONB for flexible storage of related IDs and details, including action description
 );
 
 CREATE TABLE users (
@@ -27,8 +28,11 @@ CREATE TABLE users (
     is_admin BOOLEAN NOT NULL DEFAULT FALSE,
     roles TEXT[] NOT NULL DEFAULT '{}',
     google_id TEXT, -- Added for Google OAuth
-    google_access_token TEXT NOT NULL DEFAULT 'none', -- Added for storing Google OAuth access tokens
-    google_refresh_token TEXT NOT NULL DEFAULT 'none' -- Added for storing Google OAuth refresh tokens
+    google_access_token TEXT DEFAULT NULL, -- Changed default to NULL
+    google_refresh_token TEXT DEFAULT NULL, -- Changed default to NULL
+    mcp_token TEXT DEFAULT NULL, -- Added for MCP token
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, -- Added created_at
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP  -- Added updated_at
 );
 
 CREATE TABLE tasks (

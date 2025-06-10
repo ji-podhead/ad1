@@ -1,4 +1,3 @@
-\
 import asyncpg
 import logging
 import json
@@ -25,57 +24,144 @@ async def get_db_pool(context: Any) -> asyncpg.pool.Pool:
 # --- Audit Log Functions ---
 async def log_generic_action_db(
     db_pool: asyncpg.pool.Pool,
-    action_description: str,
     username: str = "system_event",
     email_id: Optional[int] = None,
-    task_id: Optional[int] = None,
-    document_id: Optional[int] = None
+    event_type: Optional[str] = None,
+    data: Optional[Dict[str, Any]] = None
 ) -> None:
     """Logs a generic action to the audit_trail table."""
     try:
+        # Ensure data is a dictionary
+        log_data = data if data is not None else {}
+
+        data_json = json.dumps(log_data) if log_data else None
+
         await db_pool.execute(
             """
-            INSERT INTO audit_trail (action, username, timestamp, email_id, task_id, document_id)
-            VALUES ($1, $2, NOW(), $3, $4, $5)
+            INSERT INTO audit_trail (username, timestamp, email_id, event_type, data)
+            VALUES ($1, NOW(), $2, $3, $4)
             """,
-            action_description, username, email_id, task_id, document_id
+            username, email_id, event_type, data_json
         )
-        logger.debug(f"Audit log: {action_description} by {username}")
+        # Log the action description from the data dictionary for debugging
+        action_desc_for_log = log_data.get("action_description", "No description provided")
+        logger.debug(f"Audit log: {action_desc_for_log} (Type: {event_type}) by {username}")
     except Exception as e:
-        logger.error(f"Failed to log generic action '{action_description}' by '{username}': {e}")
+        # Attempt to get action description from data for error logging
+        action_desc_for_error = data.get("action_description", "No description provided") if data else "No description provided"
+        logger.error(f"Failed to log generic action '{action_desc_for_error}' (Type: {event_type}) by '{username}': {e}")
 
 async def log_task_action_db(
     db_pool: asyncpg.pool.Pool,
     task_id: int,
-    action: str,
-    user: str = "system_user"
+    action: str, # This is now the action description to be put in data
+    user: str = "system_user",
+    data: Optional[Dict[str, Any]] = None
 ) -> None:
     """Logs a task-specific action to the audit_trail table, fetching task details."""
     try:
         task_details = await db_pool.fetchrow(
             "SELECT email_id, status, workflow_type FROM tasks WHERE id = $1", task_id
         )
+        db_email_id = None
+        task_status = "N/A"
+        workflow_type = "N/A"
         if task_details:
             db_email_id = task_details['email_id']
             task_status = task_details['status']
             workflow_type = task_details['workflow_type']
-            action_details_string = f"{action} (Task ID: {task_id}, Status: {task_status}, Workflow: {workflow_type or 'N/A'})"
-            await log_generic_action_db(
-                db_pool,
-                action_description=action_details_string,
-                username=user,
-                email_id=db_email_id,
-                task_id=task_id
-            )
-        else:
-            await log_generic_action_db(
-                db_pool,
-                action_description=f"{action} (Task ID: {task_id}, details not found)",
-                username=user,
-                task_id=task_id
-            )
+        
+        log_data = data if data is not None else {}
+        log_data.update({
+            "action_description": action, # Include action description in data
+            "task_id": task_id,
+            "task_status": task_status,
+            "workflow_type": workflow_type
+        })
+
+        await log_generic_action_db(
+            db_pool,
+            username=user,
+            email_id=db_email_id, # Associate with email if available
+            event_type="task", # Specify event type
+            data=log_data # Pass combined data
+        )
     except Exception as e:
         logger.error(f"Failed to log task action '{action}' for task {task_id}, user '{user}': {e}")
+
+async def log_email_action_db(
+    db_pool: asyncpg.pool.Pool,
+    email_id: int,
+    action: str, # This is now the action description to be put in data
+    user: str = "system_user",
+    data: Optional[Dict[str, Any]] = None
+) -> None:
+    """Logs an email-specific action to the audit_trail table, fetching email details."""
+    try:
+        email_details = await db_pool.fetchrow(
+            "SELECT subject, sender, label FROM emails WHERE id = $1", email_id
+        )
+        email_subject = "N/A"
+        email_sender = "N/A"
+        email_label = "N/A"
+        if email_details:
+            email_subject = email_details['subject']
+            email_sender = email_details['sender']
+            email_label = email_details['label']
+
+        log_data = data if data is not None else {}
+        log_data.update({
+            "action_description": action, # Include action description in data
+            "email_id": email_id,
+            "email_subject": email_subject,
+            "email_sender": email_sender,
+            "email_label": email_label
+        })
+
+        await log_generic_action_db(
+            db_pool,
+            username=user,
+            email_id=email_id, # Associate with email
+            event_type="email", # Specify event type
+            data=log_data
+        )
+    except Exception as e:
+        logger.error(f"Failed to log email action '{action}' for email {email_id}, user '{user}': {e}")
+
+async def log_document_action_db(
+    db_pool: asyncpg.pool.Pool,
+    document_id: int,
+    action: str, # This is now the action description to be put in data
+    user: str = "system_user",
+    data: Optional[Dict[str, Any]] = None
+) -> None:
+    """Logs a document-specific action to the audit_trail table, fetching document details."""
+    try:
+        document_details = await db_pool.fetchrow(
+            "SELECT filename, email_id FROM documents WHERE id = $1", document_id
+        )
+        document_filename = "N/A"
+        email_id = None
+        if document_details:
+            document_filename = document_details['filename']
+            email_id = document_details['email_id']
+
+        log_data = data if data is not None else {}
+        log_data.update({
+            "action_description": action, # Include action description in data
+            "document_id": document_id,
+            "document_filename": document_filename
+        })
+
+        await log_generic_action_db(
+            db_pool,
+            username=user,
+            email_id=email_id, # Associate with email if available
+            event_type="document", # Specify event type
+            data=log_data
+        )
+    except Exception as e:
+        logger.error(f"Failed to log document action '{action}' for document {document_id}, user '{user}': {e}")
 
 # --- User Management Functions ---
 async def get_user_by_email_db(db_pool: asyncpg.pool.Pool, email: str) -> Optional[Dict[str, Any]]:
@@ -216,8 +302,20 @@ async def delete_email_from_db(db_pool: asyncpg.pool.Pool, email_id: int) -> boo
         async with conn.transaction():
             await conn.execute("DELETE FROM tasks WHERE email_id = $1", email_id)
             await conn.execute("DELETE FROM documents WHERE email_id = $1", email_id)
+            # Delete audit trail entries related to this email BEFORE deleting the email
             await conn.execute("DELETE FROM audit_trail WHERE email_id = $1", email_id)
             result = await conn.execute("DELETE FROM emails WHERE id = $1", email_id)
+            
+            # Log the deletion using a generic action with event_type
+            await log_generic_action_db(
+                db_pool=conn, # Use the transaction connection
+                username="user_api", # Placeholder
+                event_type="email_deletion", # Specific event type for deletion
+                data={
+                    "action_description": f"Email and associated data deleted from database.",
+                    "deleted_email_id": email_id
+                } # Include action description and deleted ID in data
+            )
             return result == "DELETE 1"
 
 # --- Document Management Functions ---
@@ -268,10 +366,16 @@ async def create_document_db(
             # Log the creation
             await log_generic_action_db(
                 db_pool,
-                action_description=f"Document '{filename}' (ID: {doc_id}) created and associated with email ID {email_id}.",
                 username="system_document_creation", # Consider making username a parameter or deriving it
                 email_id=email_id,
-                document_id=doc_id
+                document_id=doc_id,
+                data={
+                    "action_description": f"Document '{filename}' (ID: {doc_id}) created and associated with email ID {email_id}.",
+                    "email_id": email_id,
+                    "filename": filename,
+                    "content_type": content_type,
+                    "processed_data": processed_data
+                } # Include action description and document details in data
             )
             return dict(row)
         else:
@@ -284,13 +388,23 @@ async def create_document_db(
 async def delete_document_from_db(db_pool: asyncpg.pool.Pool, document_id: int) -> bool:
     async with db_pool.acquire() as conn:
         async with conn.transaction():
-            # Future: Update emails.document_ids array to remove this document_id
+            # Delete audit trail entries related to this document BEFORE deleting the document
             await conn.execute("DELETE FROM audit_trail WHERE document_id = $1", document_id)
             result = await conn.execute("DELETE FROM documents WHERE id = $1", document_id)
             # After deleting document, update emails table to remove this document_id from document_ids arrays
             await conn.execute(
                 "UPDATE emails SET document_ids = array_remove(document_ids, $1) WHERE $1 = ANY(document_ids)",
                 document_id
+            )
+            # Log the deletion using a generic action with event_type
+            await log_generic_action_db(
+                db_pool=conn, # Use the transaction connection
+                username="system_document_deletion",
+                event_type="document_deletion", # Specific event type for deletion
+                data={
+                    "action_description": f"Document deleted from database.",
+                    "deleted_document_id": document_id
+                } # Include action description and deleted ID in data
             )
             return result == "DELETE 1"
 
@@ -401,13 +515,16 @@ async def create_scheduler_task_db(db_pool: asyncpg.pool.Pool, task_data: Dict[s
         elif created_task.get('workflow_config') is None:
              created_task['workflow_config'] = {}
 
-        # Log the creation
+        # Log the creation using a generic action with event_type
         await log_generic_action_db(
             db_pool,
-            action_description=f"Scheduler task '{created_task.get('task_name')}' (ID: {created_task.get('id')}) created.",
             username="system_scheduler_task_creation", # Or derive username if available
-            # task_id here refers to the scheduler_task.id, not processing_task.id
-            # Consider if a different field in audit_trail is more appropriate or if task_id is okay.
+            event_type="scheduler_task_creation", # Specific event type
+            data={
+                "action_description": f"Scheduler task created.",
+                "scheduler_task_id": created_task.get('id'),
+                "task_name": created_task.get('task_name')
+            } # Include action description and details in data
         )
         return created_task
     except Exception as e:
@@ -473,17 +590,42 @@ async def update_scheduler_task_db(db_pool: asyncpg.pool.Pool, task_id: int, upd
     elif updated_task.get('workflow_config') is None:
         updated_task['workflow_config'] = {}
     
-    # Log the update
+    # Log the update using a generic action with event_type
     await log_generic_action_db(
         db_pool,
-        action_description=f"Scheduler task '{updated_task.get('task_name')}' (ID: {updated_task.get('id')}) updated. Fields: {', '.join(updates.keys())}",
         username="system_scheduler_task_update",
+        event_type="scheduler_task_update", # Specific event type
+        data={
+            "action_description": f"Scheduler task updated.",
+            "scheduler_task_id": updated_task.get('id'),
+            "updated_fields": list(updates.keys())
+        } # Include action description and details in data
     )
     return updated_task
 
 async def delete_scheduler_task_db(db_pool: asyncpg.pool.Pool, task_id: int) -> bool:
-    result = await db_pool.execute("DELETE FROM scheduler_tasks WHERE id = $1", task_id)
-    return result == "DELETE 1"
+    """Deletes a scheduler task from the database."""
+    try:
+        result = await db_pool.execute("DELETE FROM scheduler_tasks WHERE id = $1", task_id)
+        if result == "DELETE 1":
+            # Log the deletion
+            await log_generic_action_db(
+                db_pool,
+                username="system_scheduler_task_deletion",
+                event_type="scheduler_task_deletion",
+                data={
+                    "action_description": f"Scheduler task ID {task_id} deleted.",
+                    "deleted_scheduler_task_id": task_id
+                }
+            )
+            logger.info(f"Scheduler task ID {task_id} successfully deleted.")
+            return True
+        else:
+            logger.warning(f"Failed to delete scheduler task ID {task_id}. Task not found or no change made.")
+            return False
+    except Exception as e:
+        logger.error(f"Exception deleting scheduler task ID {task_id}: {e}")
+        return False
 
 # --- ProcessingTask Functions ---
 async def get_processing_tasks_db(db_pool: asyncpg.pool.Pool) -> List[Dict[str, Any]]:
@@ -517,7 +659,8 @@ async def update_task_status_db(db_pool: asyncpg.pool.Pool, task_id: int, status
         status, task_id
     )
     if result == "UPDATE 1":
-        await log_task_action_db(db_pool, task_id, f"Status changed to {status}", user)
+        # Use the updated log_task_action_db which now accepts data
+        await log_task_action_db(db_pool, task_id, f"Status changed to {status}", user, data={"new_status": status})
         return True
     return False
 
@@ -531,16 +674,21 @@ async def find_existing_email_db(db_pool: asyncpg.pool.Pool, subject: str, sende
 async def delete_email_and_audit_for_duplicate_db(db_pool: asyncpg.pool.Pool, email_id: int, original_subject: str) -> None:
     async with db_pool.acquire() as connection:
         async with connection.transaction():
+            # Delete audit trail entries related to this email BEFORE deleting the email
             await connection.execute("DELETE FROM audit_trail WHERE email_id = $1", email_id)
             await connection.execute("DELETE FROM emails WHERE id = $1", email_id)
             logger.info(f"Deleted duplicate email ID: {email_id} (Subject: '{original_subject}') and associated audit trail.")
-            # Log the deletion of the duplicate itself (without an email_id as it's gone)
+            # Log the deletion of the duplicate itself using a generic action with event_type
             await log_generic_action_db(
                 db_pool=connection, # Use the transaction connection
-                action_description=f"Duplicate email (originally ID: {email_id}, Subject: '{original_subject}') deleted.",
-                username="system_email_processing"
+                username="system_email_processing",
+                event_type="duplicate_email_deletion", # Specific event type
+                data={
+                    "action_description": f"Duplicate email deleted.",
+                    "deleted_email_id": email_id,
+                    "original_subject": original_subject
+                } # Include action description and details in data
             )
-
 
 async def insert_new_email_db(
     db_pool: asyncpg.pool.Pool,
@@ -588,11 +736,50 @@ async def insert_document_db(
         email_id, filename, content_type, data_b64, False, created_at_dt, processed_data # New field
     )
 
-async def update_email_document_ids_db(db_pool: asyncpg.pool.Pool, email_id: int, document_ids: List[int]) -> None:
-    await db_pool.execute(
-        "UPDATE emails SET document_ids = $1, updated_at = NOW() WHERE id = $2",
-        document_ids, email_id
-    )
+async def update_email_document_ids_db(
+    db_pool: asyncpg.pool.Pool,
+    email_id: int,
+    document_ids: List[int]
+) -> bool:
+    """Updates the document_ids array for a given email."""
+    try:
+        result = await db_pool.execute(
+            "UPDATE emails SET document_ids = $1, updated_at = NOW() WHERE id = $2",
+            document_ids, email_id
+        )
+        if result == "UPDATE 1":
+            # Log success
+            await log_email_action_db(
+                db_pool,
+                email_id=email_id,
+                action="Document IDs updated",
+                user="system_processing", # Or derive user
+                data={"new_document_ids": document_ids}
+            )
+            logger.info(f"Email ID {email_id} document_ids successfully updated.")
+            return True
+        else:
+            # Log failure if email_id not found or no change
+            await log_email_action_db(
+                db_pool,
+                email_id=email_id,
+                action="Failed to update document IDs for email",
+                user="system_processing",
+                data={"error": f"Update query returned: {result}", "document_ids_attempted": document_ids}
+            )
+            
+            logger.warning(f"Failed to update document_ids for email ID {email_id}. Result: {result}")
+            return False
+    except Exception as e:
+        # Log exception
+        await log_email_action_db(
+            db_pool,
+            email_id=email_id,
+            action="Exception updating document IDs",
+            user="system_processing",
+            data={"error": str(e), "document_ids_attempted": document_ids}
+        )
+        return False
 
 async def update_document_processed_data_db(
     db_pool: asyncpg.pool.Pool,
@@ -614,16 +801,23 @@ async def update_document_processed_data_db(
             processed_data_text, document_id
         )
         if result == "UPDATE 1":
-            await log_generic_action_db(
+            # Log the update using the new wrapper
+            await log_document_action_db(
                 db_pool,
-                action_description=f"Document ID {document_id} updated with processed data.",
-                username=username,
-                document_id=document_id
+                document_id=document_id,
+                action="Document marked as processed",
+                user=username,
+                data={"processed_data": processed_data_text} # Include processed data in log
             )
-            logger.info(f"Document ID {document_id} successfully updated with processed data.")
             return True
         else:
-            logger.warning(f"Failed to update document ID {document_id} with processed data. Document not found or no change made.")
+            await log_document_action_db(
+                db_pool,
+                document_id=document_id,
+                action="Failed to update document as processed",
+                user=username,
+                data={"error": "No rows updated, document may not exist or already processed."}
+            )
             return False
     except Exception as e:
         logger.error(f"Exception updating document ID {document_id} with processed data: {e}")
@@ -649,7 +843,13 @@ async def fetch_active_workflows_db(db_pool: asyncpg.pool.Pool, trigger_type: st
             try:
                 data['workflow_config'] = json.loads(config_str)
             except json.JSONDecodeError:
-                logger.error(f"Could not parse workflow_config JSON for workflow {data.get('workflow_name')}")
+                await log_task_action_db(
+                    db_pool,
+                    task_id=data.get('id'),
+                    action="Failed to parse workflow_config JSON",
+                    user="system_workflow_fetch",
+                    data={"error": "Invalid JSON format in workflow_config", "workflow_name": data.get('workflow_name')}
+                )
                 data['workflow_config'] = {}
         elif not config_str: # Handles None or empty string
              data['workflow_config'] = {}
@@ -676,13 +876,18 @@ async def create_processing_task_db(
 
 async def get_audit_trail_db(db_pool: asyncpg.pool.Pool, limit: int = 100) -> List[Dict[str, Any]]:
     rows = await db_pool.fetch(
-        "SELECT id, email_id, task_id, document_id, action, username, timestamp FROM audit_trail ORDER BY timestamp DESC LIMIT $1",
+        "SELECT id, email_id, task_id, document_id, username, timestamp FROM audit_trail ORDER BY timestamp DESC LIMIT $1",
         limit
     )
     return [dict(row) for row in rows]
 
 async def check_if_admin_user_exists_db(db_pool: asyncpg.pool.Pool, email: str) -> bool:
-    return await db_pool.fetchval("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1 AND is_admin = TRUE)", email)
+    row= await db_pool.fetchval("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1 AND is_admin = TRUE)", email)
+    if not row:
+        # Return a default structure if user not found, to prevent frontend errors
+        return {"is_admin": False, "roles": [], "google_id": None}
+    else:
+        return {"is_admin": row["is_admin"], "roles": row["roles"], "google_id": row["google_id"]}
 
 async def check_if_user_exists_db(db_pool: asyncpg.pool.Pool, email: str) -> bool:
     return await db_pool.fetchval("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", email)
@@ -704,8 +909,28 @@ async def store_oauth_state_db(db_pool: asyncpg.pool.Pool, state: str, user_id: 
     """Stores OAuth state with user_id. Assumes oauth_state table."""
     try:
         await db_pool.execute("INSERT INTO oauth_state (state, user_id) VALUES ($1, $2)", state, user_id)
+        await log_generic_action_db(
+            db_pool,
+            username="system_oauth_state_storage",
+            event_type="oauth_state_storage",
+            data={
+                "action_description": f"OAuth state '{state}' stored for user ID {user_id}.",
+                "state": state,
+                "user_id": user_id
+            }
+        )
     except asyncpg.exceptions.UndefinedTableError:
         logger.error("oauth_state table does not exist. Cannot store OAuth state.")
+        await log_generic_action_db(
+            db_pool,
+            username="system_oauth_state_storage",
+            event_type="oauth_state_storage_failure",
+            data={
+                "action_description": "Failed to store OAuth state due to missing oauth_state table.",
+                "state": state,
+                "user_id": user_id
+            }
+        )
         # Decide if to raise or just log. For now, logging.
     except Exception as e:
         logger.error(f"Error storing oauth state: {e}")
@@ -715,8 +940,25 @@ async def delete_oauth_state_db(db_pool: asyncpg.pool.Pool, state: str) -> None:
     """Deletes OAuth state after use. Assumes oauth_state table."""
     try:
         await db_pool.execute("DELETE FROM oauth_state WHERE state = $1", state)
+        await log_generic_action_db(
+            db_pool,
+            username="system_oauth_state_deletion",
+            event_type="oauth_state_deletion",
+            data={
+                "action_description": f"OAuth state '{state}' deleted.",
+                "state": state
+            }
+        )
     except asyncpg.exceptions.UndefinedTableError:
-        logger.warning("oauth_state table does not exist. Cannot delete OAuth state (may have auto-expired or never stored).")
+        await log_generic_action_db(
+            db_pool,
+            username="system_oauth_state_deletion",
+            event_type="oauth_state_deletion_failure",
+            data={
+                "action_description": "Failed to delete OAuth state due to missing oauth_state table.",
+                "state": state
+            }
+        )
     except Exception as e:
         logger.error(f"Error deleting oauth state: {e}")
 

@@ -19,19 +19,26 @@ import asyncpg # Assuming asyncpg is used for database connection
 # Remove direct google.genai import if pydantic_ai handles it internally, or keep if needed for types
 # from google import genai
 # from google.genai.types import GenerateContentConfig, HttpOptions
-from .gmail_mcp_tools_wrapper import list_emails # Import list_emails
+from .gmail_mcp_tools_wrapper import list_emails # Corrected relative import
 import aiohttp
 import logging # Added for explicit logging
 import base64 # For dummy PDF
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)  # <--- explizit setzen!
 import re
-from ..db_utils import (
+from litellm import experimental_mcp_client
+from mcp.client.sse import sse_client
+from mcp import ClientSession
+from db_utils import (
     insert_document_db, insert_new_email_db, log_generic_action_db,
     fetch_active_workflows_db, find_existing_email_db,
     delete_email_and_audit_for_duplicate_db, create_processing_task_db,
     update_email_document_ids_db
 )
+from gmail_utils.gmail_auth import fetch_access_token_for_user
+
+logger = logging.getLogger(__name__)
+
 def parse_mcp_email_list(raw_content: str) -> List[Dict[str, Any]]:
     """
     Parses raw text content from an MCP-like service into a list of email dicts.
@@ -73,7 +80,89 @@ def parse_mcp_email_list(raw_content: str) -> List[Dict[str, Any]]:
         })
     return emails
 
-async def get_email(
+
+async def read_emails_and_log(db_pool: asyncpg.pool.Pool, email: Dict[str, Any]) -> Optional[List[Dict[str, Any]]]:
+    """
+    Für jede E-Mail: Hole den vollständigen Inhalt, parse ihn, und lade ggf. Attachments herunter.
+    """
+    results = []
+    oauth_token = await fetch_access_token_for_user(db_pool,"leo@orchestra-nexus.com")
+    message_id = email.get('id')
+    if not message_id:
+        logger.warning(f"Email without ID: {email}")
+        return
+    try:
+        email= await get_full_email(db_pool,"leo@orchestra-nexus.com", message_id,oauth_token) # TODO: Get actual user email
+        logger.info(f"Processing email ID: {message_id} - Subject: {email.get('subject', 'N/A')}") # Added subject to log
+        results.append(email)  # Store the full email data for later processing
+
+    except Exception as e:
+        logger.error(f"Error reading email {message_id}: {e}")
+    return results
+
+
+
+async def fetch_new_emails_with_mcp(db_pool: asyncpg.pool.Pool, query: str, max_results: int) -> None:
+    """
+    Fetches new emails using MCP tools via SSE (Server-Sent Events).
+    This function connects to an MCP server to access email processing tools.
+    It then uses the 'search_emails' tool to find emails received within the
+    last `interval_seconds` seconds. The function logs the results and
+    processes the emails accordingly.
+    Args:
+        db_pool (asyncpg.pool.Pool): The database connection pool for asyncpg.
+        interval_seconds (int): The time interval in seconds to look back for new emails.
+    Returns:        
+        None
+    """
+    try:
+        MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp-server/sse/")
+        async with sse_client(MCP_SERVER_URL) as streams:
+            async with ClientSession(*streams) as session:
+                logger.info("[Scheduler] MCP session established.")
+                await session.initialize()
+                logger.info("getting tools.")
+                
+                
+                mcp_tools = await experimental_mcp_client.load_mcp_tools(session=session, format="mcp")
+                if not mcp_tools:
+                    logger.warning("No MCP tools available.")
+                    return
+                search_emails_tool = None
+                logger.info("[Scheduler] Loaded MCP tools:")
+                for tool in mcp_tools:
+                    logger.info(f" - {tool.name}")
+                    if hasattr(tool, 'name') and tool.name == 'search_emails':
+                        search_emails_tool = tool
+                        break
+                if not search_emails_tool:
+                    logger.warning("No 'search_emails' tool found in MCP tools.")
+                    return
+                logger.info(f"Using Gmail query: {query}")
+                result = await session.call_tool(search_emails_tool.name, arguments={"query": query, "maxResults": max_results})
+                logger.info(f"Search result from MCP tool: {result}") # Removed raw result from log
+                raw_content = result.content[0].text if result and result.content and len(result.content) > 0 else None
+                logger.info(f"Raw MCP tool response: {raw_content!r}")
+                if not raw_content or not raw_content.strip():
+                    logger.warning("MCP tool 'search_emails' returned empty or whitespace-only response. Skipping email processing.")
+                    return
+
+                logger.info(f"Raw MCP tool response length: {type(raw_content)} characters")
+                emails=parse_mcp_email_list(raw_content)
+                if not emails:
+                    logger.error("No new emails found in MCP tool response.")
+                    return
+                else:
+                    logger.info(f"processed {len(emails)} new emails in MCP tool response.")
+                    return emails
+    except Exception as e:
+        logger.error(f"Exception during MCP email fetch: {e}")
+        return
+    finally:
+        if 'session' in locals() and session:
+            logger.info("[Scheduler] Closing MCP session.")
+
+async def get_full_email(
     db_pool: asyncpg.pool.Pool,
     user_email: str,
     message_id: str,
@@ -106,7 +195,7 @@ async def get_email(
         `./backend/attachments/{message_id}_{message_id}.json`.
         Returns None if fetching or processing fails.
     """
-    logger = logging.getLogger(__name__)
+    
     try:
         url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}"
         headers = {
@@ -227,21 +316,9 @@ async def get_email(
                         
                         email_details['attachments'].append(att_info['attachmentId'])
                         logger.info(f"Successfully downloaded attachment: {downloaded_att.keys()} for message {message_id}.")
-                        doc_id = await insert_document_db(
-                            db_pool=db_pool,
-                            email_id=downloaded_att["email_id"],
-                            filename=downloaded_att["filename"],
-                            content_type=downloaded_att["mimeType"],
-                            data_b64=downloaded_att["data"],
-                            created_at_dt=downloaded_att["created_at"],
-                            processed_data=None  # Processed data is not available at this initial insertion stage
-                        )
                     else:
                         logger.error(f"Failed to download attachment: {att_info['filename']} for message {message_id}.")
-
-             
                 return email_details
-
     except Exception as e:
         logger.error(f"Exception during full message fetch and attachment download for message {message_id}: {e}")
         return None

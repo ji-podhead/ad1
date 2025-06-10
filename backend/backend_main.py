@@ -12,6 +12,7 @@ WebSocket support for real-time agent interactions.
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, WebSocket, Query, Request, Depends, HTTPException, status as fastapi_status
 from fastapi.responses import RedirectResponse, JSONResponse, Response
+
 from pydantic import BaseModel
 from typing import List, Optional, Union
 import json
@@ -34,7 +35,7 @@ from agent.email_checker import check_new_emails
 from gmail_utils.gmail_auth import generate_auth_url
 
 # Import all necessary functions from db_utils
-from .db_utils import (
+from db_utils import (
     get_settings_db, check_if_user_exists_db, create_user_db, get_user_by_email_db, update_user_db,
     get_emails_db, get_email_by_id_db, update_email_label_db, delete_email_from_db,
     get_audit_trail_db, get_scheduler_tasks_db, create_scheduler_task_db, update_scheduler_task_db, delete_scheduler_task_db,
@@ -295,13 +296,13 @@ async def shutdown():
 
 # Email endpoints
 @app.get("/api/emails", response_model=List[Email])
-async def get_emails_endpoint(request: Request):
+async def get_emails(request: Request):
     db_pool = request.app.state.db
     email_rows = await get_emails_db(db_pool)
     return [Email(**email) for email in email_rows]
 
 @app.get("/api/emails/{email_id}", response_model=Email)
-async def get_email_endpoint(email_id: int, request: Request):
+async def get_email(email_id: int, request: Request):
     db_pool = request.app.state.db
     email_row = await get_email_by_id_db(db_pool, email_id)
     if not email_row:
@@ -320,18 +321,11 @@ async def label_email_endpoint(email_id: int, label: str, request: Request):
             raise HTTPException(status_code=fastapi_status.HTTP_404_NOT_FOUND, detail=f"Email with id {email_id} not found.")
         # If it exists but update failed, it's a server error or concurrent modification.
         raise HTTPException(status_code=fastapi_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update email label.")
-
-    await log_generic_action_db(
-        db_pool=db_pool,
-        action_description=f"Email ID {email_id} labeled as '{label}'",
-        username="user_api", # Placeholder for actual user
-        email_id=email_id
-    )
     return {"status": "ok"}
 
 # Audit Trail endpoints
 @app.get("/api/audit", response_model=List[AuditTrail])
-async def get_audit_endpoint(request: Request):
+async def get_audit(request: Request):
     db_pool = request.app.state.db
     audit_rows = await get_audit_trail_db(db_pool, limit=100)
     # Ensure timestamp is correctly formatted if needed by Pydantic model (datetime is fine)
@@ -348,7 +342,7 @@ async def websocket_endpoint(websocket: WebSocket):
     await agent_websocket(websocket)
 
 @app.get("/api/scheduler/tasks", response_model=List[SchedulerTask])
-async def get_scheduler_tasks_endpoint(request: Request):
+async def get_scheduler_tasks(request: Request):
     db_pool = request.app.state.db
     tasks_from_db = await get_scheduler_tasks_db(db_pool)
     response_tasks = []
@@ -381,7 +375,7 @@ async def get_scheduler_tasks_endpoint(request: Request):
     return response_tasks
 
 @app.post("/api/scheduler/task", response_model=SchedulerTask)
-async def create_scheduler_task_endpoint(task_create_data: SchedulerTaskCreate, request: Request):
+async def create_scheduler_task(task_create_data: SchedulerTaskCreate, request: Request):
     db_pool = request.app.state.db
     db_task_data = {
         'task_name': task_create_data.workflow_name or task_create_data.description or "Untitled Workflow",
@@ -424,11 +418,10 @@ async def create_scheduler_task_endpoint(task_create_data: SchedulerTaskCreate, 
         condition=created_task_dict.get('workflow_config', {}).get('condition'),
         actionDesc=created_task_dict.get('workflow_config', {}).get('actionDesc')
     )
-    # log_generic_action_db is called within create_scheduler_task_db
     return response_task
 
 @app.put("/api/scheduler/task/{task_id}", response_model=SchedulerTask)
-async def update_scheduler_task_endpoint(task_id: int, task_update_data: SchedulerTaskCreate, request: Request):
+async def update_scheduler_task(task_id: int, task_update_data: SchedulerTaskCreate, request: Request):
     db_pool = request.app.state.db
     # Prepare updates dict for update_scheduler_task_db
     updates_for_db = {
@@ -464,11 +457,10 @@ async def update_scheduler_task_endpoint(task_id: int, task_update_data: Schedul
         body=updated_task_dict.get('workflow_config', {}).get('body')
         # ... etc.
     )
-    # log_generic_action_db is called within update_scheduler_task_db
     return response_task
 
 @app.post("/api/scheduler/task/{task_id}/pause")
-async def pause_scheduler_task_endpoint(task_id: int, request: Request):
+async def pause_scheduler_task(task_id: int, request: Request):
     db_pool = request.app.state.db
     # Fetch current task to determine new status
     tasks_from_db = await get_scheduler_tasks_db(db_pool)
@@ -484,8 +476,6 @@ async def pause_scheduler_task_endpoint(task_id: int, request: Request):
     if not updated_task:
         # This might indicate a concurrent modification or other issue
         raise HTTPException(status_code=fastapi_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update task status.")
-
-    # log_generic_action_db is called within update_scheduler_task_db
     return {"status": new_status, "id": task_id}
 
 @app.delete("/api/scheduler/task/{task_id}")
@@ -494,15 +484,6 @@ async def delete_scheduler_task_endpoint(task_id: int, request: Request):
     deleted = await delete_scheduler_task_db(db_pool, task_id)
     if not deleted:
         raise HTTPException(status_code=fastapi_status.HTTP_404_NOT_FOUND, detail="Task not found or could not be deleted.")
-    
-    # Consider if delete_scheduler_task_db should also log, or if it's done here.
-    # For consistency, if create/update log in db_utils, delete could too.
-    # If not, log here:
-    await log_generic_action_db(
-        db_pool=db_pool,
-        action_description=f"Workflow ID '{task_id}' deleted.",
-        username="user_api" # Placeholder
-    )
     return {"ok": True, "message": f"Task {task_id} deleted successfully."}
 
 # Settings Endpoints
@@ -519,20 +500,15 @@ async def get_settings_endpoint(request: Request):
     )
 
 @app.post("/api/settings")
-async def save_settings_endpoint(settings_data: SettingsData, request: Request):
+async def save_settings(settings_data: SettingsData, request: Request):
     db_pool = request.app.state.db
     # save_settings_db expects a dictionary
     await save_settings_db(db_pool, settings_data.model_dump())
-    await log_generic_action_db(
-        db_pool=db_pool,
-        action_description="Settings updated (Email Grabber Frequency, Email Types, Key Features)",
-        username="user_api" # Placeholder
-    )
     return {"status": "success", "message": "Settings saved successfully"}
 
 # User Management Endpoints
 @app.post("/api/users/add", response_model=User)
-async def addUser_endpoint(user_create_request: CreateUserRequest, request: Request):
+async def addUser(user_create_request: CreateUserRequest, request: Request):
     db_pool = request.app.state.db
     hashed_password = pwd_context.hash(user_create_request.password)
     try:
@@ -548,12 +524,6 @@ async def addUser_endpoint(user_create_request: CreateUserRequest, request: Requ
         # Ensure User model does not expect password_hash directly
         response_user_data = {k: v for k, v in created_user_dict.items() if k != 'password'}
         created_user = User(**response_user_data)
-
-        await log_generic_action_db(
-            db_pool=db_pool,
-            action_description=f"User '{created_user.email}' created. Admin: {created_user.is_admin}, Roles: {created_user.roles}",
-            username="admin_api" # Placeholder
-        )
         return created_user
     except UniqueViolationError:
         raise HTTPException(status_code=fastapi_status.HTTP_400_BAD_REQUEST, detail=f"User with email {user_create_request.email} already exists.")
@@ -562,7 +532,7 @@ async def addUser_endpoint(user_create_request: CreateUserRequest, request: Requ
         raise HTTPException(status_code=fastapi_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred while creating the user.")
 
 @app.put("/api/users/{user_identifier}/set", response_model=User)
-async def setUser_endpoint(user_identifier: Union[int, str], user_update_request: UpdateUserRequest, request: Request):
+async def setUser(user_identifier: Union[int, str], user_update_request: UpdateUserRequest, request: Request):
     db_pool = request.app.state.db
     updates = user_update_request.model_dump(exclude_unset=True)
     
@@ -596,12 +566,6 @@ async def setUser_endpoint(user_identifier: Union[int, str], user_update_request
 
         changes_logged = {k: v for k, v in updates.items() if k != "password"}
         if "password" in updates: changes_logged["password"] = "updated"
-        
-        await log_generic_action_db(
-            db_pool=db_pool,
-            action_description=f"User '{updated_user.email}' (ID: {updated_user.id}) updated. Changes: {json.dumps(changes_logged)}",
-            username="admin_api" # Placeholder
-        )
         return updated_user
     except UniqueViolationError: # If email is being changed and it collides
         raise HTTPException(status_code=fastapi_status.HTTP_400_BAD_REQUEST, detail=f"Another user with the new email already exists.")
@@ -610,7 +574,7 @@ async def setUser_endpoint(user_identifier: Union[int, str], user_update_request
         raise HTTPException(status_code=fastapi_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred while updating the user: {str(e)}")
 
 @app.delete("/api/users/{user_identifier}")
-async def deleteUser_endpoint(user_identifier: Union[int, str], request: Request):
+async def deleteUser(user_identifier: Union[int, str], request: Request):
     db_pool = request.app.state.db
     user_to_delete = None
     if isinstance(user_identifier, str) and "@" in user_identifier:
@@ -629,16 +593,10 @@ async def deleteUser_endpoint(user_identifier: Union[int, str], request: Request
     if not deleted:
         # This might happen if the user was deleted between the fetch and the delete call
         raise HTTPException(status_code=fastapi_status.HTTP_404_NOT_FOUND, detail=f"User with identifier '{user_identifier}' not found during delete operation or delete failed.")
-
-    await log_generic_action_db(
-        db_pool=db_pool,
-        action_description=f"User '{user_to_delete['email']}' (ID: {user_to_delete['id']}) deleted.",
-        username="admin_api" # Placeholder
-    )
     return {"status": "success", "message": f"User with identifier '{user_identifier}' deleted successfully."}
 
 @app.get("/api/users", response_model=List[User])
-async def list_users_endpoint(request: Request):
+async def list_users(request: Request):
     db_pool = request.app.state.db
     users_list_from_db = await list_users_db(db_pool)
     # Ensure password hash is not included in the response
@@ -663,12 +621,6 @@ async def save_user_token_endpoint(email: str, data: dict, request: Request):
     updated_user = await update_user_db(db_pool, email, {'google_access_token': token})
     if not updated_user:
         raise HTTPException(status_code=fastapi_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update user token.")
-
-    await log_generic_action_db(
-        db_pool=db_pool, 
-        action_description=f"Google access token updated for user {email}.", 
-        username="user_api_token_update"
-    )
     return {"status": "ok"}
 
 @app.get("/oauth2callback")
@@ -704,18 +656,91 @@ async def oauth2callback_endpoint(request: Request, code: str = Query(...), stat
         credentials = flow.credentials
         access_token = credentials.token
         refresh_token = credentials.refresh_token
-        logger.info(f"Obtained access token for user ID {user_id}. Refresh token available: {refresh_token is not None}")
+        logger.info(f"user ID {user_id}. Refresh token available: {refresh_token is not None}")
         
         await update_user_google_tokens_db(db_pool, user_id, access_token, refresh_token)
-        
-        logger.info(f"Successfully stored Gmail credentials for user ID: {user_id}")
-        await log_generic_action_db(db_pool, f"Gmail OAuth tokens updated for user ID {user_id}.", username=f"user_id_{user_id}")
         return RedirectResponse(url="http://localhost:5173/settings?auth=success")
     except Exception as e:
         logger.error(f"Error during OAuth token exchange or DB update for user ID {user_id}: {e}")
-        await log_generic_action_db(db_pool, f"Gmail OAuth token exchange/update failed for user ID {user_id}. Error: {e}", username=f"user_id_{user_id}")
         return RedirectResponse(url="http://localhost:5173/settings?auth=failure_token_exchange")
+    
 
+@app.get("/api/oauth-config")
+def get_oauth_config():
+    """Retrieves the Google OAuth client configuration.
+    This is used by the frontend to initialize the Google Login flow.
+    Returns:
+        JSONResponse: The OAuth client configuration from `auth/gcp-oauth.keys.json`.
+                      Returns 404 if file not found, 500 on other errors.
+    """
+    # Ensure the path is relative to this file's location (backend_main.py)
+    config_path = os.path.join(os.path.dirname(__file__), 'auth/gcp-oauth.keys.json')
+    try:
+        with open(config_path, 'r') as f:
+            data = json.load(f)
+        return JSONResponse(content=data)
+    except FileNotFoundError:
+        logger.error(f"Google OAuth config file not found at: {config_path}")
+        return JSONResponse(status_code=404, content={"error": "Google OAuth client configuration file not found."})
+    except json.JSONDecodeError:
+        logger.error(f"Error decoding JSON from Google OAuth config file: {config_path}")
+        return JSONResponse(status_code=500, content={"error": "Error reading Google OAuth configuration."})
+    except Exception as e:
+        logger.error(f"Unexpected error reading Google OAuth config: {e}")
+        return JSONResponse(status_code=500, content={"error": "An unexpected error occurred."})
+
+
+
+
+
+
+
+@app.get("/api/gmail/auth-url")
+async def get_gmail_auth_url(request: Request): # request argument might not be needed if user_id is hardcoded/mockedAdd commentMore actions
+    """Generates the Gmail OAuth authorization URL.
+    The generated URL includes a state parameter with an appended user ID (currently placeholder).
+    This URL is intended for the frontend to initiate the Google OAuth flow.
+    Args:
+        request (Request): The FastAPI request object (currently unused for user_id).
+    Returns:
+        dict: A dictionary containing the "auth_url".
+    """
+    logger.info("Generating Gmail OAuth authorization URL...")
+    # Placeholder for actual user ID retrieval from authenticated request context
+    user_id = 1 # Example: Replace with actual authenticated user's ID
+    auth_url, original_state = generate_auth_url() # Assumes generate_auth_url returns (url, state_value)
+    # Append user_id to the state for tracking during callback
+    # In production, consider signing or encrypting the state to prevent tampering
+    state_with_user_id = f"{original_state}-{user_id}"
+    # Replace the original state in the URL with the new state containing user_id
+    # This assumes generate_auth_url includes state in a query param like 'state=ORIGINAL_STATE'
+    final_auth_url = auth_url.replace(f"state={original_state}", f"state={state_with_user_id}")
+    logger.info(f"Generated auth URL with user-specific state: {final_auth_url}")
+    return {"auth_url": final_auth_url}
+
+
+
+# Add endpoint to get MCP auth URL
+
+
+@app.get("/api/mcp/auth-url")
+async def get_mcp_auth_url():
+    """Provides the frontend with the URL to initiate MCP server login (placeholder).
+    Returns:
+        dict: A dictionary containing the "auth_url".
+    """
+    # This is a placeholder. The actual URL should come from configuration
+    # or be dynamically constructed based on the MCP server's requirements.
+    # It typically includes a redirect_uri for the MCP server to call back to.
+    mcp_server_base_url = os.getenv("MCP_SERVER_URL", "http://mcp-server:8000") # Example
+    frontend_mcp_callback_url = "http://localhost:8001/mcpcallback" # This app's callback
+    # Example: MCP server might have an endpoint like /mcp/authorize
+    # This will vary greatly based on the MCP server's implementation.
+    mcp_login_url = f"{mcp_server_base_url}/mcp/authorize?client_id=ad1_backend&redirect_uri={frontend_mcp_callback_url}&response_type=token"
+    logger.info(f"Generated MCP Auth URL: {mcp_login_url}")
+    return {"auth_url": mcp_login_url}
+
+# Add endpoint to handle MCP callback and save token
 @app.get("/mcpcallback")
 async def mcp_callback_endpoint(request: Request, token: str = Query(...), user_email: str = Query(...)):
     db_pool = request.app.state.db
@@ -724,11 +749,9 @@ async def mcp_callback_endpoint(request: Request, token: str = Query(...), user_
         success = await update_user_mcp_token_db(db_pool, user_email, token)
         if success:
             logger.info(f"MCP token saved successfully for user: {user_email}")
-            await log_generic_action_db(db_pool=db_pool, action_description=f"MCP token associated for user {user_email}.", username=user_email)
             return RedirectResponse(url="http://localhost:5173/settings?mcpauth=success")
         else:
             logger.error(f"Failed to update MCP token for user: {user_email}")
-            await log_generic_action_db(db_pool=db_pool, action_description=f"MCP token update failed for user {user_email}.", username=user_email)
             return RedirectResponse(url="http://localhost:5173/settings?mcpauth=failure_db_update")
     else:
         logger.error(f"User not found for MCP callback: {user_email}")
@@ -780,13 +803,6 @@ async def delete_document_endpoint(document_id: int, request: Request):
         # This might occur if the document was deleted between the check and this call, though unlikely with await.
         # Or if delete_document_from_db had an internal issue not raising an exception but returning False.
         raise HTTPException(status_code=fastapi_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to delete document {document_id}.")
-
-    await log_generic_action_db(
-        db_pool=db_pool,
-        action_description=f"Document ID {document_id} deleted from database.",
-        username="user_api", # Placeholder
-        document_id=document_id
-    )
     return {"status": "ok", "message": f"Document {document_id} deleted successfully from database."}
 
 @app.get("/api/documents", response_model=List[Document])
@@ -826,7 +842,6 @@ async def start_scheduler_endpoint(request: Request):
     if hasattr(request.app.state, 'scheduler') and request.app.state.scheduler:
         request.app.state.scheduler.start()
         logger.info("Agent scheduler started via API request.")
-        await log_generic_action_db(db_pool=db_pool, action_description="Agent scheduler started.", username="system_api")
         return {"status": "running"}
     logger.error("Attempted to start scheduler, but scheduler not found in app.state.")
     raise HTTPException(status_code=fastapi_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Scheduler not available or not initialized.")
@@ -837,7 +852,6 @@ async def stop_scheduler_endpoint(request: Request):
     if hasattr(request.app.state, 'scheduler') and request.app.state.scheduler:
         request.app.state.scheduler.cancel_all()
         logger.info("Agent scheduler stopped and tasks cancelled via API request.")
-        await log_generic_action_db(db_pool=db_pool, action_description="Agent scheduler stopped and tasks cancelled.", username="system_api")
         return {"status": "stopped"}
     logger.error("Attempted to stop scheduler, but scheduler not found in app.state.")
     raise HTTPException(status_code=fastapi_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Scheduler not available or not initialized.")
@@ -859,3 +873,67 @@ async def scheduler_status_endpoint(request: Request): # Added request to align 
 
 # Ensure all other endpoints like /api/gmail/auth-url are also checked for direct DB calls if any were missed.
 # The /api/users/{user_identifier}/has_google_refresh_token endpoint was previously refactored.
+
+
+@app.get("/api/users/{user_identifier}/has_google_refresh_token")
+async def has_google_refresh_token(user_identifier: Union[int, str]):
+    """Checks if a Google refresh token is set for the specified user.
+    Args:
+        user_identifier (Union[int, str]): The ID or email of the user to check.
+    Returns:
+        dict: {"has_refresh_token": True} if token exists and is not empty/null.
+    Raises:
+        HTTPException: If user not found, or if token is not set (HTTP_400_BAD_REQUEST specifically).
+    """
+    # Determine if identifier is email or ID
+    if isinstance(user_identifier, str) and "@" in user_identifier:
+        condition_column = "email"
+    elif isinstance(user_identifier, int) or (isinstance(user_identifier, str) and user_identifier.isdigit()):
+        condition_column = "id"
+        try:
+            user_identifier = int(user_identifier)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid user ID format. Must be an integer or numeric string.")
+    else:
+        raise HTTPException(status_code=400, detail="Invalid user identifier. Must be an email string or an integer ID.")
+    row = await app.state.db.fetchrow(f"SELECT google_refresh_token FROM users WHERE {condition_column} = $1", user_identifier)
+    if not row:
+        raise HTTPException(status_code=404, detail=f"User with {condition_column} '{user_identifier}' not found.")
+    refresh_token = row["google_refresh_token"]
+    if not refresh_token or refresh_token.strip() == "" or refresh_token.lower() == "none": # More robust check
+        raise HTTPException(status_code=fastapi_status.HTTP_400_BAD_REQUEST, detail=f"Google refresh token not set for user {user_identifier}.")
+    return {"has_refresh_token": True}
+
+
+@app.delete("/api/emails/{email_id}")
+async def delete_email_endpoint(email_id: int, request: Request): # Renamed to avoid conflict if 'delete_email' from gmail_utils is imported
+    """Deletes an email by its ID from the database.
+    Args:
+        email_id (int): The ID of the email to delete.
+        request (Request): The FastAPI request object.
+    Returns:
+        dict: A status confirmation message.
+    Raises:
+        HTTPException: If the email is not found.
+    """
+    result=await delete_email_from_db(db_pool=request.app.state.db, email_id=email_id) # Assuming this function exists in db_utils
+    if result == "DELETE 0":
+        raise HTTPException(status_code=404, detail=f"Email with id {email_id} not found during delete, though existed moments before.")
+    
+    return {"status": "ok", "message": f"Email {email_id} deleted successfully from database."}
+
+@app.post("/api/userinfo")
+async def userinfo(request: Request):
+    """Retrieves user information (admin status, roles, Google ID) based on email.
+    Args:
+        request (Request): The FastAPI request object containing user email in JSON body.
+    Returns:
+        dict: User information including `is_admin`, `roles`, and `google_id`.
+              Returns default values if user not found.
+    Raises:
+        HTTPException: If email is missing in the request.
+    """
+    result=await check_if_admin_user_exists_db(request.app.state.db, request.app.state.email)
+    logger.info(f"Userinfo query for email: {request.app.state.email} returned row: {result}")
+    return result
+

@@ -19,7 +19,7 @@ import asyncpg # Assuming asyncpg is used for database connection
 import aiohttp
 import logging # Added for explicit logging
 import base64 # For dummy PDF
-from gmail_utils.gmail_fetch import get_email,parse_mcp_email_list # Import Gmail utils for email fetching and OAuth
+from gmail_utils.gmail_fetch import get_full_email,parse_mcp_email_list # Import Gmail utils for email fetching and OAuth
 from document_utils.document_utils import process_document_step # Import document processing step function
 from gmail_utils.gmail_auth import fetch_access_token_for_user
 from agent.summary_agent import get_summary_and_type_from_llm
