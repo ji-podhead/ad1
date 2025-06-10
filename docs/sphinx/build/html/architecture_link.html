@@ -1,0 +1,256 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>System Architecture &mdash; ad1 Platform 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=01f34227"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Deployment Guide" href="deployment_link.html" />
+    <link rel="prev" title="Project README" href="readme_link.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ad1 Platform
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html">Project README</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#ad1-automated-email-document-processing">ad1 – Automated Email &amp; Document Processing</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">System Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#id1">System Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overall-system-architecture">1. Overall System Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#technical-architecture-details">2. Technical Architecture Details</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#system-architecture-diagram">3. System Architecture Diagram</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#core-workflow">4. Core Workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#workflow-management-system">5. Workflow Management System</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mcp-server-sse-transport">6. MCP Server &amp; SSE Transport</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#frontend-structure-architectural-aspects">7. Frontend Structure (Architectural Aspects)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#global-email-processing-workflow-execution-future-vision-for-post-2025">8. Global Email Processing &amp; Workflow Execution (Future Vision for post-2025)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="deployment_link.html">Deployment Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deployment_link.html#id1">Deployment Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_overview_link.html">API Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_overview_link.html#ad1-api-overview">ad1 API Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="db_tables_link.html">Database Schema</a></li>
+<li class="toctree-l1"><a class="reference internal" href="db_tables_link.html#database-tables-overview">Database Tables Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="briefing_multiagent_link.html">Original Project Briefing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mcp_tools_link.html">MCP Tools Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mcp_tools_link.html#id1">MCP Tools Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="why_docker_link.html">Why Docker?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="why_docker_link.html#ai-agenten-deployment-mit-docker-eine-zusammenfassung">AI-Agenten-Deployment mit Docker – Eine Zusammenfassung</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ad1 Platform</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">System Architecture</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/architecture_link.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="system-architecture">
+<h1>System Architecture<a class="headerlink" href="#system-architecture" title="Link to this heading"></a></h1>
+</section>
+<section id="id1">
+<h1>System Architecture<a class="headerlink" href="#id1" title="Link to this heading"></a></h1>
+<section id="overall-system-architecture">
+<h2>1. Overall System Architecture<a class="headerlink" href="#overall-system-architecture" title="Link to this heading"></a></h2>
+<p>ad1 is designed as a modular, secure, and scalable platform for automated email and document processing. It comprises a backend API built with FastAPI, a reactive frontend using React/Vite, a persistent PostgreSQL database for data storage, and several specialized services for functions like email integration (MCP Server) and workflow orchestration. The architecture emphasizes compliance with Swiss and EU regulations, featuring robust audit trails, human-in-the-loop validation, and secure data handling practices. Components are designed to be containerized using Docker for consistent deployment across various environments, including on-premise and cloud setups.</p>
+</section>
+<section id="technical-architecture-details">
+<h2>2. Technical Architecture Details<a class="headerlink" href="#technical-architecture-details" title="Link to this heading"></a></h2>
+<p>The core technical architecture of ad1 is built around several key components and processes:</p>
+<ul class="simple">
+<li><p><strong>Email Processing Daemon</strong>: A background service integrated into the backend that periodically checks for new emails via the configured email integration (MCP server).</p>
+<ul>
+<li><p>New emails are stored in the <code class="docutils literal notranslate"><span class="pre">emails</span></code> table (which includes a <code class="docutils literal notranslate"><span class="pre">received_at</span></code> timestamp).</p></li>
+<li><p>For each new email, a corresponding entry is created in the <code class="docutils literal notranslate"><span class="pre">tasks</span></code> table with an initial status (e.g., ‘pending’), linking the email to a processing workflow.</p></li>
+</ul>
+</li>
+<li><p><strong>Task &amp; Document Workflow</strong>: All documents and emails to be processed are tracked as tasks. Each task has a status (e.g., pending, processing, needs validation, validated, aborted, failed) and links to the original email/document.</p></li>
+<li><p><strong>Database Structure Highlights</strong>:</p>
+<ul>
+<li><p><strong>Database Table Overview</strong>: For a detailed description of all database tables, refer to <a class="reference external" href="README_db_tables.md">README_db_tables.md</a>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">emails</span></code> table: Stores email content. Includes a <code class="docutils literal notranslate"><span class="pre">received_at</span></code> column to timestamp when the email was fetched.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tasks</span></code> table: Tracks the state of each email processing job. Key columns include <code class="docutils literal notranslate"><span class="pre">id</span></code> (PK), <code class="docutils literal notranslate"><span class="pre">email_id</span></code> (FK to <code class="docutils literal notranslate"><span class="pre">emails</span></code>), <code class="docutils literal notranslate"><span class="pre">status</span></code>, <code class="docutils literal notranslate"><span class="pre">created_at</span></code>, and <code class="docutils literal notranslate"><span class="pre">updated_at</span></code> (automatically updated on modification).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scheduler_tasks</span></code> table: Persists configurations for scheduled jobs, such as the polling interval for the email daemon and workflow definitions.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">audit_trail</span></code> table: Logs all significant actions within the system.</p></li>
+</ul>
+</li>
+<li><p><strong>Human-in-the-Loop Validation</strong>: After automated agent processing, tasks typically require manual validation by a human operator. The validation UI is designed to support this by displaying the original document alongside the processed result (including extracted values, recognized handwriting, etc.). Operators can then abort the task, restart it (potentially with modified parameters or prompts), or validate and approve the task.</p></li>
+<li><p><strong>Audit Trail</strong>: Every significant action within the system is logged to ensure compliance and traceability. This includes events like email ingestion, task creation, status changes, processing steps, validation decisions (approve, abort), and any errors encountered. Audit logs are accessible through the UI.</p></li>
+<li><p><strong>Encryption &amp; Secure Email Sending</strong>: Once documents are validated and finalized, they are encrypted before being sent via email. All data transmission and storage within the system are secured using appropriate encryption mechanisms.</p></li>
+<li><p><strong>Extensible Model Integration</strong>: For functionalities like handwriting recognition and advanced document analysis, ad1 integrates with specialized AI models. These models can be self-hosted or accessed via Swiss-compliant third-party providers. The system is designed to be modular, allowing for future updates or swaps of AI models or providers as requirements evolve.</p></li>
+</ul>
+</section>
+<section id="system-architecture-diagram">
+<h2>3. System Architecture Diagram<a class="headerlink" href="#system-architecture-diagram" title="Link to this heading"></a></h2>
+<p>The following diagram illustrates the high-level architecture of the ad1 system, showing the main components and their interactions.</p>
+<a class="reference external image-reference" href="https://github.com/user-attachments/assets/69a59c73-d3b7-44bd-af34-f6b094eb7a22"><img alt="image" src="https://github.com/user-attachments/assets/69a59c73-d3b7-44bd-af34-f6b094eb7a22" />
+</a>
+<p>This diagram depicts the flow of information from email ingestion through processing, validation, and final output, highlighting the roles of the backend, frontend, database, and MCP server.</p>
+</section>
+<section id="core-workflow">
+<h2>4. Core Workflow<a class="headerlink" href="#core-workflow" title="Link to this heading"></a></h2>
+<p>The typical workflow for processing an email or document in ad1 involves the following stages:</p>
+<ol class="arabic simple">
+<li><p><strong>Email Ingestion</strong>: The Email Processing Daemon fetches new emails from the configured mail source (via MCP Server). Emails are classified, and relevant documents are identified, leading to the creation of new tasks.</p></li>
+<li><p><strong>Document Processing</strong>: Attached documents or email content are processed by a series of AI agents. This can include steps like data extraction, handwriting recognition, field mapping, and compliance checks.</p></li>
+<li><p><strong>Validation</strong>: After automated processing, the task is typically routed for human-in-the-loop validation. An operator reviews the original document and the AI-processed output via the Validation UI.</p></li>
+<li><p><strong>Audit Logging</strong>: Throughout the entire process, all actions, decisions, and status changes are meticulously logged in the <code class="docutils literal notranslate"><span class="pre">audit_trail</span></code> table for compliance and historical tracking.</p></li>
+<li><p><strong>Encryption &amp; Sending</strong>: Upon successful validation, the processed document (or a report generated from it) is encrypted and securely sent via email to the intended recipient or stored as per workflow configuration.</p></li>
+<li><p><strong>Status Tracking</strong>: The status of each task is updated in real-time within the <code class="docutils literal notranslate"><span class="pre">tasks</span></code> table. Users can monitor and manage tasks through the frontend interface.</p></li>
+</ol>
+</section>
+<section id="workflow-management-system">
+<h2>5. Workflow Management System<a class="headerlink" href="#workflow-management-system" title="Link to this heading"></a></h2>
+<p>ad1 incorporates a flexible workflow management system, allowing users to define and customize processing pipelines tailored to specific needs.</p>
+<ul class="simple">
+<li><p><strong>Triggers</strong>: Workflows can be initiated by:</p>
+<ul>
+<li><p><strong>Email Receive</strong>: Automatically triggered when a new email arrives that matches certain criteria.</p></li>
+<li><p><strong>Cron Job</strong>: Triggered on a predefined schedule (e.g., daily, hourly) for batch processing or routine tasks.</p></li>
+</ul>
+</li>
+<li><p><strong>Configuration (Summary Step)</strong>: During the setup of a workflow (via the ‘Workflow Builder’ page in the frontend), users define key parameters. This includes selecting the AI model to be used (e.g., ‘gpt-4’, ‘mistral’), setting maximum token limits for LLM interactions, and defining other operational parameters. This configuration collectively defines a ‘workflow type’.</p></li>
+<li><p><strong>Workflow Steps</strong>: Users can then assemble a sequence of processing steps to form the workflow. Examples of available steps include:</p>
+<ul>
+<li><p>Compliance Agent (for regulatory checks)</p></li>
+<li><p>Human Verification (routes to the validation UI)</p></li>
+<li><p>Document Processing (specific data extraction or transformation)</p></li>
+<li><p>Send Email (for dispatching results)</p></li>
+</ul>
+</li>
+<li><p><strong>Type Assignment</strong>: The ‘workflow type’ (derived from the summary configuration) is assigned to:</p>
+<ul>
+<li><p><strong>Tasks</strong>: New tasks created as part of this workflow will carry this type, making it visible and filterable on the ‘Tasks’ page.</p></li>
+<li><p><strong>Documents/Emails</strong>: Emails processed or documents generated by these workflows will also be tagged with this type, allowing for better organization and traceability on the ‘Documents’ page.</p></li>
+</ul>
+</li>
+</ul>
+<p>This system enables tailored automation flows and improves the categorization and management of processed items.</p>
+</section>
+<section id="mcp-server-sse-transport">
+<h2>6. MCP Server &amp; SSE Transport<a class="headerlink" href="#mcp-server-sse-transport" title="Link to this heading"></a></h2>
+<p>ad1 utilizes its own MCP (Mail Control Protocol) Server for secure and efficient email integration. Communication, particularly between the frontend and the MCP server for real-time updates, occurs over Server-Sent Events (SSE).</p>
+<ul class="simple">
+<li><p><strong>MCP Server Role</strong>: The MCP Server acts as a dedicated gateway for handling incoming and outgoing emails. It runs as a separate containerized service (defined in <code class="docutils literal notranslate"><span class="pre">docker-compose.yml</span></code> and located in the <code class="docutils literal notranslate"><span class="pre">mcp/</span></code> directory). It manages connections to mail servers and processes email-related requests from the backend.</p></li>
+<li><p><strong>SSE Transport</strong>: The frontend connects to the MCP server via an SSE URL (e.g., <code class="docutils literal notranslate"><span class="pre">MCP_SERVER_URL=http://localhost:8000/mcp-server/sse/</span></code>). This allows the MCP server to push real-time updates to the frontend, such as notifications of new emails or status changes, without the need for traditional polling. This approach is robust, reduces server load, and is well-suited for applications requiring immediate feedback and audit trails.</p></li>
+<li><p><strong>Configuration</strong>: The URL for the MCP server is configured via environment variables, which are then used by both the frontend and backend services to establish communication.</p></li>
+</ul>
+</section>
+<section id="frontend-structure-architectural-aspects">
+<h2>7. Frontend Structure (Architectural Aspects)<a class="headerlink" href="#frontend-structure-architectural-aspects" title="Link to this heading"></a></h2>
+<p>The frontend of ad1, built with React/Vite, provides the user interface for all interactions with the system. Architecturally, it is a client-side application that communicates with the backend via REST APIs and WebSockets.</p>
+<ul class="simple">
+<li><p><strong>Inbox</strong>: Displays emails fetched by the backend, allows users to see processing status, and trigger manual workflows. Interacts with <code class="docutils literal notranslate"><span class="pre">/api/emails</span></code> and potentially task-related endpoints.</p></li>
+<li><p><strong>Documents</strong>: Allows users to upload, view, and manage documents. Shows processing status and links to validation. Interacts with <code class="docutils literal notranslate"><span class="pre">/api/documents</span></code> and task-related endpoints.</p></li>
+<li><p><strong>Validation</strong>: The human-in-the-loop interface. It fetches task details (original document and processed data) from the backend and submits validation decisions (approve, abort, restart) via API calls (e.g., <code class="docutils literal notranslate"><span class="pre">/api/processing_tasks/{task_id}/validate</span></code>).</p></li>
+<li><p><strong>Audit Trail</strong>: Displays logs fetched from <code class="docutils literal notranslate"><span class="pre">/api/audit</span></code>, providing a view into system activities.</p></li>
+<li><p><strong>Agent Chat</strong>: Utilizes a WebSocket connection (<code class="docutils literal notranslate"><span class="pre">/ws/agent</span></code>) to the backend for real-time interaction with AI agents, allowing users to trigger workflows or ask for status updates.</p></li>
+<li><p><strong>Tasks Section</strong>: Lists email processing tasks from <code class="docutils literal notranslate"><span class="pre">/api/processing_tasks</span></code>, showing their status and allowing users to perform actions like “Validate” or “Abort”.</p></li>
+<li><p><strong>Workflow Builder</strong>: A dedicated page for creating and configuring custom workflows. User configurations are saved to the backend via API calls (e.g., <code class="docutils literal notranslate"><span class="pre">/api/scheduler/task</span></code>), which then manages these workflows.</p></li>
+</ul>
+<p>The frontend is responsible for rendering data, capturing user input, and making appropriate API calls to the backend, which orchestrates the core logic and data persistence.</p>
+</section>
+<section id="global-email-processing-workflow-execution-future-vision-for-post-2025">
+<h2>8. Global Email Processing &amp; Workflow Execution (Future Vision for post-2025)<a class="headerlink" href="#global-email-processing-workflow-execution-future-vision-for-post-2025" title="Link to this heading"></a></h2>
+<p>The planned evolution of email processing aims for a more centralized and intelligent approach:</p>
+<ul class="simple">
+<li><p><strong>Single Global Cronjob</strong>: Instead of multiple schedulers or per-workflow cron jobs, a single global cronjob will run regularly (interval configurable in system settings) to check for new emails.</p></li>
+<li><p><strong>LLM Summary and Topic Determination</strong>: For each new email, an LLM will automatically generate a summary and determine its primary topic (e.g., “Invoice”, “Support Request”, “Contract Review”).</p></li>
+<li><p><strong>Dynamic Workflow Execution</strong>: The system will then iterate through all active workflows (defined as <code class="docutils literal notranslate"><span class="pre">scheduler_tasks</span></code> with status ‘active’ and trigger type ‘cron’ or ‘email_receive’ that matches the topic). If the <code class="docutils literal notranslate"><span class="pre">selected_topic</span></code> in a workflow’s configuration matches the recognized topic of the email, that workflow will be triggered.</p></li>
+<li><p><strong>Task Creation and Step Execution</strong>: For each matching workflow, a new task will be created, and the sequence of steps defined within that workflow (e.g., Compliance Agent, Document Processing, Human Verification) will be executed.</p></li>
+<li><p><strong>Centralized Configuration</strong>: The mapping of key features and topics will be managed globally in the system settings, while the selection of a specific topic for a workflow will be part of the individual workflow’s configuration. The frequency of the global cronjob will also be a central setting.</p></li>
+</ul>
+<p><strong>Advantages of this approach:</strong></p>
+<ul class="simple">
+<li><p><strong>Efficiency</strong>: Only one central email check process, reducing redundancy and potential for overlapping cronjobs.</p></li>
+<li><p><strong>Flexibility</strong>: Workflows can be dynamically triggered based on email content (topic) and configured key features.</p></li>
+<li><p><strong>Scalability</strong>: Simplifies the management of numerous workflows as the system grows.</p></li>
+<li><p><strong>Clarity</strong>: Provides a clear, traceable processing path and enhances the audit trail.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="readme_link.html" class="btn btn-neutral float-left" title="Project README" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="deployment_link.html" class="btn btn-neutral float-right" title="Deployment Guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, ad1 Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,3 +1,19 @@
+"""Manages Gmail API authentication using OAuth 2.0.
+
+This module provides functions to:
+- Generate a Google OAuth 2.0 authorization URL for users to grant Gmail API permissions.
+- Handle the OAuth 2.0 callback from Google, exchange the authorization code for tokens,
+  and store these credentials.
+- Retrieve stored credentials and refresh them if they are expired.
+- Fetch stored access tokens for users from the database.
+
+Note:
+    The current implementation stores credentials in a local pickle file (`gmail_credentials.pickle`),
+    which is suitable for single-user or development scenarios. For multi-user applications,
+    credentials should be stored securely on a per-user basis, typically in a database.
+    The `get_authenticated_service` function currently returns the credentials object;
+    in a full implementation, it would return an authenticated Gmail API service client.
+"""
 import os
 import pickle
 import logging
@@ -14,7 +30,21 @@ CREDENTIALS_PATH = './auth/gmail_credentials.pickle'
 
 def generate_auth_url():
     """
-    Generates the Gmail OAuth authorization URL.
+    Generates the Google OAuth 2.0 authorization URL for Gmail API access.
+
+    This URL is presented to the user. When the user visits this URL, they are
+    prompted to grant the application permission to access their Gmail data
+    as defined by the scopes.
+
+    The `redirect_uri` specified here must exactly match one of the authorized
+    redirect URIs configured in the Google Cloud Console for the OAuth client ID.
+
+    Returns:
+        tuple[str, str]: A tuple containing:
+            - auth_url (str): The URL to which the user should be redirected to start
+              the OAuth flow.
+            - state (str): A state parameter that should be stored by the calling application
+              and verified during the callback phase to prevent CSRF attacks.
     """
     flow = Flow.from_client_secrets_file(
         './auth/gcp-oauth.keys.json',
@@ -58,8 +88,22 @@ def handle_oauth_callback(code, state=None):
 
 def get_authenticated_service():
     """
-    Loads stored credentials and returns an authenticated Gmail service object.
-    If credentials are not found or are expired, attempts to refresh them.
+    Loads stored OAuth credentials and attempts to refresh them if expired.
+
+    This function reads credentials from a local pickle file. If credentials exist
+    and are expired but have a refresh token, it attempts to refresh them.
+
+    Note:
+        This function currently returns the `google.oauth2.credentials.Credentials`
+        object directly. In a full Gmail API integration, this object would be used
+        to build an authenticated Gmail API service client (e.g., using
+        `googleapiclient.discovery.build`). The commented-out import and build lines
+        show where this would typically happen.
+
+    Returns:
+        Optional[google.oauth2.credentials.Credentials]: The loaded (and possibly refreshed)
+        credentials object if successful and valid, or None if no valid credentials
+        are found or refresh fails, indicating a need for re-authentication.
     """
     credentials = None
     # Load credentials from file if they exist

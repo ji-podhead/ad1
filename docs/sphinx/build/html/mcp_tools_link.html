@@ -1,0 +1,254 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MCP Tools Reference &mdash; ad1 Platform 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=01f34227"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Why Docker?" href="why_docker_link.html" />
+    <link rel="prev" title="Original Project Briefing" href="briefing_multiagent_link.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ad1 Platform
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html">Project README</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#ad1-automated-email-document-processing">ad1 – Automated Email &amp; Document Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="architecture_link.html">System Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="architecture_link.html#id1">System Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deployment_link.html">Deployment Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deployment_link.html#id1">Deployment Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_overview_link.html">API Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_overview_link.html#ad1-api-overview">ad1 API Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="db_tables_link.html">Database Schema</a></li>
+<li class="toctree-l1"><a class="reference internal" href="db_tables_link.html#database-tables-overview">Database Tables Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="briefing_multiagent_link.html">Original Project Briefing</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">MCP Tools Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#id1">MCP Tools Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#send-email">1. send_email</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#draft-email">2. draft_email</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#a">3.  a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#search-emails">4. search_emails</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#modify-email">5. modify_email</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#delete-email">6. delete_email</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#list-email-labels">7. list_email_labels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#batch-modify-emails">8. batch_modify_emails</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#batch-delete-emails">9. batch_delete_emails</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#create-label">10. create_label</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#update-label">11. update_label</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#delete-label">12. delete_label</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#get-or-create-label">13. get_or_create_label</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="why_docker_link.html">Why Docker?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="why_docker_link.html#ai-agenten-deployment-mit-docker-eine-zusammenfassung">AI-Agenten-Deployment mit Docker – Eine Zusammenfassung</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ad1 Platform</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">MCP Tools Reference</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/mcp_tools_link.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="mcp-tools-reference">
+<h1>MCP Tools Reference<a class="headerlink" href="#mcp-tools-reference" title="Link to this heading"></a></h1>
+</section>
+<section id="id1">
+<h1>MCP Tools Reference<a class="headerlink" href="#id1" title="Link to this heading"></a></h1>
+<p>Below is a list of available MCP tools and their arguments (input parameters).</p>
+<hr class="docutils" />
+<section id="send-email">
+<h2>1. send_email<a class="headerlink" href="#send-email" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>to</strong>: array of string — List of recipient email addresses (required)</p></li>
+<li><p><strong>subject</strong>: string — Email subject (required)</p></li>
+<li><p><strong>body</strong>: string — Email body content (required)</p></li>
+<li><p><strong>htmlBody</strong>: string — HTML version of the email body</p></li>
+<li><p><strong>mimeType</strong>: string (enum: text/plain, text/html, multipart/alternative, default: text/plain) — Email content type</p></li>
+<li><p><strong>cc</strong>: array of string — List of CC recipients</p></li>
+<li><p><strong>bcc</strong>: array of string — List of BCC recipients</p></li>
+<li><p><strong>threadId</strong>: string — Thread ID to reply to</p></li>
+<li><p><strong>inReplyTo</strong>: string — Message ID being replied to</p></li>
+</ul>
+</section>
+<section id="draft-email">
+<h2>2. draft_email<a class="headerlink" href="#draft-email" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>to</strong>: array of string — List of recipient email addresses (required)</p></li>
+<li><p><strong>subject</strong>: string — Email subject (required)</p></li>
+<li><p><strong>body</strong>: string — Email body content (required)</p></li>
+<li><p><strong>htmlBody</strong>: string — HTML version of the email body</p></li>
+<li><p><strong>mimeType</strong>: string (enum: text/plain, text/html, multipart/alternative, default: text/plain) — Email content type</p></li>
+<li><p><strong>cc</strong>: array of string — List of CC recipients</p></li>
+<li><p><strong>bcc</strong>: array of string — List of BCC recipients</p></li>
+<li><p><strong>threadId</strong>: string — Thread ID to reply to</p></li>
+<li><p><strong>inReplyTo</strong>: string — Message ID being replied to</p></li>
+</ul>
+</section>
+<section id="a">
+<h2>3.  a<a class="headerlink" href="#a" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>messageId</strong>: string — ID of the email message to retrieve (required)</p></li>
+</ul>
+</section>
+<section id="search-emails">
+<h2>4. search_emails<a class="headerlink" href="#search-emails" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>query</strong>: string — Gmail search query (e.g., ‘from:example&#64;gmail.com’) (required)</p></li>
+<li><p><strong>maxResults</strong>: number — Maximum number of results to return</p></li>
+</ul>
+</section>
+<section id="modify-email">
+<h2>5. modify_email<a class="headerlink" href="#modify-email" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>messageId</strong>: string — ID of the email message to modify (required)</p></li>
+<li><p><strong>labelIds</strong>: array of string — List of label IDs to apply</p></li>
+<li><p><strong>addLabelIds</strong>: array of string — List of label IDs to add to the message</p></li>
+<li><p><strong>removeLabelIds</strong>: array of string — List of label IDs to remove from the message</p></li>
+</ul>
+</section>
+<section id="delete-email">
+<h2>6. delete_email<a class="headerlink" href="#delete-email" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>messageId</strong>: string — ID of the email message to delete (required)</p></li>
+</ul>
+</section>
+<section id="list-email-labels">
+<h2>7. list_email_labels<a class="headerlink" href="#list-email-labels" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><em>(no arguments)</em></p></li>
+</ul>
+</section>
+<section id="batch-modify-emails">
+<h2>8. batch_modify_emails<a class="headerlink" href="#batch-modify-emails" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>messageIds</strong>: array of string — List of message IDs to modify (required)</p></li>
+<li><p><strong>addLabelIds</strong>: array of string — List of label IDs to add to all messages</p></li>
+<li><p><strong>removeLabelIds</strong>: array of string — List of label IDs to remove from all messages</p></li>
+<li><p><strong>batchSize</strong>: number (default: 50) — Number of messages to process in each batch</p></li>
+</ul>
+</section>
+<section id="batch-delete-emails">
+<h2>9. batch_delete_emails<a class="headerlink" href="#batch-delete-emails" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>messageIds</strong>: array of string — List of message IDs to delete (required)</p></li>
+<li><p><strong>batchSize</strong>: number (default: 50) — Number of messages to process in each batch</p></li>
+</ul>
+</section>
+<section id="create-label">
+<h2>10. create_label<a class="headerlink" href="#create-label" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>name</strong>: string — Name for the new label (required)</p></li>
+<li><p><strong>messageListVisibility</strong>: string (enum: show, hide) — Whether to show or hide the label in the message list</p></li>
+<li><p><strong>labelListVisibility</strong>: string (enum: labelShow, labelShowIfUnread, labelHide) — Visibility of the label in the label list</p></li>
+</ul>
+</section>
+<section id="update-label">
+<h2>11. update_label<a class="headerlink" href="#update-label" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>id</strong>: string — ID of the label to update (required)</p></li>
+<li><p><strong>name</strong>: string — New name for the label</p></li>
+<li><p><strong>messageListVisibility</strong>: string (enum: show, hide) — Whether to show or hide the label in the message list</p></li>
+<li><p><strong>labelListVisibility</strong>: string (enum: labelShow, labelShowIfUnread, labelHide) — Visibility of the label in the label list</p></li>
+</ul>
+</section>
+<section id="delete-label">
+<h2>12. delete_label<a class="headerlink" href="#delete-label" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>id</strong>: string — ID of the label to delete (required)</p></li>
+</ul>
+</section>
+<section id="get-or-create-label">
+<h2>13. get_or_create_label<a class="headerlink" href="#get-or-create-label" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>name</strong>: string — Name of the label to get or create (required)</p></li>
+<li><p><strong>messageListVisibility</strong>: string (enum: show, hide) — Whether to show or hide the label in the message list</p></li>
+<li><p><strong>labelListVisibility</strong>: string (enum: labelShow, labelShowIfUnread, labelHide) — Visibility of the label in the label list</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="briefing_multiagent_link.html" class="btn btn-neutral float-left" title="Original Project Briefing" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="why_docker_link.html" class="btn btn-neutral float-right" title="Why Docker?" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, ad1 Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

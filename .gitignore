@@ -148,4 +148,5 @@ __pycache__/
 *.egg-info/
 backend/auth/gcp-oauth.keys.json
 backend/test/__pycache__/
-backend/attachments
+backend/gmail_utils/attachments
+.venv/

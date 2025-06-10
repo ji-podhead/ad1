@@ -1,0 +1,502 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deployment Guide &mdash; ad1 Platform 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=01f34227"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="API Overview" href="api_overview_link.html" />
+    <link rel="prev" title="System Architecture" href="architecture_link.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ad1 Platform
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html">Project README</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#ad1-automated-email-document-processing">ad1 – Automated Email &amp; Document Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="architecture_link.html">System Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="architecture_link.html#id1">System Architecture</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Deployment Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#id1">Deployment Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#introduction-to-deployment">1. Introduction to Deployment</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#deployment-scenarios">2. Deployment Scenarios</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#tailscale-on-premises-local">Tailscale On-Premises (Local)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#google-cloud-gcp">Google Cloud (GCP)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#google-oauth-setup-frontend-backend">3. Google OAuth Setup (Frontend &amp; Backend)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#infrastructure-as-code-iac-deployment">4. Infrastructure as Code (IaC) &amp; Deployment</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id18">5. Backend Docker Build &amp; Compose Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#backend-image-lokal-bauen-building-the-backend-image-locally">Backend-Image lokal bauen (Building the backend image locally)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#hinweise-notes">Hinweise (Notes)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting-common-issues">6. Troubleshooting Common Issues</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#problem-oauth-google-login-or-gmail-api-does-not-work-no-refresh-token-is-set-or-similar">Problem: OAuth/Google Login or Gmail API does not work (“No refresh token is set” or similar)</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#solution-manual-oauth-authentication-flow">Solution: Manual OAuth Authentication Flow</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#example-log-output-during-manual-auth">Example Log Output During Manual Auth</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#notes-for-manual-auth">Notes for Manual Auth:</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api_overview_link.html">API Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_overview_link.html#ad1-api-overview">ad1 API Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="db_tables_link.html">Database Schema</a></li>
+<li class="toctree-l1"><a class="reference internal" href="db_tables_link.html#database-tables-overview">Database Tables Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="briefing_multiagent_link.html">Original Project Briefing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mcp_tools_link.html">MCP Tools Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mcp_tools_link.html#id1">MCP Tools Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="why_docker_link.html">Why Docker?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="why_docker_link.html#ai-agenten-deployment-mit-docker-eine-zusammenfassung">AI-Agenten-Deployment mit Docker – Eine Zusammenfassung</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ad1 Platform</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Deployment Guide</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/deployment_link.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="deployment-guide">
+<h1>Deployment Guide<a class="headerlink" href="#deployment-guide" title="Link to this heading"></a></h1>
+</section>
+<section id="id1">
+<h1>Deployment Guide<a class="headerlink" href="#id1" title="Link to this heading"></a></h1>
+<section id="introduction-to-deployment">
+<h2>1. Introduction to Deployment<a class="headerlink" href="#introduction-to-deployment" title="Link to this heading"></a></h2>
+<p>This document provides comprehensive instructions for deploying the ad1 platform. It covers various scenarios, from local on-premises setups to cloud deployments on Google Cloud Platform (GCP). It also details essential configuration steps, including Google OAuth setup, Infrastructure as Code (IaC) usage, Docker image building, and troubleshooting common deployment issues. Following these guidelines will help ensure a smooth and secure deployment of ad1.</p>
+</section>
+<section id="deployment-scenarios">
+<h2>2. Deployment Scenarios<a class="headerlink" href="#deployment-scenarios" title="Link to this heading"></a></h2>
+<p>ad1 can be deployed in various environments. Below are instructions for common setups:</p>
+<section id="tailscale-on-premises-local">
+<h3>Tailscale On-Premises (Local)<a class="headerlink" href="#tailscale-on-premises-local" title="Link to this heading"></a></h3>
+<p>This scenario is suitable for development, testing, or small-scale production use where you manage the infrastructure.</p>
+<ol class="arabic">
+<li><p><strong>Install Docker and Docker Compose</strong>:</p>
+<ul class="simple">
+<li><p>Ensure <a class="reference external" href="https://docs.docker.com/get-docker/">Docker</a> is installed on your server or virtual machine.</p></li>
+<li><p>Install <a class="reference external" href="https://docs.docker.com/compose/install/">Docker Compose</a> (often included with Docker Desktop, or as a separate plugin).</p></li>
+</ul>
+</li>
+<li><p><strong>(Optional) Set up Tailscale</strong>:</p>
+<ul class="simple">
+<li><p>For secure private networking and easy access to your deployment server from anywhere, consider setting up <a class="reference external" href="https://tailscale.com/">Tailscale</a> on your server and local machine.</p></li>
+</ul>
+</li>
+<li><p><strong>Clone the Repository</strong>:</p>
+<ul>
+<li><p>Obtain the project source code:
+.. code-block:: bash</p>
+<blockquote>
+<div><p>git clone &lt;repository_url&gt;
+cd &lt;repository_directory&gt;</p>
+</div></blockquote>
+</li>
+</ul>
+</li>
+<li><p><strong>Configure Environment Variables</strong>:</p>
+<ul class="simple">
+<li><p>Review the <code class="docutils literal notranslate"><span class="pre">docker-compose.yml</span></code> file for required and optional environment variables.</p></li>
+<li><p>Create a <code class="docutils literal notranslate"><span class="pre">.env</span></code> file in the project root or directly set variables in your environment as needed (e.g., for API keys, database credentials if not using defaults, <code class="docutils literal notranslate"><span class="pre">ADMIN_EMAILS</span></code>).</p></li>
+</ul>
+</li>
+<li><p><strong>Start the Stack</strong>:</p>
+<ul>
+<li><p>Build and start all services defined in <code class="docutils literal notranslate"><span class="pre">docker-compose.yml</span></code>:
+.. code-block:: bash</p>
+<blockquote>
+<div><p>docker compose up –build</p>
+</div></blockquote>
+</li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">--build</span></code> flag ensures images are built before starting, which is useful on the first run or after code changes.</p></li>
+</ul>
+</li>
+<li><p><strong>Accessing the Frontend</strong>:</p>
+<ul class="simple">
+<li><p>Once the containers are running, access the frontend application via the server’s local IP address or, if using Tailscale, its Tailscale IP, at the configured frontend port (e.g., <code class="docutils literal notranslate"><span class="pre">http://&lt;your-server-ip&gt;:3000</span></code> or <code class="docutils literal notranslate"><span class="pre">http://&lt;your-server-ip&gt;:5173</span></code>).</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="google-cloud-gcp">
+<h3>Google Cloud (GCP)<a class="headerlink" href="#google-cloud-gcp" title="Link to this heading"></a></h3>
+<p>This scenario outlines deploying ad1 on Google Cloud Platform, leveraging its managed services.</p>
+<ol class="arabic simple">
+<li><p><strong>Choose a Compute Option</strong>:</p>
+<ul class="simple">
+<li><p><strong>Google Compute Engine (GCE)</strong>: Deploy on a Virtual Machine for full control.</p></li>
+<li><p><strong>Google Cloud Run</strong>: Deploy as containerized services for a serverless experience (recommended for scalability and ease of management). The <code class="docutils literal notranslate"><span class="pre">iac/google/app/</span></code> Terraform module provides examples for Cloud Run.</p></li>
+</ul>
+</li>
+<li><p><strong>Port Configuration</strong>:</p>
+<ul class="simple">
+<li><p>Ensure your GCP firewall rules allow traffic on the necessary ports (e.g., 80/443 for the frontend, backend API port, database port if externally accessible).</p></li>
+</ul>
+</li>
+<li><p><strong>Environment Variables for Production</strong>:</p>
+<ul class="simple">
+<li><p>Set environment variables securely. Use GCP Secret Manager or configure environment variables directly in Cloud Run service settings or GCE instance metadata. These will include database connection strings, API keys, Google OAuth credentials (client ID/secret if not using mounted files), and other production-specific settings.</p></li>
+</ul>
+</li>
+<li><p><strong>Deployment Methods</strong>:</p>
+<ul class="simple">
+<li><p><strong>Docker Compose (on GCE VM)</strong>: Similar to the on-premises setup, you can use Docker Compose on a GCE VM.</p></li>
+<li><p><strong>GCP Native Tools (Cloud Run/GKE)</strong>:</p>
+<ul>
+<li><p>Build Docker images (see <a class="reference external" href="#5-backend-docker-build--compose-usage">Backend Docker Build &amp; Compose Usage</a>) and push them to Google Artifact Registry.</p></li>
+<li><p>Deploy these images using Cloud Run service definitions or Google Kubernetes Engine (GKE) configurations. The <code class="docutils literal notranslate"><span class="pre">iac/google/app/</span></code> Terraform module automates Cloud Run deployment.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>(Optional) Google Secret Manager</strong>:</p>
+<ul class="simple">
+<li><p>Store sensitive configuration data like API keys and database passwords in Google Secret Manager and grant appropriate access to your Cloud Run services or GCE VMs.</p></li>
+</ul>
+</li>
+</ol>
+<p><strong>Compliance Note</strong>: For both scenarios, ensure that your deployment strategy, data storage, and operational practices comply with Swiss and EU data residency, GDPR, Swiss DSGVO, and relevant AI laws. This includes choosing appropriate GCP regions if applicable.</p>
+</section>
+</section>
+<section id="google-oauth-setup-frontend-backend">
+<h2>3. Google OAuth Setup (Frontend &amp; Backend)<a class="headerlink" href="#google-oauth-setup-frontend-backend" title="Link to this heading"></a></h2>
+<p>To enable users to log in with their Google accounts and allow the application to access Google APIs (like Gmail API), you must configure Google OAuth 2.0.</p>
+<ol class="arabic">
+<li><p><strong>Enable Gmail API</strong>:</p>
+<ul class="simple">
+<li><p>Go to the <a class="reference external" href="https://console.cloud.google.com/">Google Cloud Console</a>.</p></li>
+<li><p>Select or create a Google Cloud Project.</p></li>
+<li><p>Navigate to <strong>APIs &amp; Services &gt; Library</strong>.</p></li>
+<li><p>Search for “Gmail API” and click <strong>Enable</strong>.</p></li>
+</ul>
+</li>
+<li><p><strong>Create OAuth 2.0 Credentials</strong>:</p>
+<ul class="simple">
+<li><p>Navigate to <strong>APIs &amp; Services &gt; Credentials</strong>.</p></li>
+<li><p>Click <strong>+ CREATE CREDENTIALS</strong> and select <strong>OAuth client ID</strong>.</p></li>
+<li><p>For <strong>Application type</strong>, choose <strong>Web application</strong>.</p></li>
+<li><p>Set a <strong>Name</strong> (e.g., <code class="docutils literal notranslate"><span class="pre">ad1-webapp</span></code>).</p></li>
+<li><p>Under <strong>Authorized JavaScript origins</strong>, add URIs for your frontend:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">http://localhost:3000</span></code> (if using this port for local dev)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">http://localhost:5173</span></code> (default Vite dev port)</p></li>
+<li><p><em>Add your production frontend URI(s) here.</em></p></li>
+</ul>
+</li>
+<li><p>Under <strong>Authorized redirect URIs</strong>, add URIs where users will be redirected after authentication:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">http://localhost:3000/oauth2callback</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">http://localhost:5173/oauth2callback</span></code></p></li>
+<li><p><em>Add your production redirect URI(s) here.</em></p></li>
+</ul>
+</li>
+<li><p>Click <strong>CREATE</strong>.</p></li>
+</ul>
+</li>
+<li><p><a href="#id2"><span class="problematic" id="id3">**</span></a>Download <code class="docutils literal notranslate"><span class="pre">gcp-oauth.keys.json</span></code><a href="#id4"><span class="problematic" id="id5">**</span></a>:</p>
+<ul class="simple">
+<li><p>After creating the client ID, a dialog will show your Client ID and Client secret. You can also download the credentials as a JSON file. Click <strong>DOWNLOAD JSON</strong>.</p></li>
+<li><p>Rename this file to <code class="docutils literal notranslate"><span class="pre">gcp-oauth.keys.json</span></code>.</p></li>
+<li><p>Place this file in <code class="docutils literal notranslate"><span class="pre">auth/gcp-oauth.keys.json</span></code> (for frontend, if needed directly) and primarily in <code class="docutils literal notranslate"><span class="pre">backend/auth/gcp-oauth.keys.json</span></code> as the backend handles the core OAuth logic. The <code class="docutils literal notranslate"><span class="pre">iac/google/gmailApi/</span></code> Terraform module can also help manage these keys.</p></li>
+</ul>
+</li>
+<li><p><strong>Set OAuth Scopes</strong>:</p>
+<ul class="simple">
+<li><p>Ensure your application requests the correct OAuth scopes. These are typically defined in your backend code where the Google API client is initialized. Required scopes for ad1 typically include:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">openid</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">email</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">profile</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">https://www.googleapis.com/auth/gmail.readonly</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">https://www.googleapis.com/auth/gmail.send</span></code> (if sending emails)</p></li>
+</ul>
+</li>
+<li><p>Configure these scopes in the OAuth consent screen settings in the Google Cloud Console.</p></li>
+</ul>
+</li>
+<li><p><a href="#id6"><span class="problematic" id="id7">**</span></a>Docker Compose Setup for <code class="docutils literal notranslate"><span class="pre">gcp-oauth.keys.json</span></code><a href="#id8"><span class="problematic" id="id9">**</span></a>:</p>
+<ul>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">docker-compose.yml</span></code> file should mount the <code class="docutils literal notranslate"><span class="pre">gcp-oauth.keys.json</span></code> file into the backend container (and MCP server if it directly interacts with Gmail API). Example:
+.. code-block:: yaml</p>
+<blockquote>
+<div><dl>
+<dt>services:</dt><dd><dl class="simple">
+<dt>backend:</dt><dd><dl class="simple">
+<dt>volumes:</dt><dd><ul class="simple">
+<li><p>./backend/auth/gcp-oauth.keys.json:/app/auth/gcp-oauth.keys.json:ro</p></li>
+</ul>
+</dd>
+</dl>
+</dd>
+</dl>
+<p># Potentially mcp server if it needs direct access
+# mcp:
+#   volumes:
+#     - ./backend/auth/gcp-oauth.keys.json:/app/auth/gcp-oauth.keys.json:ro</p>
+</dd>
+</dl>
+</div></blockquote>
+</li>
+<li><p>This makes the keys available to the application inside the container. The application should be configured to read these keys from the specified path.</p></li>
+</ul>
+</li>
+<li><p><strong>Troubleshooting OAuth Issues</strong>:</p>
+<ul class="simple">
+<li><p><a href="#id10"><span class="problematic" id="id11">**</span></a><code class="docutils literal notranslate"><span class="pre">redirect_uri_mismatch</span></code><a href="#id12"><span class="problematic" id="id13">**</span></a>: This error means the URI a user is being redirected to after Google login is not listed in the “Authorized redirect URIs” in your Google Cloud Console OAuth client settings. Ensure all possible URIs (dev, prod, different ports) are listed.</p></li>
+<li><p><a href="#id14"><span class="problematic" id="id15">**</span></a><code class="docutils literal notranslate"><span class="pre">Error</span> <span class="pre">400:</span> <span class="pre">origin_not_allowed</span></code> / <code class="docutils literal notranslate"><span class="pre">The</span> <span class="pre">given</span> <span class="pre">origin</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">allowed</span> <span class="pre">for</span> <span class="pre">the</span> <span class="pre">given</span> <span class="pre">client</span> <span class="pre">ID</span></code><a href="#id16"><span class="problematic" id="id17">**</span></a>: The JavaScript origin from where the login request is initiated is not listed in the “Authorized JavaScript origins”. Ensure your frontend’s hosting URI is correctly added.</p></li>
+<li><p>Double-check that the client ID used in your application matches the one for which you configured these URIs.</p></li>
+<li><p>Ensure the <code class="docutils literal notranslate"><span class="pre">gcp-oauth.keys.json</span></code> file content matches the credentials in the Google Cloud Console.</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="infrastructure-as-code-iac-deployment">
+<h2>4. Infrastructure as Code (IaC) &amp; Deployment<a class="headerlink" href="#infrastructure-as-code-iac-deployment" title="Link to this heading"></a></h2>
+<p>This repository includes Terraform modules to automate the deployment of ad1 on Google Cloud.</p>
+<ul>
+<li><p><strong>Modules</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iac/google/gmailApi/</span></code>: Automates the enabling of the Gmail API and the creation of necessary OAuth 2.0 client credentials. Refer to <code class="docutils literal notranslate"><span class="pre">main.tf</span></code> and <code class="docutils literal notranslate"><span class="pre">example.tf</span></code> within this directory for usage.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">iac/google/app/</span></code>: Deploys the ad1 frontend (as a public Cloud Run service) and backend (as a private Cloud Run service). It also includes examples or configurations for related resources like load balancers or databases if applicable. An optional GKE (Google Kubernetes Engine) example might also be included.</p></li>
+</ul>
+</li>
+<li><p><strong>How to Use</strong>:</p>
+<ol class="arabic">
+<li><p><strong>Install Terraform</strong>: Download and install <a class="reference external" href="https://www.terraform.io/downloads.html">Terraform</a>.</p></li>
+<li><p><strong>Configure Variables</strong>: Navigate to the specific module directory (e.g., <code class="docutils literal notranslate"><span class="pre">iac/google/app/</span></code>). Adjust variables in <code class="docutils literal notranslate"><span class="pre">terraform.tfvars</span></code> or directly in <code class="docutils literal notranslate"><span class="pre">main.tf</span></code>/<code class="docutils literal notranslate"><span class="pre">example.tf</span></code> files (e.g., <code class="docutils literal notranslate"><span class="pre">project_id</span></code>, <code class="docutils literal notranslate"><span class="pre">region</span></code>, <code class="docutils literal notranslate"><span class="pre">support_email</span></code>, Docker image names/tags from Artifact Registry).</p></li>
+<li><p><strong>Initialize and Apply</strong>: Run the following commands in the module directory:
+.. code-block:: bash</p>
+<blockquote>
+<div><p>terraform init
+terraform apply</p>
+</div></blockquote>
+</li>
+<li><p>Review the plan and type <code class="docutils literal notranslate"><span class="pre">yes</span></code> to apply the changes.</p></li>
+</ol>
+</li>
+</ul>
+</section>
+<section id="id18">
+<h2>5. Backend Docker Build &amp; Compose Usage<a class="headerlink" href="#id18" title="Link to this heading"></a></h2>
+<p>Instructions for building the backend Docker image locally and using it with Docker Compose.</p>
+<section id="backend-image-lokal-bauen-building-the-backend-image-locally">
+<h3>Backend-Image lokal bauen (Building the backend image locally)<a class="headerlink" href="#backend-image-lokal-bauen-building-the-backend-image-locally" title="Link to this heading"></a></h3>
+<ol class="arabic">
+<li><p><strong>Build the Image</strong>:
+.. code-block:: bash</p>
+<blockquote>
+<div><p>docker build -f build/Dockerfile.backend -t orchestranexus/agentbox:0.0.0 .</p>
+</div></blockquote>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">-f</span> <span class="pre">build/Dockerfile.backend</span></code>: Specifies the path to the Dockerfile for the backend.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-t</span> <span class="pre">orchestranexus/agentbox:0.0.0</span></code>: Sets the tag (name and version) for the image. Replace with your desired image name and tag.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">.</span></code>: Specifies the build context (the project root directory).</p></li>
+</ul>
+</li>
+<li><p><strong>Start the Stack with the Local Image</strong>:</p>
+<ul>
+<li><p>Ensure your <code class="docutils literal notranslate"><span class="pre">docker-compose.yml</span></code> is configured to use the image tag you specified (e.g., <code class="docutils literal notranslate"><span class="pre">image:</span> <span class="pre">orchestranexus/agentbox:0.0.0</span></code>) or uses the <code class="docutils literal notranslate"><span class="pre">build</span></code> context for the backend service.
+.. code-block:: bash</p>
+<blockquote>
+<div><p>docker compose up –build</p>
+</div></blockquote>
+</li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">--build</span></code> flag ensures that Docker Compose rebuilds the image if the Dockerfile or context has changed. If the <code class="docutils literal notranslate"><span class="pre">docker-compose.yml</span></code> for the backend service specifies a <code class="docutils literal notranslate"><span class="pre">build:</span></code> section, it will build it using that context. If it specifies an <code class="docutils literal notranslate"><span class="pre">image:</span></code> tag that matches your local build, it will use that.</p></li>
+</ul>
+</li>
+<li><p><strong>Optional: Bypass Cache</strong>:</p>
+<ul>
+<li><p>If you encounter issues with caching during the build process, you can force a rebuild without cache:
+.. code-block:: bash</p>
+<blockquote>
+<div><p>docker build –no-cache -f build/Dockerfile.backend -t orchestranexus/agentbox:0.0.0 .</p>
+</div></blockquote>
+</li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="hinweise-notes">
+<h3>Hinweise (Notes)<a class="headerlink" href="#hinweise-notes" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Ensure that the <code class="docutils literal notranslate"><span class="pre">Dockerfile.backend</span></code> correctly installs all necessary dependencies (e.g., via <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-r</span> <span class="pre">requirements.txt</span></code>).</p></li>
+<li><p>If your <code class="docutils literal notranslate"><span class="pre">docker-compose.yml</span></code> uses a <code class="docutils literal notranslate"><span class="pre">build</span></code> section for the backend service, it will typically build and use that local image by default when you run <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">up</span> <span class="pre">--build</span></code>.</p></li>
+<li><p>If you make changes to the backend code or its dependencies, you will need to rebuild the Docker image for those changes to take effect in the container.</p></li>
+</ul>
+</section>
+</section>
+<section id="troubleshooting-common-issues">
+<h2>6. Troubleshooting Common Issues<a class="headerlink" href="#troubleshooting-common-issues" title="Link to this heading"></a></h2>
+<section id="problem-oauth-google-login-or-gmail-api-does-not-work-no-refresh-token-is-set-or-similar">
+<h3>Problem: OAuth/Google Login or Gmail API does not work (“No refresh token is set” or similar)<a class="headerlink" href="#problem-oauth-google-login-or-gmail-api-does-not-work-no-refresh-token-is-set-or-similar" title="Link to this heading"></a></h3>
+<p>Occasionally, especially after a fresh setup, when OAuth credentials change, or when running containers on a new machine for the first time, you might encounter errors related to Google OAuth or Gmail API access, such as:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>gmail-1 | Please visit this URL to authenticate: https://accounts.google.com/o/oauth2/v2/auth?...&amp;redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Foauth2callback
+mw-backend | INFO:agent_scheduler:Raw MCP tool response: &#39;Error: No refresh token is set.&#39;
+</pre></div>
+</div>
+<p>This often indicates that the application (specifically the component interacting with Gmail, like the MCP server or a dedicated Gmail service) hasn’t obtained a refresh token from Google.</p>
+<section id="solution-manual-oauth-authentication-flow">
+<h4>Solution: Manual OAuth Authentication Flow<a class="headerlink" href="#solution-manual-oauth-authentication-flow" title="Link to this heading"></a></h4>
+<p>This process typically applies to services that need to maintain persistent access to Gmail (like the MCP server if it’s fetching emails).</p>
+<ol class="arabic">
+<li><p><strong>Start the Containers</strong>:</p>
+<ul>
+<li><p>Run your usual command to start the application stack:
+.. code-block:: bash</p>
+<blockquote>
+<div><p>sudo docker compose up –build</p>
+</div></blockquote>
+<p>(Use <code class="docutils literal notranslate"><span class="pre">sudo</span></code> if your Docker setup requires it).</p>
+</li>
+</ul>
+</li>
+<li><p><strong>Watch Container Logs</strong>:</p>
+<ul>
+<li><p>Monitor the logs of the container responsible for Gmail integration (e.g., <code class="docutils literal notranslate"><span class="pre">gmail</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp-server</span></code>, or a similar service name defined in your <code class="docutils literal notranslate"><span class="pre">docker-compose.yml</span></code>).</p></li>
+<li><p>Look for a log message prompting you to visit a URL for authentication, for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>gmail-1 | Please visit this URL to authenticate: https://accounts.google.com/o/oauth2/v2/auth?response_type=code&amp;client_id=...&amp;redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Foauth2callback&amp;scope=...
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p><strong>Authenticate in Browser</strong>:</p>
+<ul class="simple">
+<li><p>Copy the <strong>full URL</strong> from the log output.</p></li>
+<li><p>Paste it into your web browser.</p></li>
+<li><p>Log in with the Google account you want the application to use for accessing Gmail.</p></li>
+<li><p>Grant the requested permissions on the Google consent screen.</p></li>
+<li><p>After successful authentication, Google will redirect you to the <code class="docutils literal notranslate"><span class="pre">redirect_uri</span></code> specified in the URL. The application (listening at that redirect URI) should capture the authorization code and exchange it for an access token and a refresh token.</p></li>
+</ul>
+</li>
+<li><p><strong>Confirmation</strong>:</p>
+<ul>
+<li><p>Check the container logs again. You should see a message indicating that authentication was completed successfully and the refresh token has been stored (e.g., in a volume, or a local file within the container that’s persisted).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">gmail</span><span class="o">-</span><span class="mi">1</span> <span class="o">|</span> <span class="n">Authentication</span> <span class="n">completed</span> <span class="n">successfully</span><span class="o">.</span> <span class="n">Refresh</span> <span class="n">token</span> <span class="n">stored</span><span class="o">.</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p><strong>Rebuild and Restart (If Necessary)</strong>:</p>
+<ul>
+<li><p>In some cases, a restart might be needed for all services to pick up the newly acquired token or updated status.
+.. code-block:: bash</p>
+<blockquote>
+<div><p>sudo docker compose down
+sudo docker compose up –build</p>
+</div></blockquote>
+</li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="example-log-output-during-manual-auth">
+<h4>Example Log Output During Manual Auth<a class="headerlink" href="#example-log-output-during-manual-auth" title="Link to this heading"></a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>gmail-1 | Please visit this URL to authenticate: https://accounts.google.com/o/oauth2/v2/auth?...&amp;redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Foauth2callback
+gmail-1 | Authentication code received.
+gmail-1 | Exchanging code for tokens...
+gmail-1 | Authentication completed successfully. Refresh token stored.
+</pre></div>
+</div>
+</section>
+<section id="notes-for-manual-auth">
+<h4>Notes for Manual Auth:<a class="headerlink" href="#notes-for-manual-auth" title="Link to this heading"></a></h4>
+<ul class="simple">
+<li><p>If you still see “No refresh token is set” errors, you may need to repeat the manual authentication flow.</p></li>
+<li><p>Ensure the <code class="docutils literal notranslate"><span class="pre">gcp-oauth.keys.json</span></code> file is correctly mounted into the relevant container and that its contents match the credentials in the Google Cloud Console.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">redirect_uri</span></code> in the authentication URL from the logs <strong>must</strong> be one of the URIs registered in your Google Cloud OAuth client ID configuration. If the service requiring authentication is running headlessly (like the <code class="docutils literal notranslate"><span class="pre">gmail-1</span></code> container), it might use a simple <code class="docutils literal notranslate"><span class="pre">http://localhost...</span></code> redirect that it can listen on internally.</p></li>
+<li><p>This manual step is often a one-time requirement per environment or when credentials change, as the refresh token, once obtained, allows the application to get new access tokens without further manual intervention.</p></li>
+</ul>
+</section>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="architecture_link.html" class="btn btn-neutral float-left" title="System Architecture" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="api_overview_link.html" class="btn btn-neutral float-right" title="API Overview" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, ad1 Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

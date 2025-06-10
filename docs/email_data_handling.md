@@ -12,15 +12,15 @@ The email data is fetched from the Gmail API and processed into a JSON object. B
 {
     "id": "1974a69b8996cddc",
     "threadId": "1974a69a7453e1cb",
-    "snippet": "aaaaaaaaaaaaaaaaaaaaa",
+    "snippet": "<body>",
     "payload": {
         "partId": "",
         "mimeType": "multipart/alternative",
         "filename": "",
         "headers": [
             {"name": "Subject", "value": "test5"},
-            {"name": "From", "value": "Leonardo Jacobi <leo@orchestra-nexus.com>"},
-            {"name": "To", "value": "Leonardo Jacobi <leo@orchestra-nexus.com>"}
+            {"name": "From", "value": "Leonardo J. <leo@orchestra-nexus.com>"},
+            {"name": "To", "value": "Leonardo J. <leo@orchestra-nexus.com>"}
         ],
         "body": {"size": 0},
         "parts": [
@@ -50,9 +50,9 @@ The email data is fetched from the Gmail API and processed into a JSON object. B
     "internalDate": "1749300131000",
     "headers": {
         "Subject": "test5",
-        "From": "Leonardo Jacobi <leo@orchestra-nexus.com>"
+        "From": "Leonardo J. <leo@orchestra-nexus.com>"
     },
-    "body": "aaaaaaaaaaaaaaaaaaaaa\r\n",
+    "body": "<body>\r\n",
     "attachments": []
 }
 ```
@@ -107,7 +107,7 @@ RETURNING id;
 ```
 $1 = "test5" (Subject)
 $2 = "leo@orchestra-nexus.com" (Sender)
-$3 = "aaaaaaaaaaaaaaaaaaaaa\r\n" (Body)
+$3 = "<body>\r\n" (Body)
 $4 = '2025-06-10 10:00:00' (Timestamp of processing)
 $5 = NULL (Default Label)
 $6 = "Test Category" (Type/Topic from LLM)
@@ -127,7 +127,7 @@ While specific API endpoints depend on the backend implementation, here are conc
         "id": 123,
         "subject": "test5",
         "sender": "leo@orchestra-nexus.com",
-        "body": "aaaaaaaaaaaaaaaaaaaaa\r\n",
+        "body": "<body>\r\n",
         "received_at": "2025-06-10T10:00:00Z",
         "label": null,
         "type": "Test Category",
@@ -148,7 +148,7 @@ While specific API endpoints depend on the backend implementation, here are conc
                 "id": 123,
                 "subject": "test5",
                 "sender": "leo@orchestra-nexus.com",
-                "body": "aaaaaaaaaaaaaaaaaaaaa\r\n",
+                "body": "<body>\r\n",
                 "received_at": "2025-06-10T10:00:00Z",
                 "label": null,
                 "type": "Test Category",

@@ -1,0 +1,337 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Database Schema &mdash; ad1 Platform 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=01f34227"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Original Project Briefing" href="briefing_multiagent_link.html" />
+    <link rel="prev" title="API Reference" href="api_reference.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ad1 Platform
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html">Project README</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme_link.html#ad1-automated-email-document-processing">ad1 – Automated Email &amp; Document Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="architecture_link.html">System Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="architecture_link.html#id1">System Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deployment_link.html">Deployment Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deployment_link.html#id1">Deployment Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_overview_link.html">API Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_overview_link.html#ad1-api-overview">ad1 API Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Database Schema</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#database-tables-overview">Database Tables Overview</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#emails-updated"><code class="docutils literal notranslate"><span class="pre">emails</span></code> (updated)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#audit-trail"><code class="docutils literal notranslate"><span class="pre">audit_trail</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#scheduler-tasks"><code class="docutils literal notranslate"><span class="pre">scheduler_tasks</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tasks"><code class="docutils literal notranslate"><span class="pre">tasks</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#documents"><code class="docutils literal notranslate"><span class="pre">documents</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="briefing_multiagent_link.html">Original Project Briefing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mcp_tools_link.html">MCP Tools Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mcp_tools_link.html#id1">MCP Tools Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="why_docker_link.html">Why Docker?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="why_docker_link.html#ai-agenten-deployment-mit-docker-eine-zusammenfassung">AI-Agenten-Deployment mit Docker – Eine Zusammenfassung</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ad1 Platform</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Database Schema</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/db_tables_link.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="database-schema">
+<h1>Database Schema<a class="headerlink" href="#database-schema" title="Link to this heading"></a></h1>
+</section>
+<section id="database-tables-overview">
+<h1>Database Tables Overview<a class="headerlink" href="#database-tables-overview" title="Link to this heading"></a></h1>
+<p>Below are the main tables used in the backend database, with their columns and types as inferred from the code and schema:</p>
+<section id="emails-updated">
+<h2><code class="docutils literal notranslate"><span class="pre">emails</span></code> (updated)<a class="headerlink" href="#emails-updated" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Column</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>SERIAL PRIMARY KEY</p></td>
+<td><p>Unique email ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>subject</p></td>
+<td><p>TEXT</p></td>
+<td><p>Email subject</p></td>
+</tr>
+<tr class="row-even"><td><p>sender</p></td>
+<td><p>TEXT</p></td>
+<td><p>Sender email address</p></td>
+</tr>
+<tr class="row-odd"><td><p>body</p></td>
+<td><p>TEXT</p></td>
+<td><p>Email body/content</p></td>
+</tr>
+<tr class="row-even"><td><p>received_at</p></td>
+<td><p>TIMESTAMP WITH TZ</p></td>
+<td><p>When the email was received</p></td>
+</tr>
+<tr class="row-odd"><td><p>label</p></td>
+<td><p>TEXT (nullable)</p></td>
+<td><p>Optional label</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>TEXT</p></td>
+<td><p>Document type (from LLM classification)</p></td>
+</tr>
+<tr class="row-odd"><td><p>short_description</p></td>
+<td><p>TEXT</p></td>
+<td><p>Short summary (from LLM)</p></td>
+</tr>
+<tr class="row-even"><td><p>document_ids</p></td>
+<td><p>INTEGER[]</p></td>
+<td><p>List of document IDs (attachments)</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="audit-trail">
+<h2><code class="docutils literal notranslate"><span class="pre">audit_trail</span></code><a class="headerlink" href="#audit-trail" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Column</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>SERIAL PRIMARY KEY</p></td>
+<td><p>Unique audit entry ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>email_id</p></td>
+<td><p>INTEGER (nullable)</p></td>
+<td><p>Related email ID (if applicable)</p></td>
+</tr>
+<tr class="row-even"><td><p>action</p></td>
+<td><p>TEXT</p></td>
+<td><p>Description of the action</p></td>
+</tr>
+<tr class="row-odd"><td><p>username</p></td>
+<td><p>TEXT</p></td>
+<td><p>User or system that performed the action</p></td>
+</tr>
+<tr class="row-even"><td><p>timestamp</p></td>
+<td><p>TIMESTAMP WITH TZ</p></td>
+<td><p>When the action occurred</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="scheduler-tasks">
+<h2><code class="docutils literal notranslate"><span class="pre">scheduler_tasks</span></code><a class="headerlink" href="#scheduler-tasks" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Column</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>SERIAL PRIMARY KEY</p></td>
+<td><p>Unique task ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>workflow_name</p></td>
+<td><p>TEXT</p></td>
+<td><p>Name of the workflow</p></td>
+</tr>
+<tr class="row-even"><td><p>workflow_config</p></td>
+<td><p>JSONB or TEXT</p></td>
+<td><p>Workflow configuration (JSON)</p></td>
+</tr>
+<tr class="row-odd"><td><p>status</p></td>
+<td><p>TEXT</p></td>
+<td><p>Task status (e.g., ‘active’)</p></td>
+</tr>
+<tr class="row-even"><td><p>trigger_type</p></td>
+<td><p>TEXT</p></td>
+<td><p>Trigger type (e.g., ‘cron’)</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="tasks">
+<h2><code class="docutils literal notranslate"><span class="pre">tasks</span></code><a class="headerlink" href="#tasks" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Column</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>SERIAL PRIMARY KEY</p></td>
+<td><p>Unique task ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>email_id</p></td>
+<td><p>INTEGER</p></td>
+<td><p>Related email ID</p></td>
+</tr>
+<tr class="row-even"><td><p>status</p></td>
+<td><p>TEXT</p></td>
+<td><p>Task status (e.g., ‘pending’)</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p>TIMESTAMP WITH TZ</p></td>
+<td><p>When the task was created</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p>TIMESTAMP WITH TZ</p></td>
+<td><p>When the task was last updated</p></td>
+</tr>
+<tr class="row-odd"><td><p>workflow_type</p></td>
+<td><p>TEXT</p></td>
+<td><p>Workflow type/topic</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="documents">
+<h2><code class="docutils literal notranslate"><span class="pre">documents</span></code><a class="headerlink" href="#documents" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Column</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>SERIAL PRIMARY KEY</p></td>
+<td><p>Unique document ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>email_id</p></td>
+<td><p>INTEGER</p></td>
+<td><p>Related email ID (foreign key to emails)</p></td>
+</tr>
+<tr class="row-even"><td><p>filename</p></td>
+<td><p>TEXT</p></td>
+<td><p>Original filename of the attachment</p></td>
+</tr>
+<tr class="row-odd"><td><p>content_type</p></td>
+<td><p>TEXT</p></td>
+<td><p>MIME type of the document</p></td>
+</tr>
+<tr class="row-even"><td><p>data_b64</p></td>
+<td><p>TEXT (nullable)</p></td>
+<td><p>Base64-encoded document data (raw, if not processed)</p></td>
+</tr>
+<tr class="row-odd"><td><p>processed_data</p></td>
+<td><p>JSONB or TEXT</p></td>
+<td><p>Processed/Extracted data (e.g. OCR, text, etc.)</p></td>
+</tr>
+<tr class="row-even"><td><p>is_processed</p></td>
+<td><p>BOOLEAN</p></td>
+<td><p>True if processed, False if raw</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p>TIMESTAMP WITH TZ</p></td>
+<td><p>When the document was stored/processed</p></td>
+</tr>
+</tbody>
+</table>
+<hr class="docutils" />
+<blockquote>
+<div><p><strong>Note:</strong> Column types and names are based on the backend code and may differ slightly from the actual DB schema. For the authoritative schema, see <code class="docutils literal notranslate"><span class="pre">db/db_init.sql</span></code>.</p>
+</div></blockquote>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="api_reference.html" class="btn btn-neutral float-left" title="API Reference" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="briefing_multiagent_link.html" class="btn btn-neutral float-right" title="Original Project Briefing" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, ad1 Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,10 +1,11 @@
 
-# agent_scheduler.py
-"""
-AgentScheduler: Task scheduling for the dashboard (Email, Cronjob, AgentEvent)
-- Email: Schedule sending an email at a specific time
-- Cronjob: Run any function periodically
-- AgentEvent: Agent checks a semantic condition (e.g. in emails/documents) and triggers an action
+"""Module for periodically checking and processing new emails.
+
+This module defines the `check_new_emails` function, which is designed to be run
+as a scheduled task (e.g., by AgentScheduler). It fetches new emails using
+MCP (Mail Control Protocol) tools, processes them using an LLM for summarization
+and topic classification, stores them in the database, and triggers relevant
+workflows based on the email's topic. It also handles email attachments.
 """
 import asyncio
 from typing import Callable, Any, Dict, Optional, List
@@ -27,9 +28,23 @@ logger.setLevel(logging.INFO)  # <--- explizit setzen!
 
 
 async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 60):
-    """
-    Checks for new emails, summarizes them by topic, and executes all active workflows matching the topic.
-    Uses MCP SSE session and tools for all email operations.
+    """Periodically checks for new emails and processes them.
+
+    This function connects to an MCP server to list new emails received since the
+    last check. For each new email, it:
+    1. Fetches the full email content.
+    2. Uses an LLM (Gemini) to get a summary and classify its topic.
+    3. Stores the email and its summary/topic in the database.
+    4. If attachments are present, they are downloaded and stored.
+    5. Matches the email's topic against active workflows.
+    6. For each matching workflow, creates a new task in the database and
+       initiates processing steps (e.g., document processing if defined in the workflow).
+
+    Args:
+        db_pool (asyncpg.pool.Pool): The database connection pool.
+        interval_seconds (int, optional): The time window in seconds to look back for
+            new emails. Defaults to 86400 (24 hours). This determines the 'after'
+            timestamp for the email search query.
     """
     logger.info(f"[Scheduler] Checking for new emails (with SSE/MCP)... Interval: {interval_seconds}s")
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")

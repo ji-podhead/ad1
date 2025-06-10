@@ -1,0 +1,297 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project README &mdash; ad1 Platform 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=01f34227"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="System Architecture" href="architecture_link.html" />
+    <link rel="prev" title="Welcome to ad1 Platform’s Documentation!" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ad1 Platform
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Home</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Project README</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#ad1-automated-email-document-processing">ad1 – Automated Email &amp; Document Processing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#screenshots">Screenshots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#project-structure">Project Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#core-features">Core Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#documentation">Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#client-requirements">Client Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#technical-architecture">Technical Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#workflow">Workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#api-overview">API Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#frontend-structure">Frontend Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#security-compliance">Security &amp; Compliance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#user-admin-management-ipam">User &amp; Admin Management (IPAM)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#workflow-management">Workflow Management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#deployment">Deployment</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#quick-start">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#license-commercial-use">License &amp; Commercial Use</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="architecture_link.html">System Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="architecture_link.html#id1">System Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deployment_link.html">Deployment Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deployment_link.html#id1">Deployment Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_overview_link.html">API Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_overview_link.html#ad1-api-overview">ad1 API Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="db_tables_link.html">Database Schema</a></li>
+<li class="toctree-l1"><a class="reference internal" href="db_tables_link.html#database-tables-overview">Database Tables Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="briefing_multiagent_link.html">Original Project Briefing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mcp_tools_link.html">MCP Tools Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mcp_tools_link.html#id1">MCP Tools Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="why_docker_link.html">Why Docker?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="why_docker_link.html#ai-agenten-deployment-mit-docker-eine-zusammenfassung">AI-Agenten-Deployment mit Docker – Eine Zusammenfassung</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ad1 Platform</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Project README</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/readme_link.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="project-readme">
+<h1>Project README<a class="headerlink" href="#project-readme" title="Link to this heading"></a></h1>
+</section>
+<section id="ad1-automated-email-document-processing">
+<h1>ad1 – Automated Email &amp; Document Processing<a class="headerlink" href="#ad1-automated-email-document-processing" title="Link to this heading"></a></h1>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>ad1 is a secure, modular platform for intelligent automation of email and document-centric workflows. Built with a focus on Swiss and EU compliance, ad1 leverages AI-powered agents, a robust PostgreSQL database, comprehensive audit trails, and a human-in-the-loop validation process to ensure accuracy and accountability. It supports flexible deployment options, including on-premise and cloud environments.</p>
+</section>
+<section id="screenshots">
+<h2>Screenshots<a class="headerlink" href="#screenshots" title="Link to this heading"></a></h2>
+<table>
+  <tr>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/742aa0c9-3ee4-40a5-827f-b9da743346fa" style="max-width:300px;"><br>
+      <small>Required OAuth Login</small>
+    </td>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/7fdbb396-15a8-4459-862a-e3b3939f7b7c" style="max-width:300px;"><br>
+      <small>Landing Page After Login</small>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/325503a6-cb18-44ab-b655-572227c702dd" style="max-width:300px;"><br>
+      <small>Inbox Page</small>
+    </td>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/ed053302-7a33-4646-9c99-065d8d208375" style="max-width:300px;"><br>
+      <small>Documents Page</small>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/b760c693-f9ce-4741-8c79-ee7aa41a2fba" style="max-width:300px;"><br>
+      <small>Tasks Page</small>
+    </td>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/2f890d59-6e13-45b6-9d87-7a971c6dcd28" style="max-width:300px;"><br>
+      <small>IAM Page</small>
+    </td>
+  </tr>
+</table></section>
+<section id="project-structure">
+<h2>Project Structure<a class="headerlink" href="#project-structure" title="Link to this heading"></a></h2>
+<p>The project is organized into the following main directories:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">backend/</span></code>: Contains the FastAPI application, which houses the core business logic, AI agents, API endpoints, and websocket services.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/</span></code>: Includes the React/Vite user interface, providing the user-facing components for interacting with the system.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">docs/</span></code>: Stores all project documentation, including technical specifications, guides, and diagrams.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">db/</span></code>: Contains database initialization scripts and schema definitions for PostgreSQL.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mcp/</span></code>: Houses the MCP (Mail Control Protocol) server, responsible for email integration and real-time communication.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">iac/</span></code>: Includes Infrastructure as Code (IaC) modules, primarily Terraform, for deploying and managing cloud resources.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">build/</span></code>: Contains Docker build files (<code class="docutils literal notranslate"><span class="pre">Dockerfile</span></code>s) and configurations for containerizing the application components.</p></li>
+</ul>
+</section>
+<section id="core-features">
+<h2>Core Features<a class="headerlink" href="#core-features" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Automated Email Processing</strong>: Ingests, classifies, and processes emails based on predefined workflows.</p></li>
+<li><p><strong>Intelligent Document Management</strong>: Extracts data from various document types (PDF, Word, Excel) using AI.</p></li>
+<li><p><strong>Workflow Orchestration</strong>: Customizable workflows to automate complex business processes.</p></li>
+<li><p><strong>Human-in-the-Loop Validation</strong>: Ensures accuracy and control by incorporating manual review steps.</p></li>
+<li><p><strong>Comprehensive Audit Trails</strong>: Logs all system actions for compliance and traceability.</p></li>
+<li><p><strong>Secure and Compliant</strong>: Designed with Swiss and EU data protection regulations in mind, supporting secure hosting and data handling.</p></li>
+</ul>
+</section>
+<section id="documentation">
+<h2>Documentation<a class="headerlink" href="#documentation" title="Link to this heading"></a></h2>
+<p>This section serves as a central hub for all project-related documentation.</p>
+<p><strong>Existing Documents:</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="docs/README_db_tables.md">Database Schema</a>: Detailed description of database tables and relationships.</p></li>
+<li><p><a class="reference external" href="docs/briefing%20multiagent.md">Original Project Briefing</a>: The initial requirements and vision for the project.</p></li>
+<li><p><a class="reference external" href="docs/mcp_tools_reference.md">MCP Tools Reference</a>: Technical details about the Mail Control Protocol tools.</p></li>
+<li><p><a class="reference external" href="docs/whyDocker.md">Why Docker?</a>: Explanation of Docker usage within the project.</p></li>
+</ul>
+<p><strong>Upcoming Documents (Placeholders):</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="docs/architecture.md">System Architecture</a>: Detailed overview of the system’s architecture, components, and interactions. (This will include the Mermaid diagram and details on MCP Server &amp; SSE Transport, Global Email Processing, and Workflow Execution).</p></li>
+<li><p><a class="reference external" href="docs/deployment.md">Deployment Guide</a>: Instructions for deploying ad1, including on-premise and cloud scenarios, Google OAuth setup, IaC usage, Docker build/compose details, and troubleshooting tips.</p></li>
+<li><p><a class="reference external" href="docs/api_overview.md">API Reference</a>: Comprehensive documentation for all backend API endpoints.</p></li>
+<li><p><a class="reference external" href="docs/user_management.md">User Management Guide</a>: Details on user and administrator management.</p></li>
+<li><p><a class="reference external" href="docs/workflows.md">Workflow Configuration</a>: Guide to configuring and managing automated workflows.</p></li>
+<li><p><a class="reference external" href="docs/sphinx/index.html">Full API &amp; Technical Documentation</a>: Placeholder for future Sphinx-generated comprehensive documentation.</p></li>
+</ul>
+</section>
+<section id="client-requirements">
+<h2>Client Requirements<a class="headerlink" href="#client-requirements" title="Link to this heading"></a></h2>
+<p>Key requirements include Swiss hosting and compliance (GDPR, Swiss DSGVO), use of open-source LLMs, robust orchestration, an agent layer for processing, support for various input/output formats, and a scalable, modular architecture. For full details, refer to the <a class="reference external" href="docs/briefing%20multiagent.md">Original Project Briefing</a>.</p>
+</section>
+<section id="technical-architecture">
+<h2>Technical Architecture<a class="headerlink" href="#technical-architecture" title="Link to this heading"></a></h2>
+<p>ad1 features a modular architecture with a FastAPI backend, React frontend, PostgreSQL database, and various supporting services. For a detailed explanation of the system’s components, interactions, data flows, email processing, task management, validation mechanisms, and more, please see the <a class="reference external" href="docs/architecture.md">System Architecture</a> document. The Mermaid diagram illustrating the architecture has also been moved to this document.</p>
+</section>
+<section id="workflow">
+<h2>Workflow<a class="headerlink" href="#workflow" title="Link to this heading"></a></h2>
+<p>The system processes incoming emails and documents through a series of steps including ingestion, AI-powered processing, human validation, audit logging, and secure output. Detailed workflow descriptions and diagrams can be found in the <a class="reference external" href="docs/architecture.md">System Architecture</a> document.</p>
+</section>
+<section id="api-overview">
+<h2>API Overview<a class="headerlink" href="#api-overview" title="Link to this heading"></a></h2>
+<p>The backend provides a comprehensive REST API for managing emails, documents, validation tasks, audit logs, users, and scheduled workflows. WebSocket support is available for real-time agent interaction. For detailed API endpoint descriptions, request/response formats, and authentication mechanisms, please refer to the <a class="reference external" href="docs/api_overview.md">API Reference</a>.</p>
+</section>
+<section id="frontend-structure">
+<h2>Frontend Structure<a class="headerlink" href="#frontend-structure" title="Link to this heading"></a></h2>
+<p>The frontend provides interfaces for Inbox management, Document handling, Validation, Audit Trail viewing, Agent Chat, Task Management, and Workflow Building. A more detailed breakdown of frontend components and their relation to the overall architecture can be found in the <a class="reference external" href="docs/architecture.md">System Architecture</a> document.</p>
+</section>
+<section id="security-compliance">
+<h2>Security &amp; Compliance<a class="headerlink" href="#security-compliance" title="Link to this heading"></a></h2>
+<p>ad1 is designed to meet stringent security and compliance standards:</p>
+<ul class="simple">
+<li><p>Data and servers hosted in Switzerland or compliant EU locations.</p></li>
+<li><p>Encryption for data at rest and in transit.</p></li>
+<li><p>Adherence to GDPR, Swiss DSGVO, and relevant AI regulations.</p></li>
+<li><p>Role-based access control (RBAC) and comprehensive audit trails.</p></li>
+</ul>
+</section>
+<section id="user-admin-management-ipam">
+<h2>User &amp; Admin Management (IPAM)<a class="headerlink" href="#user-admin-management-ipam" title="Link to this heading"></a></h2>
+<p>User authentication is handled via Google OAuth. Initial admin users are set via environment variables. Administrators can manage users (create, edit, delete, assign roles) through the UI. Further details will be available in the <a class="reference external" href="docs/user_management.md">User Management Guide</a> and <a class="reference external" href="docs/api_overview.md">API Reference</a>.</p>
+</section>
+<section id="workflow-management">
+<h2>Workflow Management<a class="headerlink" href="#workflow-management" title="Link to this heading"></a></h2>
+<p>ad1 allows users to define custom processing workflows via a dedicated UI. Workflows can be triggered by new emails or scheduled cron jobs, and involve a sequence of configurable steps (e.g., compliance checks, document processing, human verification). More details can be found in the <a class="reference external" href="docs/architecture.md">System Architecture</a> and the upcoming <a class="reference external" href="docs/workflows.md">Workflow Configuration</a> guide.</p>
+</section>
+<section id="deployment">
+<h2>Deployment<a class="headerlink" href="#deployment" title="Link to this heading"></a></h2>
+<p>Deployment instructions for various environments (on-premise, Google Cloud), including Docker Compose usage, Google OAuth setup, Infrastructure as Code (IaC) with Terraform, and troubleshooting common issues, are consolidated in the <a class="reference external" href="docs/deployment.md">Deployment Guide</a>.</p>
+</section>
+<section id="quick-start">
+<h2>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading"></a></h2>
+<ol class="arabic">
+<li><p><strong>Requirements</strong>: Docker, Docker Compose</p></li>
+<li><p><strong>Start the system</strong>:
+.. code-block:: bash</p>
+<blockquote>
+<div><p>docker compose up –build</p>
+</div></blockquote>
+</li>
+<li><p><strong>Frontend</strong>: If developing locally, start the frontend in the <code class="docutils literal notranslate"><span class="pre">frontend/</span></code> directory:
+.. code-block:: bash</p>
+<blockquote>
+<div><p>npm run dev</p>
+</div></blockquote>
+</li>
+<li><p><strong>Database</strong>: Initialized automatically by Docker Compose.</p></li>
+<li><p><strong>Access</strong>: Open your browser and navigate to the appropriate frontend URL (e.g., <code class="docutils literal notranslate"><span class="pre">http://localhost:5173</span></code> or <code class="docutils literal notranslate"><span class="pre">http://localhost:3000</span></code>).</p></li>
+</ol>
+</section>
+<section id="license-commercial-use">
+<h2>License &amp; Commercial Use<a class="headerlink" href="#license-commercial-use" title="Link to this heading"></a></h2>
+<p><strong>All rights reserved.</strong></p>
+<p>This project is the property of <strong>ji-podhead (Leonardo J.)</strong>. Full usage rights, including distribution, are granted to the <strong>orchestra-nexus</strong> GitHub organization, or <strong>Robert Schröder</strong>.</p>
+<p>Any other commercial use, resale, or distribution of this software (including SaaS, on-prem, or as part of another product) is strictly prohibited without a written contract with the copyright holder.</p>
+<p>Contact the author for licensing options. All rights remain with the project owner.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Welcome to ad1 Platform’s Documentation!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="architecture_link.html" class="btn btn-neutral float-right" title="System Architecture" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, ad1 Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
