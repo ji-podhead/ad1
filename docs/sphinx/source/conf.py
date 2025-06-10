@@ -19,7 +19,7 @@ release = '0.1.0'
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../..')) # Changed to project root
+sys.path.insert(0, os.path.abspath('../../../')) # Changed to project root
 
 
 # -- General configuration ---------------------------------------------------
@@ -48,3 +48,21 @@ source_suffix = ['.rst', '.md']
 
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
+autosummary_generate = True  # Turn on sphinx.ext.autosummary
+
+# Add any paths that contain templates here, relative to this directory.
+# Configuration file for the Sphinx documentation builder.
+#
+# For the full list of built-in configuration values, see the documentation:
+# https://www.sphinx-doc.org/en/master/usage/configuration.html
+
+# -- Project information -----------------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
+# html_theme = 'alabaster'
+# html_static_path = ['_static']
+
+html_theme = 'sphinx_rtd_theme'
+html_theme_options = {
+    "rightsidebar": "true",
+    "relbarbgcolor": "black"
+}
