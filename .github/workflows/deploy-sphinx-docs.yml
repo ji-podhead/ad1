@@ -12,6 +12,9 @@ permissions:
 
 jobs:
   build-and-deploy:
+    environment: # Hinzugefügt
+      name: github-pages # Hinzugefügt
+      url: ${{ steps.deployment.outputs.page_url }} # Hinzugefügt
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

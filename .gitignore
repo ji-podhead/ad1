@@ -150,3 +150,4 @@ backend/auth/gcp-oauth.keys.json
 backend/test/__pycache__/
 backend/gmail_utils/attachments
 .venv/
+docs/sphinx/build/*

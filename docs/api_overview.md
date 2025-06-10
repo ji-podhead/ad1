@@ -29,11 +29,11 @@ The following provides a more detailed breakdown of the backend API endpoints.
 
 ### Authentication & User Information
 
--   **`GET /api/oauth-config`**
+-   `GET /api/oauth-config`
     -   **Purpose**: Returns the Google OAuth client configuration (e.g., `client_id`) required by the frontend.
     -   **Usage**: The frontend calls this endpoint during its initialization phase to obtain the necessary parameters to start the Google Login flow.
 
--   **`POST /api/userinfo`**
+-   `POST /api/userinfo`
     -   **Purpose**: Retrieves user-specific information, including administrative status and roles.
     -   **Request Body**: `{ "email": "user@example.com", "token": "<google_id_token_optional_for_some_flows>" }`
     -   **Response**: `{ "is_admin": true/false, "roles": ["role1", "role2"], ... }`
@@ -43,37 +43,37 @@ The following provides a more detailed breakdown of the backend API endpoints.
 
 ### Email Management
 
--   **`GET /api/emails`**
+-   `GET /api/emails`
     -   **Purpose**: Lists all emails accessible to the authenticated user within the system.
 
--   **`GET /api/emails/{email_id}`**
+-   `GET /api/emails/{email_id}`
     -   **Purpose**: Retrieves detailed information for a specific email identified by `email_id`.
 
--   **`POST /api/emails/{email_id}/label`**
+-   `POST /api/emails/{email_id}/label`
     -   **Purpose**: Sets or updates a label for a specific email.
     -   **Request Body**: `{ "label": "new_label_value" }`
 
--   **`DELETE /api/emails/{email_id}`**
+-   `DELETE /api/emails/{email_id}`
     -   **Purpose**: Deletes a specific email identified by `email_id` from the system.
 
 ---
 
 ### Document Management
 
--   **`GET /api/documents`**
+-   `GET /api/documents`
     -   **Purpose**: Lists all documents (e.g., attachments) accessible to the authenticated user.
 
--   **`GET /api/documents/{document_id}/content`**
+-   `GET /api/documents/{document_id}/content`
     -   **Purpose**: Fetches the content of a specific document identified by `document_id`.
 
--   **`DELETE /api/documents/{document_id}`**
+-   `DELETE /api/documents/{document_id}`
     -   **Purpose**: Deletes a specific document identified by `document_id`.
 
 ---
 
 ### Audit Trail
 
--   **`GET /api/audit`**
+-   `GET /api/audit`
     -   **Purpose**: Retrieves the audit trail, providing logs of significant actions for compliance and traceability.
 
 ---
@@ -82,35 +82,35 @@ The following provides a more detailed breakdown of the backend API endpoints.
 
 The following user management endpoints typically require administrator privileges.
 
--   **`GET /api/users`**
+-   `GET /api/users`
     -   **Purpose**: Lists all users in the system. (Admin only)
 
--   **`POST /api/users/add`**
+-   `POST /api/users/add`
     -   **Purpose**: Creates a new user account. (Admin only)
     -   **Request Body**: Requires `email` and `password`. Optional fields include `roles` (list of strings) and `is_admin` (boolean).
 
--   **`PUT /api/users/{user_identifier}/set`**
-    -   **Purpose**: Updates an existing user's details. `user_identifier` can be the user's database ID or their email address. (Admin only)
+-   `PUT /api/users/{user_identifier}/set`
+    -   **Purpose**: Updates an existing user\'s details. `user_identifier` can be the user\'s database ID or their email address. (Admin only)
     -   **Request Body**: Allows updating fields such as `email`, `password`, `roles`, or `is_admin` status.
 
--   **`DELETE /api/users/{user_identifier}`**
-    -   **Purpose**: Deletes a user account. `user_identifier` can be the user's database ID or their email address. (Admin only)
+-   `DELETE /api/users/{user_identifier}`
+    -   **Purpose**: Deletes a user account. `user_identifier` can be the user\'s database ID or their email address. (Admin only)
 
 ---
 
 ### Agent Interaction (WebSocket)
 
--   **`/ws/agent`**
+-   `/ws/agent`
     -   **Purpose**: Provides a WebSocket endpoint for real-time, bi-directional communication with the backend agent layer. This is used for features like the Agent Chat to trigger workflows, ask for status updates, or interact with conversational AI components.
 
 ---
 
 ### Scheduler & Workflow Management
 
--   **`GET /api/scheduler/tasks`**
+-   `GET /api/scheduler/tasks`
     -   **Purpose**: Lists all scheduled tasks and workflow configurations, including their full definitions (triggers, steps, parameters).
 
--   **`POST /api/scheduler/task`**
+-   `POST /api/scheduler/task`
     -   **Purpose**: Creates a new scheduled task or workflow.
     -   **Request Body (Payload Example)**:
         ```json
@@ -133,11 +133,11 @@ The following user management endpoints typically require administrator privileg
         ```
     -   **Details**: The payload includes `workflow_name`, `trigger_type` (`email_receive`, `cron`), `workflow_config` (a JSON object detailing AI model, token limits, processing steps, initial status for created tasks), and other relevant scheduling or action parameters.
 
--   **`POST /api/scheduler/task/{task_id}/pause`**
+-   `POST /api/scheduler/task/{task_id}/pause`
     -   **Purpose**: Pauses or resumes a specific scheduled task or workflow identified by `task_id`.
     -   **Request Body**: `{ "paused": true/false }`
 
--   **`DELETE /api/scheduler/task/{task_id}`**
+-   `DELETE /api/scheduler/task/{task_id}`
     -   **Purpose**: Deletes a specific scheduled task or workflow identified by `task_id`.
 
 ---
@@ -146,13 +146,13 @@ The following user management endpoints typically require administrator privileg
 
 These endpoints are focused on managing the state of tasks that are actively being processed or awaiting validation, often related to email processing.
 
--   **`GET /api/processing_tasks`**
+-   `GET /api/processing_tasks`
     -   **Purpose**: Retrieves a list of all email processing tasks, including their current status (e.g., 'pending', 'processing', 'needs_validation', 'validated', 'aborted') and details from the linked email (subject, sender, received date).
 
--   **`POST /api/processing_tasks/{task_id}/validate`**
+-   `POST /api/processing_tasks/{task_id}/validate`
     -   **Purpose**: Marks a specific task (identified by `task_id`) as 'validated'. This is typically used after human-in-the-loop verification has confirmed the accuracy of AI-driven processing.
 
--   **`POST /api/processing_tasks/{task_id}/abort`**
+-   `POST /api/processing_tasks/{task_id}/abort`
     -   **Purpose**: Marks a specific task (identified by `task_id`) as 'aborted', indicating it should not proceed further in the workflow, often due to errors or a decision made during validation.
 
 ---

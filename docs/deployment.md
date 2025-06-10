@@ -106,7 +106,7 @@ To enable users to log in with their Google accounts and allow the application t
     *   This makes the keys available to the application inside the container. The application should be configured to read these keys from the specified path.
 6.  **Troubleshooting OAuth Issues**:
     *   **`redirect_uri_mismatch`**: This error means the URI a user is being redirected to after Google login is not listed in the "Authorized redirect URIs" in your Google Cloud Console OAuth client settings. Ensure all possible URIs (dev, prod, different ports) are listed.
-    *   **`Error 400: origin_not_allowed` / `The given origin is not allowed for the given client ID`**: The JavaScript origin from where the login request is initiated is not listed in the "Authorized JavaScript origins". Ensure your frontend's hosting URI is correctly added.
+    *   **`Error 400: origin_not_allowed`** / **`The given origin is not allowed for the given client ID`**: The JavaScript origin from where the login request is initiated is not listed in the "Authorized JavaScript origins". Ensure your frontend\'s hosting URI is correctly added.
     *   Double-check that the client ID used in your application matches the one for which you configured these URIs.
     *   Ensure the `gcp-oauth.keys.json` file content matches the credentials in the Google Cloud Console.
 

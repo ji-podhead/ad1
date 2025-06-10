@@ -14,6 +14,7 @@ Note:
     The `get_authenticated_service` function currently returns the credentials object;
     in a full implementation, it would return an authenticated Gmail API service client.
 """
+
 import os
 import pickle
 import logging
@@ -46,6 +47,7 @@ def generate_auth_url():
             - state (str): A state parameter that should be stored by the calling application
               and verified during the callback phase to prevent CSRF attacks.
     """
+    
     flow = Flow.from_client_secrets_file(
         './auth/gcp-oauth.keys.json',
         scopes=['https://mail.google.com/'],

@@ -30,8 +30,6 @@ This section provides detailed API documentation generated automatically from th
 .. automodule:: gmail_utils.gmail_mcp_tools_wrapper
    :members:
 
-.. automodule:: io.ws_manager
+.. automodule:: ws.ws_manager
    :members:
 
-.. automodule:: io.__init__
-   :members:
