@@ -1,3 +1,11 @@
+"""Agent for summarizing email content and classifying its type using an LLM.
+
+This module provides functionality to analyze email content (subject, body, and
+attachment information) using a large language model (LLM) like Gemini.
+It aims to generate a concise summary of the email and classify its type based on
+a predefined list of possible categories, providing confidence scores for each.
+The results are returned in a structured dictionary format.
+"""
 import asyncio
 from typing import Callable, Any, Dict, Optional, List
 import datetime
@@ -15,30 +23,76 @@ from mcp import ClientSession
 from pydantic import BaseModel # Import BaseModel from pydantic
 from pydantic_ai import Agent # Import Agent from pydantic_ai
 from pydantic_ai.models.gemini import GeminiModel, GeminiModelSettings # Import GeminiModel and Settings
+
 class ClassificationResult(BaseModel):
+    """Represents the classification result for a single document type.
+
+    Attributes:
+        type (str): The classified document type (e.g., "Invoice", "Support Request").
+        score (float): The confidence score for this classification, between 0.0 and 1.0.
+    """
     type: str
     score: float
 
 class EmailClassificationResponse(BaseModel):
+    """Pydantic model for parsing the LLM's JSON response for email classification.
+
+    Attributes:
+        classifications (List[ClassificationResult]): A list of classification results
+            with scores for each possible type.
+        short_description (str): A short summary of the email content.
+    """
     classifications: List[ClassificationResult]
     short_description: str
+
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)  # <--- explizit setzen!
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+logger.setLevel(logging.INFO) # Explicitly set logging level
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") # Should be loaded at application startup ideally
+
 async def get_summary_and_type_from_llm(
     email_subject: str,
     email_body: str,
     llm_model_name: str,
-    possible_types: List[str], # Add possible types parameter
-    system_instruction: Optional[str] = None, # Add configurable system instruction
-    max_tokens: Optional[int] = None, # Add configurable max tokens
-    attachments_info: Optional[List[Dict[str, Any]]] = None # Add attachments info parameter
-) -> Dict[str, Any]: # Return type can be more specific, but Dict[str, Any] is flexible
-    """
-    Analyzes email content using an LLM to determine document type, a short description,
-    and provides scores for a list of possible types using pydantic_ai.
-    Includes attachment information in the prompt if available.
-    Returns a dictionary with "document_type", "short_description", and "classifications".
+    possible_types: List[str],
+    system_instruction: Optional[str] = None,
+    max_tokens: Optional[int] = None,
+    attachments_info: Optional[List[Dict[str, Any]]] = None
+) -> Dict[str, Any]:
+    """Analyzes email content using an LLM for type classification and summarization.
+
+    This function sends a crafted prompt including the email's subject, body, and
+    information about its attachments (if any) to a specified LLM (e.g., Gemini).
+    It instructs the LLM to return a JSON object containing a short description
+    of the email and classification scores for a predefined list of `possible_types`.
+    The function then parses this JSON response and determines the primary document
+    type based on the highest classification score.
+
+    Args:
+        email_subject (str): The subject of the email.
+        email_body (str): The body content of the email.
+        llm_model_name (str): The name of the LiteLLM compatible model to use (e.g., "gemini-1.5-flash").
+        possible_types (List[str]): A list of strings representing the possible document
+            types for classification (e.g., ["Invoice", "Support", "Marketing"]).
+        system_instruction (Optional[str], optional): An optional system instruction
+            to guide the LLM's behavior. Defaults to None.
+        max_tokens (Optional[int], optional): The maximum number of tokens for the
+            LLM's response. Defaults to None (model's default).
+        attachments_info (Optional[List[Dict[str, Any]]], optional): A list of
+            dictionaries, where each dictionary contains information about an
+            attachment (e.g., {'filename': 'doc.pdf', 'mimeType': 'application/pdf'}).
+            Defaults to None.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing:
+            - "document_type" (str): The document type with the highest classification score.
+              Defaults to "Default/Unknown (LLM Error/API Error/JSON Error/No Classifications)"
+              in case of issues.
+            - "short_description" (str): A short summary of the email. Defaults to an
+              error message or "Summary not available" in case of issues.
+            - "classifications" (List[Dict[str, Any]]): A list of dictionaries, each
+              representing a classification result with "type" and "score". Empty if
+              an error occurs.
     """
     logger.info(f"get_summary_and_type_from_llm called with model: {llm_model_name}")
     if not GEMINI_API_KEY:

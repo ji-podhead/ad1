@@ -1,3 +1,15 @@
+"""Utility functions for fetching and parsing Gmail email data.
+
+This module provides functions to:
+- Parse raw text content (presumably from an MCP server response) into a structured
+  list of email header information.
+- Fetch the full details of a specific email message from the Gmail API,
+  including its body and attachments.
+- Download individual attachments from a Gmail message.
+
+It uses `aiohttp` for asynchronous HTTP requests to the Gmail API and
+relies on OAuth2 tokens for authentication.
+"""
 import asyncio
 from typing import Callable, Any, Dict, Optional, List
 import datetime
@@ -15,37 +27,77 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)  # <--- explizit setzen!
 import re
 
-def parse_mcp_email_list(raw_content):
-    # Split by double newlines (jede Mail ist ein Block)
+def parse_mcp_email_list(raw_content: str) -> List[Dict[str, Any]]:
+    """Parses raw text content from an MCP-like service into a list of email dicts.
+
+    The raw content is expected to be a string where each email's information
+    is a block separated by double newlines. Each block contains fields like
+    ID, Subject, From, Date, and Attachments, identified by prefixes.
+
+    Args:
+        raw_content (str): The raw string content containing email information.
+
+    Returns:
+        List[Dict[str, Any]]: A list of dictionaries, where each dictionary
+        represents an email with keys 'id', 'subject', 'sender', 'date',
+        and 'attachments' (a list of attachment filenames).
+        Returns an empty list if raw_content is empty or no blocks are found.
+    """
+    if not raw_content or not raw_content.strip():
+        return []
+
+    # Split by double newlines (each email is a block)
     blocks = [block.strip() for block in raw_content.strip().split('\n\n') if block.strip()]
     emails = []
     for block in blocks:
-        # Extrahiere Felder mit Regex
+        # Extract fields using regex
         id_match = re.search(r'ID: (.+)', block)
         subject_match = re.search(r'Subject: (.+)', block)
         from_match = re.search(r'From: (.+)', block)
         date_match = re.search(r'Date: (.+)', block)
-        # Extrahiere alle Attachments (kann mehrfach vorkommen)
+        # Extract all attachments (can occur multiple times)
         attachment_matches = re.findall(r'Attachment: (.+)', block)
+
         emails.append({
             'id': id_match.group(1) if id_match else None,
             'subject': subject_match.group(1) if subject_match else None,
-            'sender': from_match.group(1) if from_match else None,
+            'sender': from_match.group(1) if from_match else None, # 'sender' is used in other parts of code
             'date': date_match.group(1) if date_match else None,
             'attachments': attachment_matches if attachment_matches else []
-            
         })
     return emails
 
-async def get_email(db_pool: asyncpg.pool.Pool, user_email: str, message_id: str, access_token: str):
-    """
-    Fetches the full email message from Gmail API, extracts attachment IDs, and downloads attachments.
-    Prioritizes text/plain body over text/html.
-    db_pool: asyncpg.pool.Pool - Database connection pool.
-    user_email: string - The email address of the user whose token to use.
-    message_id: string - The ID of the email message.
-    access_token: string - The OAuth2 access token for the user.
-    Returns a dict containing email details and a list of downloaded attachments.
+async def get_email(
+    db_pool: asyncpg.pool.Pool,
+    user_email: str,
+    message_id: str,
+    access_token: str
+) -> Optional[Dict[str, Any]]:
+    """Fetches full email details from Gmail API, including body and attachments.
+
+    This function retrieves a specific email message using the Gmail API. It parses
+    the message payload to extract headers, body content (prioritizing text/plain
+    over text/html), and information about attachments. It then attempts to
+    download each attachment. The processed email details, along with downloaded
+    attachment data, are saved to a local JSON file and returned as a dictionary.
+
+    Args:
+        db_pool (asyncpg.pool.Pool): The database connection pool (currently unused in
+            this specific function but often passed to utility functions).
+        user_email (str): The email address of the user whose Gmail account is being accessed.
+            (Used for logging/context, token implies user).
+        message_id (str): The ID of the Gmail message to fetch.
+        access_token (str): The OAuth2 access token for authenticating with the Gmail API.
+
+    Returns:
+        Optional[Dict[str, Any]]: A dictionary containing detailed information about the
+        email if successful, including 'id', 'threadId', 'snippet', 'payload' (raw),
+        'headers', 'body' (decoded string), and 'attachments' (list of attachment IDs,
+        though the downloaded attachment data is saved to a file and not directly part of
+        this list in the final returned dict from this specific implementation path).
+        The function also saves this dictionary to a local JSON file named
+        `./backend/attachments/{message_id}_{message_id}.json`.
+        Returns None if fetching or processing fails.
     """
     logger = logging.getLogger(__name__)
     try:
