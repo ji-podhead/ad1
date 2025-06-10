@@ -16,16 +16,17 @@ from dotenv import load_dotenv
 import os
 import logging
 import asyncpg
-from agent_ws import agent_websocket
 from fastapi import HTTPException
 import uuid
 import datetime
 from fastapi.responses import JSONResponse, Response # Import Response
 import base64 # Import base64
 from google_auth_oauthlib.flow import Flow
-from backend.agent.agent_scheduler import AgentScheduler, check_new_emails # Import check_new_emails
-from backend.gmail.gmail_auth import generate_auth_url # Keep generate_auth_url
-from backend.gmail.gmail_mcp_tools_wrapper import (
+from agent.agent_scheduler import AgentScheduler
+from agent.agent_ws import agent_websocket
+from agent.email_checker import check_new_emails
+from gmail_utils.gmail_auth import generate_auth_url # Keep generate_auth_url
+from gmail_utils.gmail_mcp_tools_wrapper import (
     list_emails, get_email, label_email, send_email, draft_email, read_email, search_emails, modify_email, delete_email, list_email_labels, create_label, update_label, delete_label, get_or_create_label, batch_modify_emails, batch_delete_emails
 )
 logging.basicConfig(level=logging.ERROR)

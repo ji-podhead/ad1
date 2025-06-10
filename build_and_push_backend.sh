@@ -1,6 +1,6 @@
 #!/bin/bash
-# build_and_push_backend.sh
-# Usage: ./build_and_push_backend.sh <tagname>
+# build_and_push_sh
+# Usage: ./build_and_push_sh <tagname>
 
 set -e
 

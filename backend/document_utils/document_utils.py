@@ -1,14 +1,26 @@
-      
+# agent_scheduler.py
+"""
+AgentScheduler: Task scheduling for the dashboard (Email, Cronjob, AgentEvent)
+- Email: Schedule sending an email at a specific time
+- Cronjob: Run any function periodically
+- AgentEvent: Agent checks a semantic condition (e.g. in emails/documents) and triggers an action
+"""
+import asyncio
+from typing import Callable, Any, Dict, Optional, List
+import datetime
+import json
+import os
+import asyncpg # Assuming asyncpg is used for database connection
+import logging # Added for explicit logging
+import base64
+import aiohttp
 async def process_document_step(task_id: int, email_id: int, db_conn_for_audit: Any, workflow_config: Dict[str, Any]):
     """
     Processes a document related to an email by calling the document processing microservice.
     db_conn_for_audit here is expected to be an acquired connection from asyncpg.pool.Pool for audit logging.
     """
-    import base64
-    import aiohttp
-    import os
-    import json
-    import logging
+
+    
     pdf_bytes: Optional[bytes] = None
     email_subject_for_filename = f"Email_ID_{email_id}_Task_{task_id}"
     logger = logging.getLogger(__name__)

@@ -153,7 +153,7 @@ const Settings: React.FC = () => {
       if (data.auth_url) {
         window.location.href = data.auth_url; // Redirect user to Google auth URL
       } else {
-        throw new Error('Auth URL not received from backend.');
+        throw new Error('Auth URL not received from ');
       }
     } catch (err: any) {
       console.error("Gmail connect error:", err);
@@ -174,7 +174,7 @@ const Settings: React.FC = () => {
         // Redirect user to the MCP server login page
         window.location.href = data.auth_url;
       } else {
-        throw new Error('MCP auth URL not received from backend.');
+        throw new Error('MCP auth URL not received from ');
       }
     } catch (error: any) {
       console.error("MCP login initiation error:", error);

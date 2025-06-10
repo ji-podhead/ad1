@@ -9,7 +9,7 @@ from google.genai import types
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 from litellm import experimental_mcp_client
-from ws_manager import ConnectionManager
+from io.ws_manager import ConnectionManager
 from google import genai
 from google.genai.types import GenerateContentConfig, HttpOptions
 from google.adk.agents import Agent
@@ -19,6 +19,7 @@ from pydantic import BaseModel
 
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.ERROR)
+
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp-server/sse/")

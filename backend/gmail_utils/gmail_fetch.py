@@ -1,4 +1,3 @@
-
 import asyncio
 from typing import Callable, Any, Dict, Optional, List
 import datetime
@@ -8,13 +7,35 @@ import asyncpg # Assuming asyncpg is used for database connection
 # Remove direct google.genai import if pydantic_ai handles it internally, or keep if needed for types
 # from google import genai
 # from google.genai.types import GenerateContentConfig, HttpOptions
-from backend.gmail_mcp_tools_wrapper import list_emails # Import list_emails
+from .gmail_mcp_tools_wrapper import list_emails # Import list_emails
 import aiohttp
 import logging # Added for explicit logging
 import base64 # For dummy PDF
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)  # <--- explizit setzen!
+import re
 
+def parse_mcp_email_list(raw_content):
+    # Split by double newlines (jede Mail ist ein Block)
+    blocks = [block.strip() for block in raw_content.strip().split('\n\n') if block.strip()]
+    emails = []
+    for block in blocks:
+        # Extrahiere Felder mit Regex
+        id_match = re.search(r'ID: (.+)', block)
+        subject_match = re.search(r'Subject: (.+)', block)
+        from_match = re.search(r'From: (.+)', block)
+        date_match = re.search(r'Date: (.+)', block)
+        # Extrahiere alle Attachments (kann mehrfach vorkommen)
+        attachment_matches = re.findall(r'Attachment: (.+)', block)
+        emails.append({
+            'id': id_match.group(1) if id_match else None,
+            'subject': subject_match.group(1) if subject_match else None,
+            'sender': from_match.group(1) if from_match else None,
+            'date': date_match.group(1) if date_match else None,
+            'attachments': attachment_matches if attachment_matches else []
+            
+        })
+    return emails
 
 async def get_email(db_pool: asyncpg.pool.Pool, user_email: str, message_id: str, access_token: str):
     """

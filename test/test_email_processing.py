@@ -13,10 +13,10 @@ import asyncpg # For type hinting and potential exceptions
 # If not, we might need to adjust sys.path or use a conftest.py for proper app loading.
 
 # For testing agent_scheduler.check_new_emails
-from backend.agent_scheduler import check_new_emails
+from agent_scheduler import check_new_emails
 
 # Placeholder for app import, will be refined if direct import fails
-# from backend.backend_main import app # This is the ideal import
+# from backend_main import app # This is the ideal import
 
 # --- Fixtures ---
 
@@ -43,7 +43,7 @@ def test_app_with_mock_db(mock_db_pool):
     This requires the 'app' to be importable and its state to be patchable.
     """
     try:
-        from backend.backend_main import app
+        from backend_main import app
         # This is a critical part: Replacing the actual DB pool with a mock
         # This should happen before any endpoint is hit by the TestClient
         app.state.db = mock_db_pool
@@ -53,7 +53,7 @@ def test_app_with_mock_db(mock_db_pool):
         # For instance, if app.state.db was set by a startup event that we don't want to re-run,
         # this direct patching is simpler for unit/functional tests of endpoints.
     except ImportError:
-        pytest.skip("Skipping API tests because backend.backend_main.app could not be imported. Check PYTHONPATH or test setup.")
+        pytest.skip("Skipping API tests because backend_main.app could not be imported. Check PYTHONPATH or test setup.")
     except AttributeError:
         pytest.skip("Skipping API tests because app.state.db could not be patched. App structure might have changed.")
 
@@ -78,7 +78,7 @@ def create_mock_email_data(
 # --- Tests for check_new_emails ---
 
 @pytest.mark.asyncio
-@patch('backend.tools_wrapper.list_emails', new_callable=AsyncMock)
+@patch('tools_wrapper.list_emails', new_callable=AsyncMock)
 async def test_check_new_emails_new_unique_email(mock_list_emails, mock_db_pool):
     """Test processing a single new, unique email."""
     mock_email = create_mock_email_data(msg_id="unique1")
@@ -149,7 +149,7 @@ async def test_check_new_emails_new_unique_email(mock_list_emails, mock_db_pool)
 
 
 @pytest.mark.asyncio
-@patch('backend.tools_wrapper.list_emails', new_callable=AsyncMock)
+@patch('tools_wrapper.list_emails', new_callable=AsyncMock)
 async def test_check_new_emails_duplicate_email(mock_list_emails, mock_db_pool):
     """Test processing a duplicate email."""
     mock_email = create_mock_email_data(msg_id="duplicate1")
@@ -173,7 +173,7 @@ async def test_check_new_emails_duplicate_email(mock_list_emails, mock_db_pool):
 
 
 @pytest.mark.asyncio
-@patch('backend.tools_wrapper.list_emails', new_callable=AsyncMock)
+@patch('tools_wrapper.list_emails', new_callable=AsyncMock)
 async def test_check_new_emails_multiple_emails_mixed(mock_list_emails, mock_db_pool):
     """Test with a mix of new and duplicate emails."""
     email1_new = create_mock_email_data(msg_id="new_mix1", subject="New Email 1")
@@ -213,7 +213,7 @@ async def test_check_new_emails_multiple_emails_mixed(mock_list_emails, mock_db_
 
 
 @pytest.mark.asyncio
-@patch('backend.tools_wrapper.list_emails', new_callable=AsyncMock)
+@patch('tools_wrapper.list_emails', new_callable=AsyncMock)
 async def test_check_new_emails_empty_list(mock_list_emails, mock_db_pool):
     """Test when list_emails returns an empty list."""
     mock_list_emails.return_value = []
