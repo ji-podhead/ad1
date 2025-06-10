@@ -19,7 +19,7 @@ release = '0.1.0'
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../backend'))
+sys.path.insert(0, os.path.abspath('../..')) # Changed to project root
 
 
 # -- General configuration ---------------------------------------------------
