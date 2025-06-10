@@ -1,0 +1,210 @@
+{
+    "id": "1974f7e2f1b46d3f",
+    "threadId": "1974f7e2f1b46d3f",
+    "snippet": "New reason preventing your pages from being indexed Search Console has identified that some pages on your site are not being indexed due to the following new reason: Page with redirect If this reason",
+    "payload": {
+        "partId": "",
+        "mimeType": "multipart/alternative",
+        "filename": "",
+        "headers": [
+            {
+                "name": "Delivered-To",
+                "value": "leo@orchestra-nexus.com"
+            },
+            {
+                "name": "Received",
+                "value": "by 2002:a17:504:d401:b0:1cc1:39fb:b206 with SMTP id oc1csp844106njb;        Sun, 8 Jun 2025 05:22:39 -0700 (PDT)"
+            },
+            {
+                "name": "X-Received",
+                "value": "by 2002:a05:6e02:2504:b0:3dd:8136:a687 with SMTP id e9e14a558f8ab-3ddce64a40cmr89027195ab.8.1749385359269;        Sun, 08 Jun 2025 05:22:39 -0700 (PDT)"
+            },
+            {
+                "name": "ARC-Seal",
+                "value": "i=1; a=rsa-sha256; t=1749385359; cv=none;        d=google.com; s=arc-20240605;        b=CYgNAhqeyex8/j5RAF053hBd1NWQq3NVauSW1qPG39klAdO0OQ8EuTYYe80/bKSwdS         l4LY7aaFFzF/swgKT6R/byF7AGJhuosVwlTCC+g7qrsJEFpNNYxR6emFMwmsMflsgEu7         PgnKnK8SPhB792y/PCi+eIX59leTaQPKRZi7JGqNzTP9840s9BWoFYqHigpPA9ntSwY0         2EAZtjUP+/tLunJ2YoIFChaRUljfsx419Wx55wJ0t7ULRCA8fueuWYCJlrvidDZTtxJA         8R669m3NsMdFhFWyrmb5jHqRFI569u3Zg/yJPEHjdiAh2w1GfX3ST6Z6WtkLFMbu+IcF         hwQA=="
+            },
+            {
+                "name": "ARC-Message-Signature",
+                "value": "i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;        h=to:from:subject:message-id:list-id:feedback-id:precedence         :list-unsubscribe:reply-to:date:mime-version:dkim-signature;        bh=aEtpJEpJ8bW6g788kIKWLymCamnoYCmT1VOfcyNo8sw=;        fh=UkKDhraCcxF94YzCsSEvfWdwvTWBXlzOJKr7JouZSwY=;        b=ljcCjSpoPZnwWUgp+nJVsqDNCznIQ3SVHoUrhPRVgn2hvetXOVJqbhd5qCB7YQINmn         Xew86ldm1gDU3LmTqMqmzZtbJHyWpbClVUtjD1zdHThrznpya6ZhaxOAIaen78duffs/         SMegskj2I86bNOEuBha/Iyqy9B0BCxgYy3gZ0Nkb8fLQR5ncmT0EDqEJ/R82Ij960RN5         t21yBTYt2ni+LnU82mC3J4otTkCUuSxKS4QG+jrjjAKJdszab35TRjbdroRqU0ZltbvC         O9XnWoOHPXl2GxpTR//oy4JmjogUhg55pJFmr23Lk9WyBMfy8RNiLLOAkkY4WtRG9n8v         n55A==;        dara=google.com"
+            },
+            {
+                "name": "ARC-Authentication-Results",
+                "value": "i=1; mx.google.com;       dkim=pass header.i=@google.com header.s=20230601 header.b=l6n0PTUX;       spf=pass (google.com: domain of 3jobfaaoka-0hr-cdgteanvddvat.rdbatddgrwthigp-ctmjh.rdb@scoutcamp.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3joBFaAoKA-0hR-cdgTeanVddVaT.RdbaTddgRWThigP-cTmjh.Rdb@scoutcamp.bounces.google.com;       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com;       dara=pass header.i=@orchestra-nexus.com"
+            },
+            {
+                "name": "Return-Path",
+                "value": "<3joBFaAoKA-0hR-cdgTeanVddVaT.RdbaTddgRWThigP-cTmjh.Rdb@scoutcamp.bounces.google.com>"
+            },
+            {
+                "name": "Received",
+                "value": "from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])        by mx.google.com with SMTPS id e9e14a558f8ab-3ddcf05eba3sor10878205ab.0.2025.06.08.05.22.39        for <leo@orchestra-nexus.com>        (Google Transport Security);        Sun, 08 Jun 2025 05:22:39 -0700 (PDT)"
+            },
+            {
+                "name": "Received-SPF",
+                "value": "pass (google.com: domain of 3jobfaaoka-0hr-cdgteanvddvat.rdbatddgrwthigp-ctmjh.rdb@scoutcamp.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;"
+            },
+            {
+                "name": "Authentication-Results",
+                "value": "mx.google.com;       dkim=pass header.i=@google.com header.s=20230601 header.b=l6n0PTUX;       spf=pass (google.com: domain of 3jobfaaoka-0hr-cdgteanvddvat.rdbatddgrwthigp-ctmjh.rdb@scoutcamp.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3joBFaAoKA-0hR-cdgTeanVddVaT.RdbaTddgRWThigP-cTmjh.Rdb@scoutcamp.bounces.google.com;       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com;       dara=pass header.i=@orchestra-nexus.com"
+            },
+            {
+                "name": "DKIM-Signature",
+                "value": "v=1; a=rsa-sha256; c=relaxed/relaxed;        d=google.com; s=20230601; t=1749385359; x=1749990159; darn=orchestra-nexus.com;        h=to:from:subject:message-id:list-id:feedback-id:precedence         :list-unsubscribe:reply-to:date:mime-version:from:to:cc:subject:date         :message-id:reply-to;        bh=aEtpJEpJ8bW6g788kIKWLymCamnoYCmT1VOfcyNo8sw=;        b=l6n0PTUXN5IJW4XQdEB7iDr/KRsosMmHL1YddCxjsKWBli949iQmXwTSLNbHC1qdeM         MiHVPw9RzgG2Kps8JmwTHOwSEZlgyOVwZG1nRaj8wluSdm/awOP4mQubUfNbAMoxwEBc         PzVU15c5Azo34RQSUA/46P5QgcbOBayS8/FTnHTnxqoXbsIiDb6jDgEV0YzqSw1zx4gJ         JZ5KjvKHlZDCPfJLIszsHdjBPO0OL7rBz1uI+Q0lrA6rwoxbgydKVmYe1zHr2HXu7wdA         nWx4p7ZQY6bwmltB2rEW2qvnYeEdSlaJLizE8131spZLkX/6oAfkYis6h+dz8epOgQ73         hISg=="
+            },
+            {
+                "name": "X-Google-DKIM-Signature",
+                "value": "v=1; a=rsa-sha256; c=relaxed/relaxed;        d=1e100.net; s=20230601; t=1749385359; x=1749990159;        h=to:from:subject:message-id:list-id:feedback-id:precedence         :list-unsubscribe:reply-to:date:mime-version:x-gm-message-state:from         :to:cc:subject:date:message-id:reply-to;        bh=aEtpJEpJ8bW6g788kIKWLymCamnoYCmT1VOfcyNo8sw=;        b=uwIRZ59QOXWYd2Ax+o58riQf5N1uoaPhMkSJCRccxbdWCFPtf4YtyvBhjDwLqkiXGR         sD0a5yIIhYRJD0mD0u5azyZkVKx0XWu0ER/3HaXITiXRHRm22E6CWzdWy7XXKbsWVNEz         c8UvkmtgF0zNpMs5DMDT57oj5rY2jZoRzyjh2o/nsj1Iq0ehIY4/Wt7Qi1KJI8zNcBdr         Q/ytw95v3POMmRg84ELEnQWZyMLtwYHz7N7Iz1FXslZZkY7MzjbMb5JRBBk2ljoyGyzw         UDcStW867NDVP0RsIjXIeJyyZG5vU0oYyEfm1TKjcshafp8RNuWV5igaFTQSPhDvEGWo         256A=="
+            },
+            {
+                "name": "X-Gm-Message-State",
+                "value": "AOJu0YwLIxEF3+d45ZOCto4U4Vm9VMayoi57Bw1bKL4gDyAtjLO7M4UK E3oRflPGach/ux2jUNJUIuNwQel4eeSmYTpgMdVHWLOjMb+HfQEEXf7iwPXD"
+            },
+            {
+                "name": "X-Google-Smtp-Source",
+                "value": "AGHT+IGTc0zoOpceQGYtHieM9Bz1us37Vn9gOy3Al5hRRaGBCg7cJ76AV9PP/pmeu4YRAMHLkP9pqSc="
+            },
+            {
+                "name": "MIME-Version",
+                "value": "1.0"
+            },
+            {
+                "name": "X-Received",
+                "value": "by 2002:a05:6e02:17c6:b0:3dd:c9e4:d46a with SMTP id e9e14a558f8ab-3ddce634f69mr93887015ab.7.1749385358878; Sun, 08 Jun 2025 05:22:38 -0700 (PDT)"
+            },
+            {
+                "name": "Date",
+                "value": "Sun, 08 Jun 2025 05:22:38 -0700"
+            },
+            {
+                "name": "Reply-To",
+                "value": "Google Search Console Team <sc-noreply@google.com>"
+            },
+            {
+                "name": "X-Google-Id",
+                "value": "4154303"
+            },
+            {
+                "name": "List-Unsubscribe",
+                "value": "<https://c.gle/ANiao5qYaPn6Rt7bvw3qpDDLvDS5Hd8rgoEb8uU0HIs1cZlI4NR4YzV8MFZjwKIFpMyfVV__PcnmAgsZYqSF-Q6G7mBBjFV4_CdzE5EKuuMAQz3h2nYbmYD73jI8VOilXYoJg_SN-Ib4TOqJp8ffSYRUMWJ4vFA7c4qCpGpRqIpJG7g7gUI_AQFXi9kRi2HPNDa1nZ-6d77dtb1WvwtFccDSxYQs1IXv6RytzielvQIlNzBhwEYqD5GVJRditDiiw-7XNHD59CcuKQz-T2xbcwEs7TAzBkIqLUMI6YIvFXEHqNmrKnb05oxAg6RuXbcVhcYPV6trU2LZ1D-QL-jZM_xtgY6P-HFtdpGIp3I4Ra9hqXzFJpswW9O3ruD5e0P_cWQL6mNenzedfF_SLnyD>"
+            },
+            {
+                "name": "Precedence",
+                "value": "bulk"
+            },
+            {
+                "name": "Feedback-ID",
+                "value": "P-38-0:C20237597:M110624660-en-GB:gamma"
+            },
+            {
+                "name": "List-Id",
+                "value": "<6e180ccbadfa950a9b941acac5723e4f395dc930.google.com>"
+            },
+            {
+                "name": "X-Notifications",
+                "value": "a17c8f00d76a0000"
+            },
+            {
+                "name": "X-Notifications-Bounce-Info",
+                "value": "AWoTSIFn7XDC2fQb7tlv8SQfYiShVrXID53C4wz9h68czzLAsc02KKB4Ld8Jra_zsXTY0cmZBaBuLlGtcJYPVYn6Rh-NGhDWKzhTVaWSRmDo4Ao_OZYcQnWpg1NgKdFN4GmKIa-I_wXV1b4PDqJ2_rLDph6gyF7LZOiUkrHuO9qF1d_kF6Sr8kWNRNtPrtPZJPIwqXp0stG641OHo5TeyQO7vCUHIlq5YFjoGvMX1WGfZdh2k9lhQNazwzCzFyjiKwJjtF-yD4sy4MC3zDFNzmlpVLgxJkBgWbJn-4MkIL93HK-KD47qiONVQWhTzhcfQwnzCkD-XOoDdtoVN1P3FQayCJkRl_1n_UbS-tzNIhBEsv7Mf49TZvCLXiDD5gtkEj3am68S6yZSmTlBmoM30sw69XUTIhehHkubYeQUjpU-BCa_w4anBRFcRPu2R0Hfhodib5-vlw7Vg_uXTs1xSphS4MlemklwLxE-emBPyGMf7GWyBNuEpdp1YAm_tG73jkshL3wqlhN9QKdVbaaAyFZC61BIyEFlazMfs9ijXoX7Uev6yR7WTev4JxWlnrg9OLQWDo05tCwZ6qmaLD8dsxzgJdF4wESLKTUNjAwNjA0MDQxNTM1NTk2OTMzMg"
+            },
+            {
+                "name": "Message-ID",
+                "value": "<9664dcd696e89061ec361735a7e374fe216ff0d0-20237597-111238677@google.com>"
+            },
+            {
+                "name": "Subject",
+                "value": "New reasons prevent pages from being indexed on site orchestra-nexus.com"
+            },
+            {
+                "name": "From",
+                "value": "Google Search Console Team <sc-noreply@google.com>"
+            },
+            {
+                "name": "To",
+                "value": "leo@orchestra-nexus.com"
+            },
+            {
+                "name": "Content-Type",
+                "value": "multipart/alternative; boundary=\"000000000000e42a1a06370e84ef\""
+            }
+        ],
+        "body": {
+            "size": 0
+        },
+        "parts": [
+            {
+                "partId": "0",
+                "mimeType": "text/plain",
+                "filename": "",
+                "headers": [
+                    {
+                        "name": "Content-Type",
+                        "value": "text/plain; charset=\"UTF-8\"; format=flowed; delsp=yes"
+                    },
+                    {
+                        "name": "Content-Transfer-Encoding",
+                        "value": "base64"
+                    }
+                ],
+                "body": {
+                    "size": 1951,
+                    "data": "DQoNCg0KDQoNCg0KRnJvbTogR29vZ2xlIFNlYXJjaCBDb25zb2xlDQoNClN1YmplY3Q6DQpOZXcgcmVhc29uIHByZXZlbnRpbmcgeW91ciBwYWdlcyBmcm9tIGJlaW5nIGluZGV4ZWQNCg0KDQoNClNlYXJjaCBDb25zb2xlIGhhcyBpZGVudGlmaWVkIHRoYXQgc29tZSBwYWdlcyBvbiB5b3VyIHNpdGUgYXJlIG5vdCBiZWluZyAgDQppbmRleGVkIGR1ZSB0byB0aGUgZm9sbG93aW5nIG5ldyByZWFzb246DQoqIFBhZ2Ugd2l0aCByZWRpcmVjdA0KDQpJZiB0aGlzIHJlYXNvbiBpcyBub3QgaW50ZW50aW9uYWwsIHdlIHJlY29tbWVuZCB0aGF0IHlvdSBmaXggaXQgaW4gb3JkZXIgdG8gIA0KZ2V0IGFmZmVjdGVkIHBhZ2VzIGluZGV4ZWQgYW5kIGFwcGVhcmluZyBvbiBHb29nbGUuDQoNCioqT3BlbiBpbmRleGluZyByZXBvcnQqKjogIA0KaHR0cHM6Ly9jLmdsZS9BTmlhbzVxN3VuSXBpTklwdmdMcGlBYWNPUl9UZFNxQ1kxRlAwTVpjeFNId3lxOFpPQWlsdk9KRjV3REFWdGE2V2JxSS1sOGdRcF85M3VaZXh5SGVlNGFWUTB0YTllUnNrbEZxa2I2ellMYVY0ZXlLZUl2WFZHckdQSENQN2g2TEMzeWJzMmVTMGg2eXBtMmd3VzJNYzF2QWN1Um5jUmljSTlDckpWMW5kY0g3dUM3X2RlT2NZc0l6VFpaT2gxODFXVmJ0UjNyNFg4NjFPTzVNbzBtaDVFMXkwTERzSUJTLUg1c05nT0E1R20xZW1NR2pia1VFcmcyekhDa1ZYOWhuQ2ZBSHVfVGFvazJmeHExV0pUSVczeGpDei1HSC1kQk8yWWJfVlR1NU9oUTRsTFFQakxxcE9FRmhlT1czWGJCLVNDTGI3OVlaVDNtUWVpZkJMY1hLTGJaTXYxUHdIUjR5Y2VScmRnDQoNCg0KLS0tLS0tLS0tLQ0KR29vZ2xlIExMQywgMTYwMCBBbXBoaXRoZWF0cmUgUGFya3dheSBNb3VudGFpbiBWaWV3LCBDQSA5NDA0Mw0KWW91J3ZlIHJlY2VpdmVkIHRoaXMgdHJhbnNhY3Rpb25hbCBlbWFpbCBiZWNhdXNlIHlvdXIgc2l0ZSBpcyBsaXN0ZWQgaW4gIA0KR29vZ2xlIFNlYXJjaCBDb25zb2xlLg0KVG8gb3B0IG91dCBvZiB0aGlzIG1lc3NhZ2UgaW4gdGhlIGZ1dHVyZSwgcGxlYXNlIHZpc2l0OiAgDQo8aHR0cHM6Ly9jLmdsZS9BTmlhbzVydHBibXh6ZWZCemVvRDMxeVJMRmtucE1HTTlaTi1ndndkaGNtTzZQbUtidVJzaVpFQ1BJdVNqZWJJMFFXRGJaVFA4MVNyejdZemZpU2xKVXpPQzd6b0lQb1lNSzI2MXpsMkFWYVZXdGZpU3RfMkprQjBGdlVUazJNbnd4WGhBUHdjeExEYnJpXy1YdUFnM0RNRlFYNUJDaXVOMzl4QnJsdWhmbDV6MUd5WTh6ano4RFBySkdHMzZUaHlfM21FLXQ3SjVJNDQ1WmFzTkVwRGpiMmZwdGdQVXB2cXZkbUlaUnJMTkpnd1NXQXl4Q1pHc0IxcS1FcHlUOWJzWGc2M0kwTUxwSndvLVhRU2VBTi0tWk5xV1Zsd1ZfaDZPMXVTaDQzOGgwYkotTlo2RGRsZHZKZUNnM0J3c1FNV0txVVNHdlpoUFRZcTF0ZTJaTU9iQnh6RjhUMmM0NjVKNmVyTXB5RjBPbDFqS3Q3YjloUFBCTXJiTklkOS11SkNrNHNJUEhXcExoOFFBdXc2emc-DQpBZGQgcGFydG5lcnMgd2hvIHNob3VsZCByZWNlaXZlIG1lc3NhZ2VzIGZvciB0aGlzIFNlYXJjaCBDb25zb2xlIGFjY291bnQ6ICANCmh0dHBzOi8vYy5nbGUvQU5pYW81b2pJaUNfbHJVckVnX0tNVzBQQS05d2ExbTdURHR5bUwyMWxNLXlTZmJLdlI2LVNmMng5YTJURzQwWG00TTJFM09ZbklzeXVMY1JwMzRxSmhiNERzUXZfS0JGSGhYZXVTVmEzX2l6azN2WUZMMi1BdTBfTlFqU2E4emtidEFrbVBiTHVoQXdGSE1SWTA0YkVrR25FdXFYTlhoQ0JGcWtDdnBMOFA1ZmpRWUI0d3dSUXRPbWlLWVk3c2E4dm5SSk40eE5oMTZiX3o3YzVqa1U2cHZ5eDhUSEo2VFl2enVvd2NJQnJYOTc1UXVaM2ZVSW44aEl5Q1g1aC1MZVk0LWN1Uzhac3J5Y2EwaElKYW1Ua3RaR0dDSVdvYTlrdFhnNkhINzBFRnVuUk9Lc0E4dWlNNnk2NWZNYTR4Zkx3S2JGSGpBNUU5U3F1TndaRmtOakh2WjFnSzJzcmZ5NG5vb3BxODljVlZ2N3NKb29Vd3NTeTJMdlF3DQoNCk1lc3NhZ2UgdHlwZTogW1dOQy0yMDIzNzU5N10NCg=="
+                }
+            },
+            {
+                "partId": "1",
+                "mimeType": "text/html",
+                "filename": "",
+                "headers": [
+                    {
+                        "name": "Content-Type",
+                        "value": "text/html; charset=\"UTF-8\""
+                    },
+                    {
+                        "name": "Content-Transfer-Encoding",
+                        "value": "quoted-printable"
+                    }
+                ],
+                "body": {
+                    "size": 5533,
+                    "data": "DQoNCg0KDQoNCg0KPCFET0NUWVBFIGh0bWwgUFVCTElDICItLy9XM0MvL0RURCBIVE1MIDQuMDEgVHJhbnNpdGlvbmFsLy9FTiI-DQo8aHRtbCBsYW5nPWVuLUdCPg0KPGhlYWQ-DQogIDxtZXRhIGh0dHAtZXF1aXY9Q29udGVudC1UeXBlIGNvbnRlbnQ9InRleHQvaHRtbDsgY2hhcnNldD11dGYtOCI-DQogIDxsaW5rIGhyZWY9aHR0cHM6Ly9mb250cy5nb29nbGVhcGlzLmNvbS9jc3MyP2ZhbWlseT1Hb29nbGUrU2FucyZmYW1pbHk9R29vZ2xlK1NhbnMrVGV4dDp3Z2h0QDQwMDs1MDAmZmFtaWx5PUdvb2dsZStTYW5zK01vbm8gcmVsPXN0eWxlc2hlZXQgdHlwZT10ZXh0L2Nzcz4NCiAgPHRpdGxlPk5ldyByZWFzb24gcHJldmVudGluZyB5b3VyIHBhZ2VzIGZyb20gYmVpbmcgaW5kZXhlZDwvdGl0bGU-DQo8L2hlYWQ-DQo8Ym9keSBzdHlsZT0iZm9udDogaW5oZXJpdDsNCiAgICAgICAgICAgICBtYXJnaW46MDsNCiAgICAgICAgICAgICBwYWRkaW5nOjA7DQogICAgICAgICAgICAgYmFja2dyb3VuZC1jb2xvcjojZmZmOw0KICAgICAgICAgICAgIGZvbnQtZmFtaWx5OiBHb29nbGUgU2FucyBUZXh0LCBHb29nbGUgU2FucywgUm9ib3RvLCBBcmlhbCwgc2Fucy1zZXJpZjsNCiAgICAgICAgICAgICBmb250LXNpemU6MTRweDsNCiAgICAgICAgICAgICBmb250LXN0eWxlOm5vcm1hbDsNCiAgICAgICAgICAgICBmb250LXdlaWdodDo0MDA7DQogICAgICAgICAgICAgbGluZS1oZWlnaHQ6MS41Ow0KICAgICAgICAgICAgIGxldHRlci1zcGFjaW5nOjBweDsNCiAgICAgICAgICAgICBjb2xvcjojMWYxZjFmOw0KICAgICAgICAgICAgIHdvcmQtYnJlYWs6YnJlYWstd29yZDsiIGRpcj1sdHI-DQogIDxkaXYgZGlyPWx0ciBzdHlsZT0ibWF4LXdpZHRoOjYwMHB4Ow0KICAgICAgICAgICAgICBwYWRkaW5nOjAgMTZweDsNCiAgICAgICAgICAgICAgbWFyZ2luOjAgYXV0bzsiPg0KICAgIDxkaXYgc3R5bGU9InBhZGRpbmc6MzJweCAxNnB4IDE2cHg7IGhlaWdodDoyOHB4OyI-DQogICAgICA8aW1nIHNyYz1odHRwczovL3NzbC5nc3RhdGljLmNvbS9zZWFyY2gtY29uc29sZS9tZXNzYWdpbmcvc2NfbG9nb19sb2NrdXBfY29sb3JfMjRkcC5wbmcgc3R5bGU9ImhlaWdodDoyNXB4OyBwYWRkaW5nOiAycHggMCAxcHg7Ij4NCiAgICA8L2Rpdj4gDQogICAgPGRpdiBzdHlsZT0icGFkZGluZzoyNHB4IDI0cHggNDBweCAyNHB4Ow0KICAgICAgICAgICAgICAgIGJvcmRlci1yYWRpdXM6IDE2cHg7DQogICAgICAgICAgICAgICAgYm9yZGVyOiAxcHggc29saWQgI0M0QzdDNTsiPg0KICAgICAgPGRpdiBzdHlsZT0ibWF4LXdpZHRoOjUyMHB4O21hcmdpbjogMCBhdXRvOyI-DQogDQogIDxkaXYgc3R5bGU9InBhZGRpbmc6MTZweCAwOyBtYXgtd2lkdGg6NTIwcHg7Ij4NCiAgICA8c3BhbiBzdHlsZT0iZm9udC1zaXplOjI0cHg7Zm9udC13ZWlnaHQ6NDAwO2xpbmUtaGVpZ2h0OjMycHg7Zm9udC1mYW1pbHk6J0dvb2dsZSBTYW5zJzsiPjxhIHN0eWxlPWNvbG9yOmluaGVyaXQ7d29yZC1icmVhazpicmVhay13b3JkO3RleHQtZGVjb3JhdGlvbi1saW5lOm5vbmU7Pk5ldyByZWFzb24gcHJldmVudGluZyB5b3VyIHBhZ2VzIGZyb20gYmVpbmcgaW5kZXhlZDwvYT48L3NwYW4-DQogIDwvZGl2Pg0KICAgICAgICA8ZGl2IGlkPXdteF93bmNfbWVzc2FnZV9tYWluX2NvbnRlbnQgU0NSRUVNIGRpcj1sdHIgc3R5bGU9Ig0KICAgICAgICAgICAgIGJhY2tncm91bmQtY29sb3I6I2ZmZjsNCiAgICAgICAgICAgICBjb2xvcjojMWYxZjFmOw0KICAgICAgICAgICAgIGZvbnQtZmFtaWx5OiBHb29nbGUgU2FucyBUZXh0LCBHb29nbGUgU2FucywgUm9ib3RvLCBBcmlhbCwgc2Fucy1zZXJpZjsNCiAgICAgICAgICAgICBmb250LXNpemU6MTRweDsNCiAgICAgICAgICAgICBmb250LXN0eWxlOm5vcm1hbDsNCiAgICAgICAgICAgICBmb250LXdlaWdodDo0MDA7Ij4NCiAgPGRpdiBzdHlsZT1wYWRkaW5nLWJvdHRvbToxNnB4Oz4NCiAgPGRpdiBzdHlsZT0icGFkZGluZzo0cHggMHB4OyI-DQogICAgPHAgc3R5bGU9bWFyZ2luOjBweDs-U2VhcmNoIENvbnNvbGUgaGFzIGlkZW50aWZpZWQgdGhhdCBzb21lIHBhZ2VzIG9uIHlvdXIgc2l0ZSBhcmUgbm90IGJlaW5nIGluZGV4ZWQgZHVlIHRvIHRoZSBmb2xsb3dpbmcgbmV3IHJlYXNvbjo8L3A-DQogIDwvZGl2Pg0KDQogIDxkaXYgc3R5bGU9cGFkZGluZy1ib3R0b206OHB4O3BhZGRpbmctdG9wOjhweDs-DQogICAgPGRpdiBzdHlsZT0icGFkZGluZzoyMHB4IDE2cHggMjBweCAxNnB4O2JvcmRlci1yYWRpdXM6OHB4OyBiYWNrZ3JvdW5kOiNGMEY0Rjk7Ij4NCiAgICAgIDxkaXYgc3R5bGU9InBhZGRpbmc6NHB4IDBweDsiPg0KICAgICAgICA8cCBkaXI9bHRyIHN0eWxlPSJjb2xvcjojMUYxRjFGO2ZvbnQtc2l6ZToxNHB4O2ZvbnQtc3R5bGU6bm9ybWFsO2ZvbnQtd2VpZ2h0OjQwMDtsaW5lLWhlaWdodDoyMXB4OyBtYXJnaW46MHB4OyI-DQogICAgICAgICAgPGEgc3R5bGU9Y29sb3I6aW5oZXJpdDt3b3JkLWJyZWFrOmJyZWFrLXdvcmQ7dGV4dC1kZWNvcmF0aW9uLWxpbmU6bm9uZTs-UGFnZSB3aXRoIHJlZGlyZWN0PC9hPg0KICAgICAgICA8L3A-DQogICAgICA8L2Rpdj4NCiAgICA8L2Rpdj4NCiAgPC9kaXY-DQoNCiAgPGRpdiBzdHlsZT0icGFkZGluZzo0cHggMHB4OyI-DQogICAgPHAgc3R5bGU9bWFyZ2luOjBweDs-SWYgdGhpcyByZWFzb24gaXMgbm90IGludGVudGlvbmFsLCB3ZSByZWNvbW1lbmQgdGhhdCB5b3UgZml4IGl0IGluIG9yZGVyIHRvIGdldCBhZmZlY3RlZCBwYWdlcyBpbmRleGVkIGFuZCBhcHBlYXJpbmcgb24gR29vZ2xlLjwvcD4NCiAgPC9kaXY-DQoNCjwvZGl2Pg0KICA8ZGl2IHN0eWxlPW1hcmdpbi1ib3R0b206MTZweDs-DQogICAgPGEgaHJlZj1odHRwczovL2MuZ2xlL0FOaWFvNXFhUl9ZaDF4WWhGTEUyZElVdGhQNC01Mk5CWk5qSGhPVEZQZFNxakhiRjA1djRvZlJLYUdsM1NFMWhyVVlLNzJhVEl4NHNyeHJrcUdKQ1RILXcwbWNfLUZWeWNKVHhJX1diSXBkMDltTEd6UFJqSENLdTYyY2tvSUpPQzBGZURfUUh2YkczT0xTc1k4YThLZkotdUYwcm5iQ3Z5VXU2anBaT1ZpMlBEVC1KT3NEMFpJR3J5OFNSSURxdFNVZkhYTi1Eb21kWC11bzlKalcwa251UTdZVWF0MGRCUkFtNU1ZS3d0djBNM2d6dldabnNsaUptZV9taHEya3U0TnFHVFlqRnZCeVhZYUFVWDQ4VWJBcGZNNkxDNk41RVREYjRKR2NBRmw1dEhVUG5XZFBUdzJRdldFODRyUzFqb1RlcllqNTJzUnJBTHhvOXpVVzd6OC01X3dkSDJwdGQtZXlRRXBVTCByb2xlPWJ1dHRvbiBzdHlsZT1kaXNwbGF5OmlubGluZS1ibG9jazt0ZXh0LWRlY29yYXRpb246bm9uZTs-DQogICAgICA8ZGl2IHN0eWxlPSJjb2xvcjojRkZGO2ZvbnQtc2l6ZToxNHB4O2ZvbnQtd2VpZ2h0OjUwMDsNCiAgICAgICAgICAgICAgICAgIGJhY2tncm91bmQ6IzBCNTdEMDtib3JkZXItcmFkaXVzOjEycHg7cGFkZGluZzoxMHB4IDE2cHg7bWFyZ2luOjRweCAwcHg7bGluZS1oZWlnaHQ6MjBweDsiPg0KT3BlbiBpbmRleGluZyByZXBvcnQgICAgICA8L2Rpdj4NCiAgICA8L2E-DQogIDwvZGl2Pg0KDQoNCiAgICAgICAgPC9kaXY-DQogICAgICA8L2Rpdj4NCiAgICA8L2Rpdj4gICAgIDxkaXYgc3R5bGU9InBhZGRpbmc6MjRweCAxNnB4IDQ4cHg7DQogICAgICAgICAgICAgICAgbGluZS1oZWlnaHQ6MTZweDsNCiAgICAgICAgICAgICAgICBmb250LXNpemU6MTJweDsNCiAgICAgICAgICAgICAgICBmb250LXN0eWxlOm5vcm1hbDsNCiAgICAgICAgICAgICAgICBmb250LXdlaWdodDo0MDA7DQogICAgICAgICAgICAgICAgbWF4LXdpZHRoOjYwMHB4Ow0KICAgICAgICAgICAgICAgIGNvbG9yOiM0NDQ3NDY7Ij4NCiAgICAgIDxzcGFuIHN0eWxlPSJmb250LXdlaWdodDogNTAwOyI-TWVzc2FnZSB0eXBlOiBbV05DLTIwMjM3NTk3XTwvc3Bhbj4NCiAgPGRpdiBzdHlsZT0icGFkZGluZzo0cHggMHB4OyI-DQogICAgPHAgc3R5bGU9bWFyZ2luOjBweDs-PC9wPg0KICA8L2Rpdj4NCiAgPGRpdiBzdHlsZT0icGFkZGluZzo0cHggMHB4OyI-DQogICAgPHAgc3R5bGU9bWFyZ2luOjBweDs-ICAgICAgCVlvdSd2ZSByZWNlaXZlZCB0aGlzIHRyYW5zYWN0aW9uYWwgZW1haWwgYmVjYXVzZSB5b3VyIHNpdGUgaXMgbGlzdGVkIGluIEdvb2dsZSBTZWFyY2ggQ29uc29sZS4gWW91IG1heSA8YSBocmVmPWh0dHBzOi8vYy5nbGUvQU5pYW81cVlhUG42UnQ3YnZ3M3FwRERMdkRTNUhkOHJnb0ViOHVVMEhJczFjWmxJNE5SNFl6VjhNRlpqd0tJRnBNeWZWVl9fUGNubUFnc1pZcVNGLVE2RzdtQkJqRlY0X0NkekU1RUt1dU1BUXozaDJuWWJtWUQ3M2pJOFZPaWxYWW9KZ19TTi1JYjRUT3FKcDhmZlNZUlVNV0o0dkZBN2M0cUNwR3BScUlwSkc3ZzdnVUlfQVFGWGk5a1JpMkhQTkRhMW5aLTZkNzdkdGIxV3Z3dEZjY0RTeFlRczFJWHY2Unl0emllbHZRSWxOekJod0VZcUQ1R1ZKUmRpdERpaXctN1hOSEQ1OUNjdUtRei1UMnhiY3dFczdUQXpCa0lxTFVNSTZZSXZGWEVIcU5tcktuYjA1b3hBZzZSdVhiY1ZoY1lQVjZ0clUyTFoxRC1RTC1qWk1feHRnWTZQLUhGdGRwR0lwM0k0UmE5aHFYekZKcHN3VzlPM3J1RDVlMFBfY1dRTDZtTmVuemVkZkZfU0xueUQgc3R5bGU9Y29sb3I6IzBCNTdEMDt0ZXh0LWRlY29yYXRpb24tbGluZTp1bmRlcmxpbmU7d29yZC1icmVhazpicmVhay13b3JkOz51bnN1YnNjcmliZTwvYT4gZnJvbSB0aGlzIHR5cGUgb2YgbWVzc2FnZSBvciA8YSBocmVmPWh0dHBzOi8vYy5nbGUvQU5pYW81cGdKeVVSLW9PX2s4SERFcm9fQTV0dlRwMzBBcFpydjZuR29JNDIyc0dsQ3NIRU9DVERzdC1ZR0t1N0o2Qi1HV0pkbV9CTGUzTFpsRzBiVnpGZ3kxYXpIcWNwcEh3N1lENllHR3M0MlpXVk01ZTBpZXQ2X0tlbGE1RjVRb056N09ObmFlU0Y5WVJyc04yYWM2R1NwQ2czXzY4MWtRellvSUJRY2hsNFU3STV1aDd4VEJISDhxaHBpTXBxVjZ3bndsNWhQZEc2SWc4dGxsc2E5cGs0RmlTRVBDM0Q0RUtsWUNybHZiU2xTaTl4VEQwLVBUX19zNnJtN01SLU5pTXNmY295Y2ZuaFc5cE80RjdQVm54M1d1REFZTjE4VGJwMjBtdDlqeER1LTVVN1pXWkV3QkZMWjFyRVN0bkpmQkY2WGJaRlJLaUNLdlZKYThZRWJ2WkF0TWRzWkhfOXpNWDRRd1Nydmk3c2pyREptMGlaZEp6cUd4Z2Egc3R5bGU9Y29sb3I6IzBCNTdEMDt0ZXh0LWRlY29yYXRpb24tbGluZTp1bmRlcmxpbmU7d29yZC1icmVhazpicmVhay13b3JkOz5hZGQgcGFydG5lcnM8L2E-IHdobyBzaG91bGQgcmVjZWl2ZSBtZXNzYWdlcyBmb3IgdGhpcyBTZWFyY2ggQ29uc29sZSBhY2NvdW50ICA8ZGl2IHN0eWxlPSJwYWRkaW5nOjRweCAwcHg7Ij4NCiAgICA8cCBzdHlsZT1tYXJnaW46MHB4Oz48L3A-DQogIDwvZGl2Pg0KICA8ZGl2IHN0eWxlPSJwYWRkaW5nOjRweCAwcHg7Ij4NCiAgICA8cCBzdHlsZT1tYXJnaW46MHB4Oz5Hb29nbGUgTExDLCAxNjAwIEFtcGhpdGhlYXRyZSBQYXJrd2F5IE1vdW50YWluIFZpZXcsIENBIDk0MDQzPC9wPg0KICA8L2Rpdj4NCg0KIA0KPC9wPg0KICA8L2Rpdj4NCiAgICA8L2Rpdj4gDQogIDwvZGl2PiANCjwvYm9keT4NCjwvaHRtbD4NCg=="
+                }
+            }
+        ]
+    },
+    "sizeEstimate": 15737,
+    "historyId": "29298",
+    "internalDate": "1749385358000",
+    "headers": {
+        "Delivered-To": "leo@orchestra-nexus.com",
+        "Received": "from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])        by mx.google.com with SMTPS id e9e14a558f8ab-3ddcf05eba3sor10878205ab.0.2025.06.08.05.22.39        for <leo@orchestra-nexus.com>        (Google Transport Security);        Sun, 08 Jun 2025 05:22:39 -0700 (PDT)",
+        "X-Received": "by 2002:a05:6e02:17c6:b0:3dd:c9e4:d46a with SMTP id e9e14a558f8ab-3ddce634f69mr93887015ab.7.1749385358878; Sun, 08 Jun 2025 05:22:38 -0700 (PDT)",
+        "ARC-Seal": "i=1; a=rsa-sha256; t=1749385359; cv=none;        d=google.com; s=arc-20240605;        b=CYgNAhqeyex8/j5RAF053hBd1NWQq3NVauSW1qPG39klAdO0OQ8EuTYYe80/bKSwdS         l4LY7aaFFzF/swgKT6R/byF7AGJhuosVwlTCC+g7qrsJEFpNNYxR6emFMwmsMflsgEu7         PgnKnK8SPhB792y/PCi+eIX59leTaQPKRZi7JGqNzTP9840s9BWoFYqHigpPA9ntSwY0         2EAZtjUP+/tLunJ2YoIFChaRUljfsx419Wx55wJ0t7ULRCA8fueuWYCJlrvidDZTtxJA         8R669m3NsMdFhFWyrmb5jHqRFI569u3Zg/yJPEHjdiAh2w1GfX3ST6Z6WtkLFMbu+IcF         hwQA==",
+        "ARC-Message-Signature": "i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;        h=to:from:subject:message-id:list-id:feedback-id:precedence         :list-unsubscribe:reply-to:date:mime-version:dkim-signature;        bh=aEtpJEpJ8bW6g788kIKWLymCamnoYCmT1VOfcyNo8sw=;        fh=UkKDhraCcxF94YzCsSEvfWdwvTWBXlzOJKr7JouZSwY=;        b=ljcCjSpoPZnwWUgp+nJVsqDNCznIQ3SVHoUrhPRVgn2hvetXOVJqbhd5qCB7YQINmn         Xew86ldm1gDU3LmTqMqmzZtbJHyWpbClVUtjD1zdHThrznpya6ZhaxOAIaen78duffs/         SMegskj2I86bNOEuBha/Iyqy9B0BCxgYy3gZ0Nkb8fLQR5ncmT0EDqEJ/R82Ij960RN5         t21yBTYt2ni+LnU82mC3J4otTkCUuSxKS4QG+jrjjAKJdszab35TRjbdroRqU0ZltbvC         O9XnWoOHPXl2GxpTR//oy4JmjogUhg55pJFmr23Lk9WyBMfy8RNiLLOAkkY4WtRG9n8v         n55A==;        dara=google.com",
+        "ARC-Authentication-Results": "i=1; mx.google.com;       dkim=pass header.i=@google.com header.s=20230601 header.b=l6n0PTUX;       spf=pass (google.com: domain of 3jobfaaoka-0hr-cdgteanvddvat.rdbatddgrwthigp-ctmjh.rdb@scoutcamp.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3joBFaAoKA-0hR-cdgTeanVddVaT.RdbaTddgRWThigP-cTmjh.Rdb@scoutcamp.bounces.google.com;       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com;       dara=pass header.i=@orchestra-nexus.com",
+        "Return-Path": "<3joBFaAoKA-0hR-cdgTeanVddVaT.RdbaTddgRWThigP-cTmjh.Rdb@scoutcamp.bounces.google.com>",
+        "Received-SPF": "pass (google.com: domain of 3jobfaaoka-0hr-cdgteanvddvat.rdbatddgrwthigp-ctmjh.rdb@scoutcamp.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;",
+        "Authentication-Results": "mx.google.com;       dkim=pass header.i=@google.com header.s=20230601 header.b=l6n0PTUX;       spf=pass (google.com: domain of 3jobfaaoka-0hr-cdgteanvddvat.rdbatddgrwthigp-ctmjh.rdb@scoutcamp.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3joBFaAoKA-0hR-cdgTeanVddVaT.RdbaTddgRWThigP-cTmjh.Rdb@scoutcamp.bounces.google.com;       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com;       dara=pass header.i=@orchestra-nexus.com",
+        "DKIM-Signature": "v=1; a=rsa-sha256; c=relaxed/relaxed;        d=google.com; s=20230601; t=1749385359; x=1749990159; darn=orchestra-nexus.com;        h=to:from:subject:message-id:list-id:feedback-id:precedence         :list-unsubscribe:reply-to:date:mime-version:from:to:cc:subject:date         :message-id:reply-to;        bh=aEtpJEpJ8bW6g788kIKWLymCamnoYCmT1VOfcyNo8sw=;        b=l6n0PTUXN5IJW4XQdEB7iDr/KRsosMmHL1YddCxjsKWBli949iQmXwTSLNbHC1qdeM         MiHVPw9RzgG2Kps8JmwTHOwSEZlgyOVwZG1nRaj8wluSdm/awOP4mQubUfNbAMoxwEBc         PzVU15c5Azo34RQSUA/46P5QgcbOBayS8/FTnHTnxqoXbsIiDb6jDgEV0YzqSw1zx4gJ         JZ5KjvKHlZDCPfJLIszsHdjBPO0OL7rBz1uI+Q0lrA6rwoxbgydKVmYe1zHr2HXu7wdA         nWx4p7ZQY6bwmltB2rEW2qvnYeEdSlaJLizE8131spZLkX/6oAfkYis6h+dz8epOgQ73         hISg==",
+        "X-Google-DKIM-Signature": "v=1; a=rsa-sha256; c=relaxed/relaxed;        d=1e100.net; s=20230601; t=1749385359; x=1749990159;        h=to:from:subject:message-id:list-id:feedback-id:precedence         :list-unsubscribe:reply-to:date:mime-version:x-gm-message-state:from         :to:cc:subject:date:message-id:reply-to;        bh=aEtpJEpJ8bW6g788kIKWLymCamnoYCmT1VOfcyNo8sw=;        b=uwIRZ59QOXWYd2Ax+o58riQf5N1uoaPhMkSJCRccxbdWCFPtf4YtyvBhjDwLqkiXGR         sD0a5yIIhYRJD0mD0u5azyZkVKx0XWu0ER/3HaXITiXRHRm22E6CWzdWy7XXKbsWVNEz         c8UvkmtgF0zNpMs5DMDT57oj5rY2jZoRzyjh2o/nsj1Iq0ehIY4/Wt7Qi1KJI8zNcBdr         Q/ytw95v3POMmRg84ELEnQWZyMLtwYHz7N7Iz1FXslZZkY7MzjbMb5JRBBk2ljoyGyzw         UDcStW867NDVP0RsIjXIeJyyZG5vU0oYyEfm1TKjcshafp8RNuWV5igaFTQSPhDvEGWo         256A==",
+        "X-Gm-Message-State": "AOJu0YwLIxEF3+d45ZOCto4U4Vm9VMayoi57Bw1bKL4gDyAtjLO7M4UK E3oRflPGach/ux2jUNJUIuNwQel4eeSmYTpgMdVHWLOjMb+HfQEEXf7iwPXD",
+        "X-Google-Smtp-Source": "AGHT+IGTc0zoOpceQGYtHieM9Bz1us37Vn9gOy3Al5hRRaGBCg7cJ76AV9PP/pmeu4YRAMHLkP9pqSc=",
+        "MIME-Version": "1.0",
+        "Date": "Sun, 08 Jun 2025 05:22:38 -0700",
+        "Reply-To": "Google Search Console Team <sc-noreply@google.com>",
+        "X-Google-Id": "4154303",
+        "List-Unsubscribe": "<https://c.gle/ANiao5qYaPn6Rt7bvw3qpDDLvDS5Hd8rgoEb8uU0HIs1cZlI4NR4YzV8MFZjwKIFpMyfVV__PcnmAgsZYqSF-Q6G7mBBjFV4_CdzE5EKuuMAQz3h2nYbmYD73jI8VOilXYoJg_SN-Ib4TOqJp8ffSYRUMWJ4vFA7c4qCpGpRqIpJG7g7gUI_AQFXi9kRi2HPNDa1nZ-6d77dtb1WvwtFccDSxYQs1IXv6RytzielvQIlNzBhwEYqD5GVJRditDiiw-7XNHD59CcuKQz-T2xbcwEs7TAzBkIqLUMI6YIvFXEHqNmrKnb05oxAg6RuXbcVhcYPV6trU2LZ1D-QL-jZM_xtgY6P-HFtdpGIp3I4Ra9hqXzFJpswW9O3ruD5e0P_cWQL6mNenzedfF_SLnyD>",
+        "Precedence": "bulk",
+        "Feedback-ID": "P-38-0:C20237597:M110624660-en-GB:gamma",
+        "List-Id": "<6e180ccbadfa950a9b941acac5723e4f395dc930.google.com>",
+        "X-Notifications": "a17c8f00d76a0000",
+        "X-Notifications-Bounce-Info": "AWoTSIFn7XDC2fQb7tlv8SQfYiShVrXID53C4wz9h68czzLAsc02KKB4Ld8Jra_zsXTY0cmZBaBuLlGtcJYPVYn6Rh-NGhDWKzhTVaWSRmDo4Ao_OZYcQnWpg1NgKdFN4GmKIa-I_wXV1b4PDqJ2_rLDph6gyF7LZOiUkrHuO9qF1d_kF6Sr8kWNRNtPrtPZJPIwqXp0stG641OHo5TeyQO7vCUHIlq5YFjoGvMX1WGfZdh2k9lhQNazwzCzFyjiKwJjtF-yD4sy4MC3zDFNzmlpVLgxJkBgWbJn-4MkIL93HK-KD47qiONVQWhTzhcfQwnzCkD-XOoDdtoVN1P3FQayCJkRl_1n_UbS-tzNIhBEsv7Mf49TZvCLXiDD5gtkEj3am68S6yZSmTlBmoM30sw69XUTIhehHkubYeQUjpU-BCa_w4anBRFcRPu2R0Hfhodib5-vlw7Vg_uXTs1xSphS4MlemklwLxE-emBPyGMf7GWyBNuEpdp1YAm_tG73jkshL3wqlhN9QKdVbaaAyFZC61BIyEFlazMfs9ijXoX7Uev6yR7WTev4JxWlnrg9OLQWDo05tCwZ6qmaLD8dsxzgJdF4wESLKTUNjAwNjA0MDQxNTM1NTk2OTMzMg",
+        "Message-ID": "<9664dcd696e89061ec361735a7e374fe216ff0d0-20237597-111238677@google.com>",
+        "Subject": "New reasons prevent pages from being indexed on site orchestra-nexus.com",
+        "From": "Google Search Console Team <sc-noreply@google.com>",
+        "To": "leo@orchestra-nexus.com",
+        "Content-Type": "multipart/alternative; boundary=\"000000000000e42a1a06370e84ef\""
+    },
+    "body": "\r\n\r\n\r\n\r\n\r\n\r\nFrom: Google Search Console\r\n\r\nSubject:\r\nNew reason preventing your pages from being indexed\r\n\r\n\r\n\r\nSearch Console has identified that some pages on your site are not being  \r\nindexed due to the following new reason:\r\n* Page with redirect\r\n\r\nIf this reason is not intentional, we recommend that you fix it in order to  \r\nget affected pages indexed and appearing on Google.\r\n\r\n**Open indexing report**:  \r\nhttps://c.gle/ANiao5q7unIpiNIpvgLpiAacOR_TdSqCY1FP0MZcxSHwyq8ZOAilvOJF5wDAVta6WbqI-l8gQp_93uZexyHee4aVQ0ta9eRsklFqkb6zYLaV4eyKeIvXVGrGPHCP7h6LC3ybs2eS0h6ypm2gwW2Mc1vAcuRncRicI9CrJV1ndcH7uC7_deOcYsIzTZZOh181WVbtR3r4X861OO5Mo0mh5E1y0LDsIBS-H5sNgOA5Gm1emMGjbkUErg2zHCkVX9hnCfAHu_Taok2fxq1WJTIW3xjCz-GH-dBO2Yb_VTu5OhQ4lLQPjLqpOEFheOW3XbB-SCLb79YZT3mQeifBLcXKLbZMv1PwHR4yceRrdg\r\n\r\n\r\n----------\r\nGoogle LLC, 1600 Amphitheatre Parkway Mountain View, CA 94043\r\nYou've received this transactional email because your site is listed in  \r\nGoogle Search Console.\r\nTo opt out of this message in the future, please visit:  \r\n<https://c.gle/ANiao5rtpbmxzefBzeoD31yRLFknpMGM9ZN-gvwdhcmO6PmKbuRsiZECPIuSjebI0QWDbZTP81Srz7YzfiSlJUzOC7zoIPoYMK261zl2AVaVWtfiSt_2JkB0FvUTk2MnwxXhAPwcxLDbri_-XuAg3DMFQX5BCiuN39xBrluhfl5z1GyY8zjz8DPrJGG36Thy_3mE-t7J5I445ZasNEpDjb2fptgPUpvqvdmIZRrLNJgwSWAyxCZGsB1q-EpyT9bsXg63I0MLpJwo-XQSeAN--ZNqWVlwV_h6O1uSh438h0bJ-NZ6DdldvJeCg3BwsQMWKqUSGvZhPTYq1te2ZMObBxzF8T2c465J6erMpyF0Ol1jKt7b9hPPBMrbNId9-uJCk4sIPHWpLh8QAuw6zg>\r\nAdd partners who should receive messages for this Search Console account:  \r\nhttps://c.gle/ANiao5ojIiC_lrUrEg_KMW0PA-9wa1m7TDtymL21lM-ySfbKvR6-Sf2x9a2TG40Xm4M2E3OYnIsyuLcRp34qJhb4DsQv_KBFHhXeuSVa3_izk3vYFL2-Au0_NQjSa8zkbtAkmPbLuhAwFHMRY04bEkGnEuqXNXhCBFqkCvpL8P5fjQYB4wwRQtOmiKYY7sa8vnRJN4xNh16b_z7c5jkU6pvyx8THJ6TYvzuowcIBrX975QuZ3fUIn8hIyCX5h-LeY4-cuS8Zsryca0hIJamTktZGGCIWoa9ktXg6HH70EFunROKsA8uiM6y65fMa4xfLwKbFHjA5E9SquNwZFkNjHvZ1gK2srfy4noopq89cVVv7sJooUwsSy2LvQw\r\n\r\nMessage type: [WNC-20237597]\r\n",
+    "attachments": []
+}

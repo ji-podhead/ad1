@@ -6,7 +6,7 @@ clients and for broadcasting messages (like task updates) to all connected clien
 It also defines a `Task` dataclass for representing task state.
 """
 from fastapi import WebSocket, WebSocketDisconnect
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 import asyncio
 import json
@@ -187,7 +187,7 @@ async def stream_task_progress(manager: ConnectionManager, task_id: str):
         await asyncio.sleep(1)
 
 from fastapi import WebSocket, WebSocketDisconnect
-from typing import Dict, List
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 import asyncio
 import json

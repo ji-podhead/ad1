@@ -1,0 +1,89 @@
+{
+    "id": "1974a92ae733b935",
+    "threadId": "1974a929e17ef2fd",
+    "snippet": "",
+    "payload": {
+        "partId": "",
+        "mimeType": "multipart/alternative",
+        "filename": "",
+        "headers": [
+            {
+                "name": "MIME-Version",
+                "value": "1.0"
+            },
+            {
+                "name": "Date",
+                "value": "Sat, 7 Jun 2025 15:26:56 +0200"
+            },
+            {
+                "name": "Message-ID",
+                "value": "<CAPX5R1LBRaVE0BjgFtR1StmRbBZySxSY_t=2Og2kH173Ych8nw@mail.gmail.com>"
+            },
+            {
+                "name": "Subject",
+                "value": "test6"
+            },
+            {
+                "name": "From",
+                "value": "Leonardo Jacobi <leo@orchestra-nexus.com>"
+            },
+            {
+                "name": "To",
+                "value": "Leonardo Jacobi <leo@orchestra-nexus.com>"
+            },
+            {
+                "name": "Content-Type",
+                "value": "multipart/alternative; boundary=\"000000000000f90ca20636fb4ccb\""
+            }
+        ],
+        "body": {
+            "size": 0
+        },
+        "parts": [
+            {
+                "partId": "0",
+                "mimeType": "text/plain",
+                "filename": "",
+                "headers": [
+                    {
+                        "name": "Content-Type",
+                        "value": "text/plain; charset=\"UTF-8\""
+                    }
+                ],
+                "body": {
+                    "size": 2,
+                    "data": "DQo="
+                }
+            },
+            {
+                "partId": "1",
+                "mimeType": "text/html",
+                "filename": "",
+                "headers": [
+                    {
+                        "name": "Content-Type",
+                        "value": "text/html; charset=\"UTF-8\""
+                    }
+                ],
+                "body": {
+                    "size": 27,
+                    "data": "PGRpdiBkaXI9Imx0ciI-PGJyPjwvZGl2Pg0K"
+                }
+            }
+        ]
+    },
+    "sizeEstimate": 549,
+    "historyId": "28555",
+    "internalDate": "1749302816000",
+    "headers": {
+        "MIME-Version": "1.0",
+        "Date": "Sat, 7 Jun 2025 15:26:56 +0200",
+        "Message-ID": "<CAPX5R1LBRaVE0BjgFtR1StmRbBZySxSY_t=2Og2kH173Ych8nw@mail.gmail.com>",
+        "Subject": "test6",
+        "From": "Leonardo Jacobi <leo@orchestra-nexus.com>",
+        "To": "Leonardo Jacobi <leo@orchestra-nexus.com>",
+        "Content-Type": "multipart/alternative; boundary=\"000000000000f90ca20636fb4ccb\""
+    },
+    "body": "\r\n",
+    "attachments": []
+}

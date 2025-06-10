@@ -1,0 +1,337 @@
+{
+    "id": "19753efc7fbff89f",
+    "threadId": "19753efc7fbff89f",
+    "snippet": "Event Name: Jack Wilson - UMATR Location: +49 177 1404691 Please share anything that will help prepare for our meeting.: I&#39;m Leo from berlin Need to make changes to this event? Cancel: https://",
+    "payload": {
+        "partId": "",
+        "mimeType": "multipart/alternative",
+        "filename": "",
+        "headers": [
+            {
+                "name": "Delivered-To",
+                "value": "leo@orchestra-nexus.com"
+            },
+            {
+                "name": "Received",
+                "value": "by 2002:a17:504:d401:b0:1cc1:39fb:b206 with SMTP id oc1csp1283015njb;        Mon, 9 Jun 2025 02:05:12 -0700 (PDT)"
+            },
+            {
+                "name": "X-Google-Smtp-Source",
+                "value": "AGHT+IE70DzlRXBwlkcWxSk0MggxJQ1BEbRLq23fLjR/+S2wHDzny+5sFZ9vkW/AqJUnCdpZZcIA"
+            },
+            {
+                "name": "X-Received",
+                "value": "by 2002:a05:6902:2b8d:b0:e81:84ac:cd9 with SMTP id 3f1490d57ef6-e81a20f0904mr16791334276.16.1749459912600;        Mon, 09 Jun 2025 02:05:12 -0700 (PDT)"
+            },
+            {
+                "name": "ARC-Seal",
+                "value": "i=2; a=rsa-sha256; t=1749459912; cv=pass;        d=google.com; s=arc-20240605;        b=Fpt3rRHV/ddGRhKzQi/SbuIsrVI1Vx7q0p2NY5d6o8xh8CO4V4syKIWIFEQiBD2BEj         GbJOvk2oAtDfXHKsQ5476WACpevS6GXnXlvqtP2BEjT3S7B/q/5h66oSeUIeNjy6Dlen         EBkn/DjzEolzR2g/x4HRZByCWkmtWkkQyt72AQkcWuDG480saxtOgNFY99y0vij/esA/         MHzcVkMdEoV2e1X1M0gTP262ot71qknIx5qM3G9Wme4odVp/MzeNElnUjugaFcX69GBi         +H4bIgnHMyfQPMt8yLSgD8em5853OEKzJlu/Bw8vNA314aIG/TyL//NyfBpYy6HE8/YA         evqg=="
+            },
+            {
+                "name": "ARC-Message-Signature",
+                "value": "i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;        h=mime-version:content-language:accept-language:message-id:date         :thread-index:thread-topic:subject:to:from:dkim-signature;        bh=KlbdTfTJFq78GTP0bGzBclsFY9r3+8Vmiob6q+sNwmU=;        fh=iRifUhfwyfARs46YXNPbgPGeOLlr3Xw8m4MC0rMW1dU=;        b=kNxKXQStkPV4JOkNGmnMiq2IJHGMc+yuGipKs/QmAo1wzdzOEsn69WS3XYXpzplpro         kqtdr66O8p4Vv0noW59F8pf+v90TMfoP0b7z0nHL1sjlShakrMx+beUt/W/XH/tP9JDj         qMsbsbzcztsyCvnHgpZiM3OKeJcTlvR1Gly7Qn7D5y29WmSpLqePMbmS/qW3PfY9hWRw         iBWeOWKbcXuTlWTI+Z08PcMemEFsvKoNJWyizpfZlpZm6dRobcvMwIvZnJcIol+LEGh/         J45gEKmgK9DcRa7b5wH9B61Qwh+/DKWvWkDVe1BZjKyiCYofKHrkaLS7ETTw7tIbic3e         iEtQ==;        dara=google.com"
+            },
+            {
+                "name": "ARC-Authentication-Results",
+                "value": "i=2; mx.google.com;       dkim=pass header.i=@umatr.onmicrosoft.com header.s=selector1-umatr-onmicrosoft-com header.b=2T1fyAbm;       arc=pass (i=1 spf=pass spfdomain=umatr.io dkim=pass dkdomain=umatr.io dmarc=pass fromdomain=umatr.io);       spf=pass (google.com: domain of jack.wilson@umatr.io designates 2a01:111:f403:c206::1 as permitted sender) smtp.mailfrom=jack.wilson@umatr.io;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=umatr.io"
+            },
+            {
+                "name": "Return-Path",
+                "value": "<jack.wilson@umatr.io>"
+            },
+            {
+                "name": "Received",
+                "value": "from CWXP265CU008.outbound.protection.outlook.com (mail-ukwestazlp170100001.outbound.protection.outlook.com. [2a01:111:f403:c206::1])        by mx.google.com with ESMTPS id 3f1490d57ef6-e81a41275e2si6421577276.190.2025.06.09.02.05.11        for <leo@orchestra-nexus.com>        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);        Mon, 09 Jun 2025 02:05:12 -0700 (PDT)"
+            },
+            {
+                "name": "Received-SPF",
+                "value": "pass (google.com: domain of jack.wilson@umatr.io designates 2a01:111:f403:c206::1 as permitted sender) client-ip=2a01:111:f403:c206::1;"
+            },
+            {
+                "name": "Authentication-Results",
+                "value": "mx.google.com;       dkim=pass header.i=@umatr.onmicrosoft.com header.s=selector1-umatr-onmicrosoft-com header.b=2T1fyAbm;       arc=pass (i=1 spf=pass spfdomain=umatr.io dkim=pass dkdomain=umatr.io dmarc=pass fromdomain=umatr.io);       spf=pass (google.com: domain of jack.wilson@umatr.io designates 2a01:111:f403:c206::1 as permitted sender) smtp.mailfrom=jack.wilson@umatr.io;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=umatr.io"
+            },
+            {
+                "name": "ARC-Seal",
+                "value": "i=1; a=rsa-sha256; s=arcselector10001; d=microsoft.com; cv=none; b=IkpqjeP0+7LVv/Xh3Za2VMNqqVpA/mRScDBswCxQnzd30uncUN4NE4Px6nrIMdPwLCcIOgmmO0Fw4N40y4QawIXsiSCvzkGPxTyTFbfVIrFDtp5qSCkQX7k/iz7PuXUJwuOTEhw8TjHzjGrdCnrFIzZ/cy4ZIUjal/ZHid7lE8XU8+YRHmWDrl4BX3tL2UFBu4QhJz4aDRV0KBU5yUEU5Hi59wn5IsRwQUzpg2LVn118MnEeJDi5J08i9FPRy5NpG2ssN0C4L1LGwfrs6jEaUODz+ak1tFtfw8j4/Mh8AD6e9Eu04P93Zr9iA6BWz0j8WPWSe8nIOLVKxTAeySZXfg=="
+            },
+            {
+                "name": "ARC-Message-Signature",
+                "value": "i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com; s=arcselector10001; h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-AntiSpam-MessageData-ChunkCount:X-MS-Exchange-AntiSpam-MessageData-0:X-MS-Exchange-AntiSpam-MessageData-1; bh=KlbdTfTJFq78GTP0bGzBclsFY9r3+8Vmiob6q+sNwmU=; b=Zp+7/L5mDV/fElDgH2D/KiA/PV/Ahg8tmahP6KlXGf5Lw1SU7MH6ZADe0F8+tE/91vZGZXFgJDa10QX8mW5GnKXD1Z505w57srsgB7gyBJv8KeBCkmSgH9i6148729Iv6YosoKwoSKnt4VCblY9Yv8rstLLBf8oVHAj2NF4yZMII28jiLbHUU36Z0Ga5f3VDc48ahaj6GTTQu97pG0VPxenM4G1xgRGcQqyLJL/3csWKB+O9UNeiaKQOSZTqUgtCr+bmfbHU4UqOfYwEjsqSAerXDO6KCQgxxUldw0LVNLh2V0/xOXBRuUjNqBP9b8OppfjP30yidcOJj4x8wYVnCQ=="
+            },
+            {
+                "name": "ARC-Authentication-Results",
+                "value": "i=1; mx.microsoft.com 1; spf=pass smtp.mailfrom=umatr.io; dmarc=pass action=none header.from=umatr.io; dkim=pass header.d=umatr.io; arc=none"
+            },
+            {
+                "name": "DKIM-Signature",
+                "value": "v=1; a=rsa-sha256; c=relaxed/relaxed; d=umatr.onmicrosoft.com; s=selector1-umatr-onmicrosoft-com; h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck; bh=KlbdTfTJFq78GTP0bGzBclsFY9r3+8Vmiob6q+sNwmU=; b=2T1fyAbmoppILEVZ4fRDUp7ROhCcA9NE+RKKowZAqGaWdLiePWc/x7EyB9lWr82G9bKNVSCpZfIgV+XCcFkXCXxrFs139fxGXh07KfvDSxtSoSWHNGqcp3NFcES4SqOMmmIXPVHQiJVr9lIOEu0GV81ppfTx+AF+g3m7mwZHJzpP1fCS8Kw3dhWIRZHEslKHwicGjqMcge4/f4rvsxPxFG25EHEeBZhAtq2m7hH5cfvew+aAY1dxmakiSEykgWCXRUMSNbaKUqV3VyLTAFTNSTmmiaZ5pc79RaLlVZRjK4FxDi50ogrKKLGcKXq34ZZfum2dYeRdlmP5OiFJUhYuQA=="
+            },
+            {
+                "name": "Received",
+                "value": "from CWLP123MB4644.GBRP123.PROD.OUTLOOK.COM (2603:10a6:400:110::7) by LO8P123MB7663.GBRP123.PROD.OUTLOOK.COM (2603:10a6:600:3ac::20) with Microsoft SMTP Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.8813.30; Mon, 9 Jun 2025 09:05:01 +0000"
+            },
+            {
+                "name": "Received",
+                "value": "from CWLP123MB4644.GBRP123.PROD.OUTLOOK.COM ([fe80::27dd:b614:86d9:5fe0]) by CWLP123MB4644.GBRP123.PROD.OUTLOOK.COM ([fe80::27dd:b614:86d9:5fe0%2]) with mapi id 15.20.8813.024; Mon, 9 Jun 2025 09:04:59 +0000"
+            },
+            {
+                "name": "From",
+                "value": "Jack Wilson <jack.wilson@umatr.io>"
+            },
+            {
+                "name": "To",
+                "value": "Leonardo Jacobi <leo@orchestra-nexus.com>"
+            },
+            {
+                "name": "Subject",
+                "value": "Leonardo Jacobi and Jack Wilson"
+            },
+            {
+                "name": "Thread-Topic",
+                "value": "Leonardo Jacobi and Jack Wilson"
+            },
+            {
+                "name": "Thread-Index",
+                "value": "AdvZHZPJYi4+PVI16UO4Ukdv7VjYww=="
+            },
+            {
+                "name": "Date",
+                "value": "Mon, 9 Jun 2025 09:04:59 +0000"
+            },
+            {
+                "name": "Message-ID",
+                "value": "<CWLP123MB4644134D3DC52E63F5DFE8BC806BA@CWLP123MB4644.GBRP123.PROD.OUTLOOK.COM>"
+            },
+            {
+                "name": "Accept-Language",
+                "value": "en-GB, en-US"
+            },
+            {
+                "name": "Content-Language",
+                "value": "en-US"
+            },
+            {
+                "name": "X-MS-Has-Attach",
+                "value": ""
+            },
+            {
+                "name": "X-MS-TNEF-Correlator",
+                "value": ""
+            },
+            {
+                "name": "x-ms-publictraffictype",
+                "value": "Email"
+            },
+            {
+                "name": "authentication-results",
+                "value": "dkim=none (message not signed) header.d=none;dmarc=none action=none header.from=umatr.io;"
+            },
+            {
+                "name": "x-ms-exchange-calendar-series-instance-id",
+                "value": "BAAAAIIA4AB0xbcQGoLgCAAAAACM0baTHdnbAQAAAAAAAAAAEAAAABqR+Oq10AtJnYfz031DQ/A="
+            },
+            {
+                "name": "x-ms-traffictypediagnostic",
+                "value": "CWLP123MB4644:EE_MeetingMessage|LO8P123MB7663:EE_MeetingMessage"
+            },
+            {
+                "name": "x-ms-office365-filtering-correlation-id",
+                "value": "4941855b-7ff5-43d7-12f2-08dda734b674"
+            },
+            {
+                "name": "x-ms-exchange-senderadcheck",
+                "value": "1"
+            },
+            {
+                "name": "x-ms-exchange-antispam-relay",
+                "value": "0"
+            },
+            {
+                "name": "x-microsoft-antispam",
+                "value": "BCL:0;ARA:13230040|376014|366016|1800799024|8096899003|38070700018|13003099007;"
+            },
+            {
+                "name": "x-microsoft-antispam-message-info",
+                "value": "YLcOIK/ZDTFjl76Q7BxSdgNTAqAMDJ80G8yr6jSr6+zL2uTn3tmsCt+KrDIcskKPJCRF4jOS1fNYahSwVjvmqyLDUMa0YsHIUnHh7Aa0yIVZH+VUxl2/7L9hfTojg5+tAfYUUgoWH+wE4BPvfy/XSpt6pRjpTpW8xLjx7XZZKVu6S60Px+QWrNAR7CaJUwsXTIHGPpVBGSbOgFQhO23tD31AAQcOSpW49X3QaMnB4qOKnSzUGFjD6QSMvKtEML6Eg9vOPR1T2B7Ne53IOG49kaMBmJVniYArM5Ski+pgkX1KcfP11bL/tenjETubySqW5+98IDD1cXGcFKIINz/EjRF/+qSYF8orlpz64UDDq2Vw2s3N0lr2fo8xPe5wj7yt7gr8M6Bo5xqzd806rGtRXlDap5MfRPfDwB4kcvY3qGy2/m/UgrDO6jYcV6WLgh/2k+jlmMDUvGwM9wX7+5kEreG5e8qeulpH9spr6L+3oGVQczWCj/XdWMVXphpCkC1od5GTHFJXxknWDjCJhlGMQ+Y31GRm6Vjx4kcGc2rf1S3o1pLknQIpDupDBTGidAFbYZ4I1kzh5wKth2nF24Te/P0VaVCQwgvtq3T7woAHyX8W/AynbCb+LDEkK/gwlqaGoGpcPcb07bAorJsUCwdkeg3cXIEoq+7YGAkgHZwA1kStobnp0F2OFo1h7W0ksXidla5QGBvMMcmcUcuXGwz2kgfB/rmK3nsAyoEPDuBSzl4RLWW7hE/FyVabTV04v7UxeZkvOiynxXHIJ2ezvGReQ/xWk4H8aJ2RbFGeVbwuHw7yJtjq33IjsuwS3RKSUKBrTE8IMqB/uGU54lvN6YbfxKYAweQuBkgtNxR+RAZ1t1zq//7V1j81Nz3/nsqggez9E/DSfrNrpm71kmYYp0dpZFURc31e9jtStsQS1pdH0NZ+MYAGswB8sYo4CZ44/OC/kERFzqVtMtFeZty9OEk4i/Oo2B06Jwj+0ywRjJwrMvLv5Nb4cYuxrquvnYQWk7QAva7k/ZU1zc5JL5kn1zIknL32PcVqm3HBedK8OnBC7Jp8bIMAeuW4flztB8Er4+FNKxLDQCr87iUKcTJOiRoj+8Oy/bmDpBFSKk9niPaTZz72X0zxMhcBuTdn4D91DX6yhwHJiSGPUROLDdx4j+2CrSod8eazgdpQqtH9BpVbzlttnH7uB0jt4MAMv77G1m2v2redAHD7h/cT8Fx6ykv5x+/j0okAj3qRf2PHdSNXEKEODvuog6Tgw/eSDwq76Tiwby2VcKyhFKi4+GnE2VsW6pbJpv1uVLuDX/R2r07ihbLUk7DIlTOSLMZycdGqztOq8qdUEtwJWazHcRbF/xqzipaso/MS11ww89d4RnpNS5jyk+yzZ2JEQ6dpLEftaUKdzMpeqT33FLlCrH5MfHIhWpvf1KQg1qsfEijNKF6h888="
+            },
+            {
+                "name": "x-forefront-antispam-report",
+                "value": "CIP:255.255.255.255;CTRY:;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:CWLP123MB4644.GBRP123.PROD.OUTLOOK.COM;PTR:;CAT:NONE;SFS:(13230040)(376014)(366016)(1800799024)(8096899003)(38070700018)(13003099007);DIR:OUT;SFP:1102;"
+            },
+            {
+                "name": "x-ms-exchange-antispam-messagedata-chunkcount",
+                "value": "1"
+            },
+            {
+                "name": "x-ms-exchange-antispam-messagedata-0",
+                "value": "d8gXBetx476mQGYTnzWr75pj/amqmgOEDUbGoIShwM0DU062mHQSId8y+4rmcs/M1X1+2Ig1iD9IQiaqaukm/spTQdM8DBLtVvodlql2QMntjyzZqld1k8iI5amfaMd4umkM3CgocI2oCSqxI0gFd5APeodA3bdLa7EH9UYPOxhd0cc7t6uFhvjoF4f5vMb7h7SZZqbAVyt+vCf7iwZnoxFayAgVJed2Kjlaq/rfC5irokzldJQ/pzdWrxYLSAm4Uu86bfYIqvYbEStpLUsYAoDRU3ANpy1a6FJIDT8rFW+SywGcECGFZIAueiZGUoTigGs6wDsaL6SoPkesnGUzwcJr6S9Ux0HWrAmv/VwDtOskoS0aL2qF8gjz2MrWtATiaWMrGJHBUsLShWc206Jcstg5qyh9SF8Cp4xyb6r8D2h8femAnpc1rTAnzo7Z3/T1UuHhWooLfnsufGaFH9a6LpUF4XKKMPC8enoUWfHcvPVZSCwTDljQJkzIML6zLXUlWcVo7SYC2qJllxB/odeSkOx5cZ/KZUZJsYMAnVvT4U6tvcaMKoVBKYGr6iTu7ZSxY+uy9JJy+UsX4rivs6R0LKvpikK+WaBLe+Q7xhmGIYSRXZ+PsQ4RJ5KX9TAcDymjuqS5k0A1/7UVzyfVqvpKHv+sEsp8NW4IU5J0CdXA97w/3ZjDhJ1KGtfiE0QKKwWwnUxhG6UPYYkm9v/Fg3gQbM3OIJCPtuIWWKWE+pWGoEQqo8eiYN5qEZkOkWOU/9CeaT1HcP4eQZ3YOjrMewze2Dgf1STP+EMIzAZNvaQnuGk6i/rcjOql7RADYtqk3SpzBn4S1BuDovgMAhUZrmdYg4LNd65jS5bPchZPRoGTEmExyWeZHJ55LYqg8IQn5XRYt6zEF0lS9tauDeB9DvXmXs2+GR3PUn/441hka0ghpkASH4HIQUXMHgQlUuvYjtu58+QuQuP0XlshafWCMybsDbtA13syqGOH3S1Pvoa0pX8yqWypuF5aG3zpRSKzdO/vGWmBrg2qHQoxNrQV3QCJ+qxhSXtKibQ8Q2X57AbPx0dU//KH2DgKVg7815yupNtdfOm35WgqMVKjg6ANAptvKm1ywudQkLRLPb7THLzzEZf3UYEOxbspKR2avfPZe1u62x4d+AUoy4fG0oE6LrS+dSzKlrbtltdQOsmZE+nOcvLrzPYlHEU2aRBysdPnndLbHM7+Wnvwjt8NvW1RNyJIi+V/78M7g3/x69mLRMKXDP+QtvnA7LtI6koSiPpLN18QhaVowIYZ+G9PZNBf9vX2OrTsfp9AxuUJpKwlSDIi+lvx2CJFIwPHIg2SyVEXtbZ9JcNaHX0hvPQqOSwKWsQ2/CObqG29Cy2B4Ml2OI0YWgoQC61pcuPQiVl2awen8FmEv0Nx4rVnTJbpTqxgDOt3qR+sDPUwWeQ0+f/DbhGQoyHfml+RbZamK6maIzS7+ohBhwmxAQDtdD+zcuh1Wf29Pvka52bOKwirShMa0CkzoQpl9Y2s+XVoCmAcidmMEUlMvDoHTDhZfRGu0g571fU6J2M66+tdHLT/Eds2r0BMXuY="
+            },
+            {
+                "name": "Content-Type",
+                "value": "multipart/alternative; boundary=\"_000_CWLP123MB4644134D3DC52E63F5DFE8BC806BACWLP123MB4644GBRP_\""
+            },
+            {
+                "name": "MIME-Version",
+                "value": "1.0"
+            },
+            {
+                "name": "X-OriginatorOrg",
+                "value": "umatr.io"
+            },
+            {
+                "name": "X-MS-Exchange-CrossTenant-AuthAs",
+                "value": "Internal"
+            },
+            {
+                "name": "X-MS-Exchange-CrossTenant-AuthSource",
+                "value": "CWLP123MB4644.GBRP123.PROD.OUTLOOK.COM"
+            },
+            {
+                "name": "X-MS-Exchange-CrossTenant-Network-Message-Id",
+                "value": "4941855b-7ff5-43d7-12f2-08dda734b674"
+            },
+            {
+                "name": "X-MS-Exchange-CrossTenant-originalarrivaltime",
+                "value": "09 Jun 2025 09:04:59.7585 (UTC)"
+            },
+            {
+                "name": "X-MS-Exchange-CrossTenant-fromentityheader",
+                "value": "Hosted"
+            },
+            {
+                "name": "X-MS-Exchange-CrossTenant-id",
+                "value": "475fa608-8c03-4cb9-9c31-114ffe0a6783"
+            },
+            {
+                "name": "X-MS-Exchange-CrossTenant-mailboxtype",
+                "value": "HOSTED"
+            },
+            {
+                "name": "X-MS-Exchange-CrossTenant-userprincipalname",
+                "value": "nxcciJcMrHJagZQFGEw8movsm6nAPuxOphugBY762r5U6JrJBAVATScVmPKosXM8qeGZ4LNn+oKgj1BpdsU4Zg=="
+            },
+            {
+                "name": "X-MS-Exchange-Transport-CrossTenantHeadersStamped",
+                "value": "LO8P123MB7663"
+            }
+        ],
+        "body": {
+            "size": 0
+        },
+        "parts": [
+            {
+                "partId": "0",
+                "mimeType": "text/plain",
+                "filename": "",
+                "headers": [
+                    {
+                        "name": "Content-Type",
+                        "value": "text/plain; charset=\"iso-8859-1\""
+                    },
+                    {
+                        "name": "Content-Transfer-Encoding",
+                        "value": "quoted-printable"
+                    }
+                ],
+                "body": {
+                    "size": 398,
+                    "data": "RXZlbnQgTmFtZTogSmFjayBXaWxzb24gLSBVTUFUUg0KDQpMb2NhdGlvbjogKzQ5IDE3NyAxNDA0NjkxDQoNClBsZWFzZSBzaGFyZSBhbnl0aGluZyB0aGF0IHdpbGwgaGVscCBwcmVwYXJlIGZvciBvdXIgbWVldGluZy46IEknbSBMZW8gZnJvbSBiZXJsaW4NCg0KTmVlZCB0byBtYWtlIGNoYW5nZXMgdG8gdGhpcyBldmVudD8NCkNhbmNlbDogaHR0cHM6Ly9jYWxlbmRseS5jb20vY2FuY2VsbGF0aW9ucy8yNDZmMmMzZC0wYTc2LTRiMmMtYTlhYS1kMjJlNGIzZGY0MjENClJlc2NoZWR1bGU6IGh0dHBzOi8vY2FsZW5kbHkuY29tL3Jlc2NoZWR1bGluZ3MvMjQ2ZjJjM2QtMGE3Ni00YjJjLWE5YWEtZDIyZTRiM2RmNDIxDQoNClBvd2VyZWQgYnkgQ2FsZW5kbHkgaHR0cHM6Ly9jYWxlbmRseS5jb20vDQo="
+                }
+            },
+            {
+                "partId": "1",
+                "mimeType": "text/html",
+                "filename": "",
+                "headers": [
+                    {
+                        "name": "Content-Type",
+                        "value": "text/html; charset=\"iso-8859-1\""
+                    },
+                    {
+                        "name": "Content-Transfer-Encoding",
+                        "value": "quoted-printable"
+                    }
+                ],
+                "body": {
+                    "size": 791,
+                    "data": "PGh0bWw-DQo8aGVhZD4NCjxtZXRhIGh0dHAtZXF1aXY9IkNvbnRlbnQtVHlwZSIgY29udGVudD0idGV4dC9odG1sOyBjaGFyc2V0PWlzby04ODU5LTEiPg0KPC9oZWFkPg0KPGJvZHk-DQo8cD5FdmVudCBOYW1lOiBKYWNrIFdpbHNvbiAtIFVNQVRSPC9wPg0KPHA-PC9wPg0KPHA-TG9jYXRpb246ICs0OSAxNzcgMTQwNDY5MTwvcD4NCjxwPlBsZWFzZSBzaGFyZSBhbnl0aGluZyB0aGF0IHdpbGwgaGVscCBwcmVwYXJlIGZvciBvdXIgbWVldGluZy46IEknbSBMZW8gZnJvbSBiZXJsaW48YnI-DQo8L3A-DQo8YnI-DQpOZWVkIHRvIG1ha2UgY2hhbmdlcyB0byB0aGlzIGV2ZW50Pzxicj4NCkNhbmNlbDogPGEgaHJlZj0iaHR0cHM6Ly9jYWxlbmRseS5jb20vY2FuY2VsbGF0aW9ucy8yNDZmMmMzZC0wYTc2LTRiMmMtYTlhYS1kMjJlNGIzZGY0MjEiPg0KaHR0cHM6Ly9jYWxlbmRseS5jb20vY2FuY2VsbGF0aW9ucy8yNDZmMmMzZC0wYTc2LTRiMmMtYTlhYS1kMjJlNGIzZGY0MjE8L2E-PGJyPg0KUmVzY2hlZHVsZTogPGEgaHJlZj0iaHR0cHM6Ly9jYWxlbmRseS5jb20vcmVzY2hlZHVsaW5ncy8yNDZmMmMzZC0wYTc2LTRiMmMtYTlhYS1kMjJlNGIzZGY0MjEiPg0KaHR0cHM6Ly9jYWxlbmRseS5jb20vcmVzY2hlZHVsaW5ncy8yNDZmMmMzZC0wYTc2LTRiMmMtYTlhYS1kMjJlNGIzZGY0MjE8L2E-PGJyPg0KPGJyPg0KUG93ZXJlZCBieSBDYWxlbmRseSA8YSBocmVmPSJodHRwczovL2NhbGVuZGx5LmNvbS8iPmh0dHBzOi8vY2FsZW5kbHkuY29tLzwvYT48YnI-DQo8L2JvZHk-DQo8L2h0bWw-DQo="
+                }
+            },
+            {
+                "partId": "2",
+                "mimeType": "text/calendar",
+                "filename": "invite.ics",
+                "headers": [
+                    {
+                        "name": "Content-Type",
+                        "value": "text/calendar; charset=\"utf-8\"; method=REQUEST"
+                    },
+                    {
+                        "name": "Content-Transfer-Encoding",
+                        "value": "base64"
+                    }
+                ],
+                "body": {
+                    "attachmentId": "ANGjdJ8Nv4tUm74rL0WbgK6pizr7qQHopEVxnpZ1gd27McQ-BieFTVoCA5AjRHO757GWzTbvk98DLfHyxAfF2QceFTWoixcnzNG6ZOGoHhiEKPFyX0qh6JrVV9R7Q8JeojKVCf-3gHTM2c_-qUJXTjHip8Ma0CrNamwvZ_gVF9m5P_3mbLCrgzDDVcgrCBN5v8qOS4td4QE6v4oybKq2vHOjY9v_NqxMXdLCctAJA-6tGSvmvvkzCp7Q93J9kpmK6ctAQJhXsXIV_79dNRVKfNkTJDgip4g7WPp3IuMgjvICi6yhfLAgTcZkFswwzVWCNRsA0Jq9UmySiqJmqpkMiFo1lYh5c2Y33kKeWnrfqyP0u1jNphNYc9YiMKmpEihE1-vEN-T4Vz9lhXbPL2sF",
+                    "size": 2220
+                }
+            }
+        ]
+    },
+    "sizeEstimate": 16882,
+    "historyId": "29302",
+    "internalDate": "1749459899000",
+    "headers": {
+        "Delivered-To": "leo@orchestra-nexus.com",
+        "Received": "from CWLP123MB4644.GBRP123.PROD.OUTLOOK.COM ([fe80::27dd:b614:86d9:5fe0]) by CWLP123MB4644.GBRP123.PROD.OUTLOOK.COM ([fe80::27dd:b614:86d9:5fe0%2]) with mapi id 15.20.8813.024; Mon, 9 Jun 2025 09:04:59 +0000",
+        "X-Google-Smtp-Source": "AGHT+IE70DzlRXBwlkcWxSk0MggxJQ1BEbRLq23fLjR/+S2wHDzny+5sFZ9vkW/AqJUnCdpZZcIA",
+        "X-Received": "by 2002:a05:6902:2b8d:b0:e81:84ac:cd9 with SMTP id 3f1490d57ef6-e81a20f0904mr16791334276.16.1749459912600;        Mon, 09 Jun 2025 02:05:12 -0700 (PDT)",
+        "ARC-Seal": "i=1; a=rsa-sha256; s=arcselector10001; d=microsoft.com; cv=none; b=IkpqjeP0+7LVv/Xh3Za2VMNqqVpA/mRScDBswCxQnzd30uncUN4NE4Px6nrIMdPwLCcIOgmmO0Fw4N40y4QawIXsiSCvzkGPxTyTFbfVIrFDtp5qSCkQX7k/iz7PuXUJwuOTEhw8TjHzjGrdCnrFIzZ/cy4ZIUjal/ZHid7lE8XU8+YRHmWDrl4BX3tL2UFBu4QhJz4aDRV0KBU5yUEU5Hi59wn5IsRwQUzpg2LVn118MnEeJDi5J08i9FPRy5NpG2ssN0C4L1LGwfrs6jEaUODz+ak1tFtfw8j4/Mh8AD6e9Eu04P93Zr9iA6BWz0j8WPWSe8nIOLVKxTAeySZXfg==",
+        "ARC-Message-Signature": "i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com; s=arcselector10001; h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-AntiSpam-MessageData-ChunkCount:X-MS-Exchange-AntiSpam-MessageData-0:X-MS-Exchange-AntiSpam-MessageData-1; bh=KlbdTfTJFq78GTP0bGzBclsFY9r3+8Vmiob6q+sNwmU=; b=Zp+7/L5mDV/fElDgH2D/KiA/PV/Ahg8tmahP6KlXGf5Lw1SU7MH6ZADe0F8+tE/91vZGZXFgJDa10QX8mW5GnKXD1Z505w57srsgB7gyBJv8KeBCkmSgH9i6148729Iv6YosoKwoSKnt4VCblY9Yv8rstLLBf8oVHAj2NF4yZMII28jiLbHUU36Z0Ga5f3VDc48ahaj6GTTQu97pG0VPxenM4G1xgRGcQqyLJL/3csWKB+O9UNeiaKQOSZTqUgtCr+bmfbHU4UqOfYwEjsqSAerXDO6KCQgxxUldw0LVNLh2V0/xOXBRuUjNqBP9b8OppfjP30yidcOJj4x8wYVnCQ==",
+        "ARC-Authentication-Results": "i=1; mx.microsoft.com 1; spf=pass smtp.mailfrom=umatr.io; dmarc=pass action=none header.from=umatr.io; dkim=pass header.d=umatr.io; arc=none",
+        "Return-Path": "<jack.wilson@umatr.io>",
+        "Received-SPF": "pass (google.com: domain of jack.wilson@umatr.io designates 2a01:111:f403:c206::1 as permitted sender) client-ip=2a01:111:f403:c206::1;",
+        "Authentication-Results": "mx.google.com;       dkim=pass header.i=@umatr.onmicrosoft.com header.s=selector1-umatr-onmicrosoft-com header.b=2T1fyAbm;       arc=pass (i=1 spf=pass spfdomain=umatr.io dkim=pass dkdomain=umatr.io dmarc=pass fromdomain=umatr.io);       spf=pass (google.com: domain of jack.wilson@umatr.io designates 2a01:111:f403:c206::1 as permitted sender) smtp.mailfrom=jack.wilson@umatr.io;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=umatr.io",
+        "DKIM-Signature": "v=1; a=rsa-sha256; c=relaxed/relaxed; d=umatr.onmicrosoft.com; s=selector1-umatr-onmicrosoft-com; h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck; bh=KlbdTfTJFq78GTP0bGzBclsFY9r3+8Vmiob6q+sNwmU=; b=2T1fyAbmoppILEVZ4fRDUp7ROhCcA9NE+RKKowZAqGaWdLiePWc/x7EyB9lWr82G9bKNVSCpZfIgV+XCcFkXCXxrFs139fxGXh07KfvDSxtSoSWHNGqcp3NFcES4SqOMmmIXPVHQiJVr9lIOEu0GV81ppfTx+AF+g3m7mwZHJzpP1fCS8Kw3dhWIRZHEslKHwicGjqMcge4/f4rvsxPxFG25EHEeBZhAtq2m7hH5cfvew+aAY1dxmakiSEykgWCXRUMSNbaKUqV3VyLTAFTNSTmmiaZ5pc79RaLlVZRjK4FxDi50ogrKKLGcKXq34ZZfum2dYeRdlmP5OiFJUhYuQA==",
+        "From": "Jack Wilson <jack.wilson@umatr.io>",
+        "To": "Leonardo Jacobi <leo@orchestra-nexus.com>",
+        "Subject": "Leonardo Jacobi and Jack Wilson",
+        "Thread-Topic": "Leonardo Jacobi and Jack Wilson",
+        "Thread-Index": "AdvZHZPJYi4+PVI16UO4Ukdv7VjYww==",
+        "Date": "Mon, 9 Jun 2025 09:04:59 +0000",
+        "Message-ID": "<CWLP123MB4644134D3DC52E63F5DFE8BC806BA@CWLP123MB4644.GBRP123.PROD.OUTLOOK.COM>",
+        "Accept-Language": "en-GB, en-US",
+        "Content-Language": "en-US",
+        "X-MS-Has-Attach": "",
+        "X-MS-TNEF-Correlator": "",
+        "x-ms-publictraffictype": "Email",
+        "authentication-results": "dkim=none (message not signed) header.d=none;dmarc=none action=none header.from=umatr.io;",
+        "x-ms-exchange-calendar-series-instance-id": "BAAAAIIA4AB0xbcQGoLgCAAAAACM0baTHdnbAQAAAAAAAAAAEAAAABqR+Oq10AtJnYfz031DQ/A=",
+        "x-ms-traffictypediagnostic": "CWLP123MB4644:EE_MeetingMessage|LO8P123MB7663:EE_MeetingMessage",
+        "x-ms-office365-filtering-correlation-id": "4941855b-7ff5-43d7-12f2-08dda734b674",
+        "x-ms-exchange-senderadcheck": "1",
+        "x-ms-exchange-antispam-relay": "0",
+        "x-microsoft-antispam": "BCL:0;ARA:13230040|376014|366016|1800799024|8096899003|38070700018|13003099007;",
+        "x-microsoft-antispam-message-info": "YLcOIK/ZDTFjl76Q7BxSdgNTAqAMDJ80G8yr6jSr6+zL2uTn3tmsCt+KrDIcskKPJCRF4jOS1fNYahSwVjvmqyLDUMa0YsHIUnHh7Aa0yIVZH+VUxl2/7L9hfTojg5+tAfYUUgoWH+wE4BPvfy/XSpt6pRjpTpW8xLjx7XZZKVu6S60Px+QWrNAR7CaJUwsXTIHGPpVBGSbOgFQhO23tD31AAQcOSpW49X3QaMnB4qOKnSzUGFjD6QSMvKtEML6Eg9vOPR1T2B7Ne53IOG49kaMBmJVniYArM5Ski+pgkX1KcfP11bL/tenjETubySqW5+98IDD1cXGcFKIINz/EjRF/+qSYF8orlpz64UDDq2Vw2s3N0lr2fo8xPe5wj7yt7gr8M6Bo5xqzd806rGtRXlDap5MfRPfDwB4kcvY3qGy2/m/UgrDO6jYcV6WLgh/2k+jlmMDUvGwM9wX7+5kEreG5e8qeulpH9spr6L+3oGVQczWCj/XdWMVXphpCkC1od5GTHFJXxknWDjCJhlGMQ+Y31GRm6Vjx4kcGc2rf1S3o1pLknQIpDupDBTGidAFbYZ4I1kzh5wKth2nF24Te/P0VaVCQwgvtq3T7woAHyX8W/AynbCb+LDEkK/gwlqaGoGpcPcb07bAorJsUCwdkeg3cXIEoq+7YGAkgHZwA1kStobnp0F2OFo1h7W0ksXidla5QGBvMMcmcUcuXGwz2kgfB/rmK3nsAyoEPDuBSzl4RLWW7hE/FyVabTV04v7UxeZkvOiynxXHIJ2ezvGReQ/xWk4H8aJ2RbFGeVbwuHw7yJtjq33IjsuwS3RKSUKBrTE8IMqB/uGU54lvN6YbfxKYAweQuBkgtNxR+RAZ1t1zq//7V1j81Nz3/nsqggez9E/DSfrNrpm71kmYYp0dpZFURc31e9jtStsQS1pdH0NZ+MYAGswB8sYo4CZ44/OC/kERFzqVtMtFeZty9OEk4i/Oo2B06Jwj+0ywRjJwrMvLv5Nb4cYuxrquvnYQWk7QAva7k/ZU1zc5JL5kn1zIknL32PcVqm3HBedK8OnBC7Jp8bIMAeuW4flztB8Er4+FNKxLDQCr87iUKcTJOiRoj+8Oy/bmDpBFSKk9niPaTZz72X0zxMhcBuTdn4D91DX6yhwHJiSGPUROLDdx4j+2CrSod8eazgdpQqtH9BpVbzlttnH7uB0jt4MAMv77G1m2v2redAHD7h/cT8Fx6ykv5x+/j0okAj3qRf2PHdSNXEKEODvuog6Tgw/eSDwq76Tiwby2VcKyhFKi4+GnE2VsW6pbJpv1uVLuDX/R2r07ihbLUk7DIlTOSLMZycdGqztOq8qdUEtwJWazHcRbF/xqzipaso/MS11ww89d4RnpNS5jyk+yzZ2JEQ6dpLEftaUKdzMpeqT33FLlCrH5MfHIhWpvf1KQg1qsfEijNKF6h888=",
+        "x-forefront-antispam-report": "CIP:255.255.255.255;CTRY:;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:CWLP123MB4644.GBRP123.PROD.OUTLOOK.COM;PTR:;CAT:NONE;SFS:(13230040)(376014)(366016)(1800799024)(8096899003)(38070700018)(13003099007);DIR:OUT;SFP:1102;",
+        "x-ms-exchange-antispam-messagedata-chunkcount": "1",
+        "x-ms-exchange-antispam-messagedata-0": "d8gXBetx476mQGYTnzWr75pj/amqmgOEDUbGoIShwM0DU062mHQSId8y+4rmcs/M1X1+2Ig1iD9IQiaqaukm/spTQdM8DBLtVvodlql2QMntjyzZqld1k8iI5amfaMd4umkM3CgocI2oCSqxI0gFd5APeodA3bdLa7EH9UYPOxhd0cc7t6uFhvjoF4f5vMb7h7SZZqbAVyt+vCf7iwZnoxFayAgVJed2Kjlaq/rfC5irokzldJQ/pzdWrxYLSAm4Uu86bfYIqvYbEStpLUsYAoDRU3ANpy1a6FJIDT8rFW+SywGcECGFZIAueiZGUoTigGs6wDsaL6SoPkesnGUzwcJr6S9Ux0HWrAmv/VwDtOskoS0aL2qF8gjz2MrWtATiaWMrGJHBUsLShWc206Jcstg5qyh9SF8Cp4xyb6r8D2h8femAnpc1rTAnzo7Z3/T1UuHhWooLfnsufGaFH9a6LpUF4XKKMPC8enoUWfHcvPVZSCwTDljQJkzIML6zLXUlWcVo7SYC2qJllxB/odeSkOx5cZ/KZUZJsYMAnVvT4U6tvcaMKoVBKYGr6iTu7ZSxY+uy9JJy+UsX4rivs6R0LKvpikK+WaBLe+Q7xhmGIYSRXZ+PsQ4RJ5KX9TAcDymjuqS5k0A1/7UVzyfVqvpKHv+sEsp8NW4IU5J0CdXA97w/3ZjDhJ1KGtfiE0QKKwWwnUxhG6UPYYkm9v/Fg3gQbM3OIJCPtuIWWKWE+pWGoEQqo8eiYN5qEZkOkWOU/9CeaT1HcP4eQZ3YOjrMewze2Dgf1STP+EMIzAZNvaQnuGk6i/rcjOql7RADYtqk3SpzBn4S1BuDovgMAhUZrmdYg4LNd65jS5bPchZPRoGTEmExyWeZHJ55LYqg8IQn5XRYt6zEF0lS9tauDeB9DvXmXs2+GR3PUn/441hka0ghpkASH4HIQUXMHgQlUuvYjtu58+QuQuP0XlshafWCMybsDbtA13syqGOH3S1Pvoa0pX8yqWypuF5aG3zpRSKzdO/vGWmBrg2qHQoxNrQV3QCJ+qxhSXtKibQ8Q2X57AbPx0dU//KH2DgKVg7815yupNtdfOm35WgqMVKjg6ANAptvKm1ywudQkLRLPb7THLzzEZf3UYEOxbspKR2avfPZe1u62x4d+AUoy4fG0oE6LrS+dSzKlrbtltdQOsmZE+nOcvLrzPYlHEU2aRBysdPnndLbHM7+Wnvwjt8NvW1RNyJIi+V/78M7g3/x69mLRMKXDP+QtvnA7LtI6koSiPpLN18QhaVowIYZ+G9PZNBf9vX2OrTsfp9AxuUJpKwlSDIi+lvx2CJFIwPHIg2SyVEXtbZ9JcNaHX0hvPQqOSwKWsQ2/CObqG29Cy2B4Ml2OI0YWgoQC61pcuPQiVl2awen8FmEv0Nx4rVnTJbpTqxgDOt3qR+sDPUwWeQ0+f/DbhGQoyHfml+RbZamK6maIzS7+ohBhwmxAQDtdD+zcuh1Wf29Pvka52bOKwirShMa0CkzoQpl9Y2s+XVoCmAcidmMEUlMvDoHTDhZfRGu0g571fU6J2M66+tdHLT/Eds2r0BMXuY=",
+        "Content-Type": "multipart/alternative; boundary=\"_000_CWLP123MB4644134D3DC52E63F5DFE8BC806BACWLP123MB4644GBRP_\"",
+        "MIME-Version": "1.0",
+        "X-OriginatorOrg": "umatr.io",
+        "X-MS-Exchange-CrossTenant-AuthAs": "Internal",
+        "X-MS-Exchange-CrossTenant-AuthSource": "CWLP123MB4644.GBRP123.PROD.OUTLOOK.COM",
+        "X-MS-Exchange-CrossTenant-Network-Message-Id": "4941855b-7ff5-43d7-12f2-08dda734b674",
+        "X-MS-Exchange-CrossTenant-originalarrivaltime": "09 Jun 2025 09:04:59.7585 (UTC)",
+        "X-MS-Exchange-CrossTenant-fromentityheader": "Hosted",
+        "X-MS-Exchange-CrossTenant-id": "475fa608-8c03-4cb9-9c31-114ffe0a6783",
+        "X-MS-Exchange-CrossTenant-mailboxtype": "HOSTED",
+        "X-MS-Exchange-CrossTenant-userprincipalname": "nxcciJcMrHJagZQFGEw8movsm6nAPuxOphugBY762r5U6JrJBAVATScVmPKosXM8qeGZ4LNn+oKgj1BpdsU4Zg==",
+        "X-MS-Exchange-Transport-CrossTenantHeadersStamped": "LO8P123MB7663"
+    },
+    "body": "Event Name: Jack Wilson - UMATR\r\n\r\nLocation: +49 177 1404691\r\n\r\nPlease share anything that will help prepare for our meeting.: I'm Leo from berlin\r\n\r\nNeed to make changes to this event?\r\nCancel: https://calendly.com/cancellations/246f2c3d-0a76-4b2c-a9aa-d22e4b3df421\r\nReschedule: https://calendly.com/reschedulings/246f2c3d-0a76-4b2c-a9aa-d22e4b3df421\r\n\r\nPowered by Calendly https://calendly.com/\r\n",
+    "attachments": [
+        "ANGjdJ8Nv4tUm74rL0WbgK6pizr7qQHopEVxnpZ1gd27McQ-BieFTVoCA5AjRHO757GWzTbvk98DLfHyxAfF2QceFTWoixcnzNG6ZOGoHhiEKPFyX0qh6JrVV9R7Q8JeojKVCf-3gHTM2c_-qUJXTjHip8Ma0CrNamwvZ_gVF9m5P_3mbLCrgzDDVcgrCBN5v8qOS4td4QE6v4oybKq2vHOjY9v_NqxMXdLCctAJA-6tGSvmvvkzCp7Q93J9kpmK6ctAQJhXsXIV_79dNRVKfNkTJDgip4g7WPp3IuMgjvICi6yhfLAgTcZkFswwzVWCNRsA0Jq9UmySiqJmqpkMiFo1lYh5c2Y33kKeWnrfqyP0u1jNphNYc9YiMKmpEihE1-vEN-T4Vz9lhXbPL2sF"
+    ]
+}

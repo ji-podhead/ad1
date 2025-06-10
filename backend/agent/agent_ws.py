@@ -30,11 +30,11 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp-server/sse/")
 
-logger = logging.getLogger("agent_ws") # Consider moving to top if not already there
+logger = logging.getLogger("agent_ws")
 
 manager = ConnectionManager()
 
-async def categorize_email(email_body: str) -> Union[dict, str]:
+async def categorize_email(email_body):
     """Categorizes email content using the Gemini API and MCP tools.
 
     This function connects to an MCP server to access email processing tools.
@@ -148,38 +148,38 @@ async def agent_websocket(websocket: WebSocket):
                 logging.info(f"Received message from {session_id}: {data}")
 
                 try:
-                    result = await categorize_email(data) # This now takes 'data' as input
+                    result = await categorize_email(data)
                     await manager.send_personal_message(session_id, {"message": result})
-                except (ValueError, ConnectionError, RuntimeError) as e_cat:
+                except (ValueError, ConnectionError, RuntimeError) as e_cat: # Catch specific errors from categorize_email
                     logging.error(f"Categorization error for session {session_id}: {e_cat}", exc_info=True)
                     error_message = str(e_cat)
+                    # Make messages more user-friendly for specific cases
                     if isinstance(e_cat, ConnectionError):
                         error_message = "Could not connect to a required service. Please try again later."
-                    elif "API Key" in str(e_cat) or "API policy" in str(e_cat): # More specific error check
+                    elif "API Key" in str(e_cat) or "API policy" in str(e_cat):
                          error_message = "There's an issue with the categorization service configuration."
+
                     await manager.send_personal_message(session_id, {"error": error_message})
-                except Exception as e_inner_loop:
+                except Exception as e_inner_loop: # Catch any other unexpected errors from categorize_email
                     logging.error(f"Unexpected error during categorization for session {session_id}: {e_inner_loop}", exc_info=True)
                     await manager.send_personal_message(session_id, {"error": "An unexpected error occurred while processing your request."})
 
             except WebSocketDisconnect:
                 logging.info(f"WebSocket disconnected for session {session_id}.")
-                break
-            except Exception as e_outer_loop:
+                break # Exit the loop gracefully on WebSocketDisconnect
+            except Exception as e_outer_loop: # Catch errors from websocket.receive_text() or manager.send
                 logging.error(f"Error in WebSocket communication for session {session_id}: {e_outer_loop}", exc_info=True)
+                # Attempt to send an error message if the connection is still partly alive
                 try:
                     await manager.send_personal_message(session_id, {"error": "A communication error occurred."})
-                except Exception:
-                    pass # Ignore if sending also fails, as connection is likely broken
-                break
+                except Exception: # Ignore if sending also fails
+                    pass
+                break # Exit loop on other errors too to prevent potential infinite loops
 
-    except Exception as e_connect:
+    except Exception as e_connect: # Errors during initial connect or if manager.send_personal_message fails initially
         logging.error(f"Error during WebSocket setup or initial message for session {session_id or 'unknown'}: {e_connect}", exc_info=True)
+        # No websocket.send_json here as connection might be compromised
     finally:
-        if session_id: # Ensure session_id was assigned
-            logging.info(f"Disconnecting session {session_id} in finally block.")
+        if session_id:
+            logging.info(f"Disconnecting session {session_id}.")
             manager.disconnect(session_id)
-
-# # Optional: Standalone test
-# if __name__ == '__main__':
-#     asyncio.run(categorize_email(" lies die email: 'ID: 1974a06441cf5b55\nSubject: test2\nFrom: Leonardo Jacobi und gib mir die Anhänge."))
