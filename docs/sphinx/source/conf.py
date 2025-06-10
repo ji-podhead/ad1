@@ -42,6 +42,21 @@ exclude_patterns = []
 # Add m2r2 source suffix for Markdown files
 source_suffix = ['.rst', '.md']
 
+# Modules to mock
+autodoc_mock_imports = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "sqlalchemy",
+    "asyncpg",
+    "google", # Umfasst google.auth, google.oauth2, google_auth_oauthlib etc.
+    "googleapiclient",
+    "mcp",
+    "litellm",
+    "dotenv",
+    # Füge hier weitere Module hinzu, die Probleme beim Import machen
+]
+
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
