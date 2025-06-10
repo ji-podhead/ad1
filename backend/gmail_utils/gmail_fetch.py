@@ -26,9 +26,15 @@ import base64 # For dummy PDF
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)  # <--- explizit setzen!
 import re
-
+from ..db_utils import (
+    insert_document_db, insert_new_email_db, log_generic_action_db,
+    fetch_active_workflows_db, find_existing_email_db,
+    delete_email_and_audit_for_duplicate_db, create_processing_task_db,
+    update_email_document_ids_db
+)
 def parse_mcp_email_list(raw_content: str) -> List[Dict[str, Any]]:
-    """Parses raw text content from an MCP-like service into a list of email dicts.
+    """
+    Parses raw text content from an MCP-like service into a list of email dicts.
 
     The raw content is expected to be a string where each email's information
     is a block separated by double newlines. Each block contains fields like
@@ -73,7 +79,8 @@ async def get_email(
     message_id: str,
     access_token: str
 ) -> Optional[Dict[str, Any]]:
-    """Fetches full email details from Gmail API, including body and attachments.
+    """
+    Fetches full email details from Gmail API, including body and attachments.
 
     This function retrieves a specific email message using the Gmail API. It parses
     the message payload to extract headers, body content (prioritizing text/plain
@@ -198,7 +205,7 @@ async def get_email(
                         except Exception as e:
                             logger.warning(f"Could not decode preferred body part ({preferred_body_part.get('mimeType')}) for message {message_id}: {e}")
 
-                email_details['body'] = body_content
+                email_details['body'] = preferred_body_part['body']['data'] 
 
                 # Download attachments using the collected info
                 downloaded_attachments = []
@@ -219,37 +226,20 @@ async def get_email(
                         downloaded_attachments.append(downloaded_att)
                         
                         email_details['attachments'].append(att_info['attachmentId'])
-                        
                         logger.info(f"Successfully downloaded attachment: {downloaded_att.keys()} for message {message_id}.")
-
+                        doc_id = await insert_document_db(
+                            db_pool=db_pool,
+                            email_id=downloaded_att["email_id"],
+                            filename=downloaded_att["filename"],
+                            content_type=downloaded_att["mimeType"],
+                            data_b64=downloaded_att["data"],
+                            created_at_dt=downloaded_att["created_at"],
+                            processed_data=None  # Processed data is not available at this initial insertion stage
+                        )
                     else:
                         logger.error(f"Failed to download attachment: {att_info['filename']} for message {message_id}.")
 
-                # email_details['attachments'] = downloaded_attachments
-                
-                filename=message_id
-                # Define save directory and create if it doesn't exist
-                backend_dir = os.path.dirname(__file__)
-                save_dir = os.path.join(backend_dir, 'attachments')
-                os.makedirs(save_dir, exist_ok=True)
-
-                # Create a unique filename using message_id and original filename
-                # Sanitize filename to avoid issues with special characters
-                safe_filename = "".join([c for c in filename if c.isalnum() or c in ('.', '_', '-')])
-                if not safe_filename:
-                    safe_filename = "attachment" # Fallback if filename is empty or invalid
-
-                file_path = os.path.join(save_dir, f"{message_id}_{safe_filename}.json")
-
-                # Save the file
-                try:
-                    with open(file_path, 'w', encoding='utf-8') as f:
-                            json.dump(email_details, f, ensure_ascii=False, indent=4)
-                    logger.info(f"Saved attachment to: {file_path}")
-                    return email_details # Return the path to the saved file
-                except Exception as e:
-                    logger.error(f"Failed to save attachment {filename} for message {message_id} to {file_path}: {e}")
-                    return None
+             
                 return email_details
 
     except Exception as e:
@@ -292,6 +282,7 @@ async def download_gmail_attachment(db_pool: asyncpg.pool.Pool, user_email: str,
                 # Gmail API uses base64url encoding, which might not have padding
                 file_bytes = base64.urlsafe_b64decode(b64data + '==')
                 logger.info(f"Downloaded attachment '{filename}' ({size} bytes) from Gmail API.")
+                        
                 return {
                     "filename": filename, # Add filename to the returned dict
                     "data": file_bytes,
@@ -301,5 +292,29 @@ async def download_gmail_attachment(db_pool: asyncpg.pool.Pool, user_email: str,
     except Exception as e:
         logger.error(f"Exception downloading Gmail attachment {attachment_id}: {e}")
         return None
+    
+# saving files:   #email_details['attachments'] = downloaded_attachments
+                
+                # filename=message_id
+                # # Define save directory and create if it doesn't exist
+                # backend_dir = os.path.dirname(__file__)
+                # save_dir = os.path.join(backend_dir, 'attachments')
+                # os.makedirs(save_dir, exist_ok=True)
 
+                # # Create a unique filename using message_id and original filename
+                # # Sanitize filename to avoid issues with special characters
+                # safe_filename = "".join([c for c in filename if c.isalnum() or c in ('.', '_', '-')])
+                # if not safe_filename:
+                #     safe_filename = "attachment" # Fallback if filename is empty or invalid
 
+                # file_path = os.path.join(save_dir, f"{message_id}_{safe_filename}.json")
+
+                # Save the file
+                # try:
+                #     with open(file_path, 'w', encoding='utf-8') as f:
+                #             json.dump(email_details, f, ensure_ascii=False, indent=4)
+                #     logger.info(f"Saved attachment to: {file_path}")
+                #     return email_details # Return the path to the saved file
+                # except Exception as e:
+                #     logger.error(f"Failed to save attachment {filename} for message {message_id} to {file_path}: {e}")
+                #     return None

@@ -134,7 +134,7 @@ async def get_summary_and_type_from_llm(
         agent = Agent(model, model_settings=model_settings)
         response = await agent.run(prompt)
         logger.info(f"LLM call completed, response received.")
-        logger.info(f"LLM response: {response}")  # Log full response for debugging
+        # logger.info(f"LLM response: {response}")  # Log full response for debugging
     except Exception as e:
         logger.error(f"Error during LLM call using pydantic_ai: {e}")
         return {
@@ -175,7 +175,7 @@ async def get_summary_and_type_from_llm(
             best_classification = sorted(classification_response.classifications, key=lambda x: x.score, reverse=True)[0]
             document_type = best_classification.type
 
-        logger.info(f"LLM result - Type: {document_type}, Description: {classification_response.short_description}, Classifications: {classification_response.classifications}")
+        # logger.info(f"LLM result - Type: {document_type}, Description: {classification_response.short_description}, Classifications: {classification_response.classifications}")
 
         return {
             "document_type": document_type,

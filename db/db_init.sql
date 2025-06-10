@@ -107,11 +107,12 @@ VALUES (
 -- --- DOCUMENTS TABLE (unified for raw/processed) ---
 CREATE TABLE IF NOT EXISTS documents (
     id SERIAL PRIMARY KEY,
-    email_id INTEGER REFERENCES emails(id),
-    filename TEXT NOT NULL,
-    content_type TEXT NOT NULL,
-    data_b64 TEXT, -- raw base64 data, nullable if processed only
-    processed_data JSONB, -- processed/extracted data, nullable if raw only
-    is_processed BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    email_id INTEGER REFERENCES emails(id) ON DELETE CASCADE,
+    filename VARCHAR(255) NOT NULL,
+    content_type VARCHAR(255),
+    data_b64 TEXT, -- Base64 encoded file content
+    processed_data TEXT, -- Store processed data, e.g., extracted text or summary
+    is_processed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
