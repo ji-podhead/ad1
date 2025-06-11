@@ -1338,7 +1338,7 @@ async def fetch_active_workflows_db(db_pool: asyncpg.pool.Pool, trigger_type: st
     # the trigger_type should reflect that, or the query needs to be more flexible.
     # Assuming 'scheduler_tasks' table holds all workflow definitions.
     rows = await db_pool.fetch(
-        "SELECT id, task_name as workflow_name, workflow_config FROM scheduler_tasks WHERE status = 'active' AND trigger_type = $1",
+        "SELECT id, workflow_name, workflow_config FROM scheduler_tasks WHERE status = 'active' AND trigger_type = $1",
         trigger_type # e.g., 'email_received' or a more generic 'event' type
     )
     # If no specific trigger_type for 'email_received', perhaps all 'active' workflows are candidates?
