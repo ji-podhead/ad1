@@ -1,4 +1,4 @@
-"""Main FastAPI application for the ad1 platform.
+'''Main FastAPI application for the ad1 platform.
 
 This module defines the FastAPI application, including CORS middleware,
 database connection setup (PostgreSQL with asyncpg), background task scheduling,
@@ -6,7 +6,7 @@ API endpoints for managing emails, documents, users, audit trails,
 scheduler tasks, application settings, and handles OAuth2 authentication flows.
 It also integrates with Gmail API for email operations and provides
 WebSocket support for real-time agent interactions.
-"""
+'''
 # FastAPI backend for Ornex Mail
 # Entry point: main.py
 from fastapi.middleware.cors import CORSMiddleware
@@ -68,7 +68,7 @@ app.add_middleware(
 # --- Pydantic models ---
 # Email/Audit models
 class Email(BaseModel):
-    """Represents an email message."""
+    '''Represents an email message.'''
     id: int
     subject: str
     sender: str
@@ -79,7 +79,7 @@ class Email(BaseModel):
     # document_ids: Optional[List[int]] = None # If you want to include this
 
 class AuditTrail(BaseModel):
-    """Represents an audit trail log entry."""
+    '''Represents an audit trail log entry.'''
     id: int
     email_id: Optional[int] = None
     task_id: Optional[int] = None # Added task_id
@@ -89,7 +89,7 @@ class AuditTrail(BaseModel):
     timestamp: datetime.datetime # Changed to datetime for proper typing
 
 class SchedulerTask(BaseModel):
-    """Represents a scheduled task or workflow configuration."""
+    '''Represents a scheduled task or workflow configuration.'''
     id: str # In DB it's int, but example showed str. db_utils returns int.
     type: Optional[str] = None
     description: Optional[str] = None
@@ -111,7 +111,8 @@ class SchedulerTask(BaseModel):
     updated_at: Optional[datetime.datetime] = None
 
 
-class SchedulerTaskCreate(BaseModel): # For creating tasks
+class SchedulerTaskCreate(BaseModel):
+    '''Data model for creating a new scheduler task.'''
     type: Optional[str] = None # Maps to 'task_name' in some contexts
     description: Optional[str] = None
     trigger_type: str
@@ -129,7 +130,7 @@ class SchedulerTaskCreate(BaseModel): # For creating tasks
     cron_expression: Optional[str] = None # Explicitly for cron jobs
 
 class CreateUserRequest(BaseModel):
-    """Data model for creating a new user."""
+    '''Data model for creating a new user.'''
     email: str
     password: str
     is_admin: bool = False
@@ -137,7 +138,7 @@ class CreateUserRequest(BaseModel):
     google_id: Optional[str] = None # Added for Google OAuth
 
 class UpdateUserRequest(BaseModel):
-    """Data model for updating an existing user."""
+    '''Data model for updating an existing user.'''
     email: Optional[str] = None # Allow changing email, though be cautious with this
     password: Optional[str] = None
     is_admin: Optional[bool] = None
@@ -149,7 +150,7 @@ class UpdateUserRequest(BaseModel):
 
 
 class User(BaseModel):
-    """Represents a user in the system."""
+    '''Represents a user in the system.'''
     id: int
     email: str
     is_admin: bool = False
@@ -163,7 +164,7 @@ class User(BaseModel):
 
 
 class ProcessingTask(BaseModel):
-    """Represents a task for processing an email or document."""
+    '''Represents a task for processing an email or document.'''
     id: int
     email_id: int
     status: str
@@ -179,30 +180,30 @@ class ProcessingTask(BaseModel):
 
 # New Pydantic models for Settings
 class EmailType(BaseModel):
-    """Represents a configurable email type/topic for classification."""
+    '''Represents a configurable email type/topic for classification.'''
     id: Optional[int] = None # ID is optional for creation
     topic: str
     description: Optional[str] = None
 
 class KeyFeature(BaseModel):
-    """Represents a configurable key feature for workflow association."""
+    '''Represents a configurable key feature for workflow association.'''
     id: Optional[int] = None # ID is optional for creation
     name: str
 
 class SettingsData(BaseModel):
-    """Data model for application settings."""
+    '''Data model for application settings.'''
     email_grabber_frequency_type: str
     email_grabber_frequency_value: int
     email_types: List[EmailType]
     key_features: List[KeyFeature]
 
 class SetTaskStatusRequest(BaseModel):
-    """Data model for setting the status of a task."""
+    '''Data model for setting the status of a task.'''
     status: str
 
 # Document model
 class Document(BaseModel):
-    """Represents a document, typically an email attachment."""
+    '''Represents a document, typically an email attachment.'''
     id: int
     email_id: int
     filename: str
@@ -216,12 +217,12 @@ class Document(BaseModel):
 # DB pool
 @app.on_event("startup")
 async def startup():
-    """Initializes application state on startup.
+    '''Initializes application state on startup.
 
     Sets up the database connection pool, initializes the agent scheduler,
     schedules the global email checking cron job based on settings,
     and processes ADMIN_EMAILS environment variable to create initial admin users.
-    """
+    '''
     app.state.db = await asyncpg.create_pool(DATABASE_URL)
     if app.state.db is None:
         logger.error("Database connection pool could not be created.")
@@ -285,10 +286,10 @@ async def startup():
 
 @app.on_event("shutdown")
 async def shutdown():
-    """Cleans up application state on shutdown.
+    '''Cleans up application state on shutdown.
 
     Cancels all scheduled tasks and closes the database connection pool.
-    """
+    '''
     if hasattr(app.state, 'scheduler') and app.state.scheduler:
         app.state.scheduler.cancel_all()
     if hasattr(app.state, 'db') and app.state.db:
@@ -297,12 +298,31 @@ async def shutdown():
 # Email endpoints
 @app.get("/api/emails", response_model=List[Email])
 async def get_emails(request: Request):
+    '''
+    Retrieves a list of all emails.
+
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :returns: A list of email objects.
+    :rtype: List[Email]
+    '''
     db_pool = request.app.state.db
     email_rows = await get_emails_db(db_pool)
     return [Email(**email) for email in email_rows]
 
 @app.get("/api/emails/{email_id}", response_model=Email)
 async def get_email(email_id: int, request: Request):
+    '''
+    Retrieves a specific email by its ID.
+
+    :param email_id: The ID of the email to retrieve.
+    :type email_id: int
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :raises HTTPException: If the email with the given ID is not found (status code 404).
+    :returns: The email details.
+    :rtype: Email
+    '''
     db_pool = request.app.state.db
     email_row = await get_email_by_id_db(db_pool, email_id)
     if not email_row:
@@ -311,6 +331,19 @@ async def get_email(email_id: int, request: Request):
 
 @app.post("/api/emails/{email_id}/label")
 async def label_email_endpoint(email_id: int, label: str, request: Request):
+    '''
+    Updates the label of a specific email.
+
+    :param email_id: The ID of the email to label.
+    :type email_id: int
+    :param label: The new label to apply to the email.
+    :type label: str
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :raises HTTPException: If the email is not found (404) or if the update fails (500).
+    :returns: A status confirmation.
+    :rtype: Dict[str, str]
+    '''
     db_pool = request.app.state.db
     success = await update_email_label_db(db_pool, email_id, label)
     if not success:
@@ -326,6 +359,14 @@ async def label_email_endpoint(email_id: int, label: str, request: Request):
 # Audit Trail endpoints
 @app.get("/api/audit", response_model=List[AuditTrail])
 async def get_audit(request: Request):
+    '''
+    Retrieves the latest audit trail entries.
+
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :returns: A list of audit trail entries.
+    :rtype: List[AuditTrail]
+    '''
     db_pool = request.app.state.db
     audit_rows = await get_audit_trail_db(db_pool, limit=100)
     # Ensure timestamp is correctly formatted if needed by Pydantic model (datetime is fine)
@@ -334,15 +375,23 @@ async def get_audit(request: Request):
 # WebSocket for agent chat (MCP integration)
 @app.websocket("/ws/agent")
 async def websocket_endpoint(websocket: WebSocket):
-    """Handles WebSocket connections for agent interactions.
+    '''Handles WebSocket connections for agent interactions.
 
-    Args:
-        websocket (WebSocket): The WebSocket connection instance.
-    """
+    :param websocket: The WebSocket connection instance.
+    :type websocket: WebSocket
+    '''
     await agent_websocket(websocket)
 
 @app.get("/api/scheduler/tasks", response_model=List[SchedulerTask])
 async def get_scheduler_tasks(request: Request):
+    '''
+    Retrieves a list of all scheduler tasks (workflows).
+
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :returns: A list of scheduler task objects.
+    :rtype: List[SchedulerTask]
+    '''
     db_pool = request.app.state.db
     tasks_from_db = await get_scheduler_tasks_db(db_pool)
     response_tasks = []
@@ -376,6 +425,17 @@ async def get_scheduler_tasks(request: Request):
 
 @app.post("/api/scheduler/task", response_model=SchedulerTask)
 async def create_scheduler_task(task_create_data: SchedulerTaskCreate, request: Request):
+    '''
+    Creates a new scheduler task (workflow).
+
+    :param task_create_data: The data for creating the new scheduler task.
+    :type task_create_data: SchedulerTaskCreate
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :raises HTTPException: If the task creation fails in the database (500).
+    :returns: The created scheduler task object.
+    :rtype: SchedulerTask
+    '''
     db_pool = request.app.state.db
     db_task_data = {
         'task_name': task_create_data.workflow_name or task_create_data.description or "Untitled Workflow",
@@ -422,6 +482,19 @@ async def create_scheduler_task(task_create_data: SchedulerTaskCreate, request: 
 
 @app.put("/api/scheduler/task/{task_id}", response_model=SchedulerTask)
 async def update_scheduler_task(task_id: int, task_update_data: SchedulerTaskCreate, request: Request):
+    '''
+    Updates an existing scheduler task (workflow).
+
+    :param task_id: The ID of the scheduler task to update.
+    :type task_id: int
+    :param task_update_data: The data to update the scheduler task with.
+    :type task_update_data: SchedulerTaskCreate
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :raises HTTPException: If the task is not found or update fails (404).
+    :returns: The updated scheduler task object.
+    :rtype: SchedulerTask
+    '''
     db_pool = request.app.state.db
     # Prepare updates dict for update_scheduler_task_db
     updates_for_db = {
@@ -461,6 +534,17 @@ async def update_scheduler_task(task_id: int, task_update_data: SchedulerTaskCre
 
 @app.post("/api/scheduler/task/{task_id}/pause")
 async def pause_scheduler_task(task_id: int, request: Request):
+    '''
+    Pauses or resumes a scheduler task by toggling its status between 'active' and 'paused'.
+
+    :param task_id: The ID of the scheduler task to pause/resume.
+    :type task_id: int
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :raises HTTPException: If the task is not found (404) or if the update fails (500).
+    :returns: The new status of the task and its ID.
+    :rtype: Dict[str, Union[str, int]]
+    '''
     db_pool = request.app.state.db
     # Fetch current task to determine new status
     tasks_from_db = await get_scheduler_tasks_db(db_pool)
@@ -480,6 +564,17 @@ async def pause_scheduler_task(task_id: int, request: Request):
 
 @app.delete("/api/scheduler/task/{task_id}")
 async def delete_scheduler_task_endpoint(task_id: int, request: Request):
+    '''
+    Deletes a scheduler task.
+
+    :param task_id: The ID of the scheduler task to delete.
+    :type task_id: int
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :raises HTTPException: If the task is not found or deletion fails (404).
+    :returns: A confirmation message.
+    :rtype: Dict[str, Union[bool, str]]
+    '''
     db_pool = request.app.state.db
     deleted = await delete_scheduler_task_db(db_pool, task_id)
     if not deleted:
@@ -489,6 +584,14 @@ async def delete_scheduler_task_endpoint(task_id: int, request: Request):
 # Settings Endpoints
 @app.get("/api/settings", response_model=SettingsData)
 async def get_settings_endpoint(request: Request):
+    '''
+    Retrieves the current application settings.
+
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :returns: The application settings.
+    :rtype: SettingsData
+    '''
     db_pool = request.app.state.db
     settings_dict = await get_settings_db(db_pool)
     # Ensure the structure matches SettingsData model, converting if necessary
@@ -501,6 +604,16 @@ async def get_settings_endpoint(request: Request):
 
 @app.post("/api/settings")
 async def save_settings(settings_data: SettingsData, request: Request):
+    '''
+    Saves application settings.
+
+    :param settings_data: The settings data to save.
+    :type settings_data: SettingsData
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :returns: A status confirmation message.
+    :rtype: Dict[str, str]
+    '''
     db_pool = request.app.state.db
     # save_settings_db expects a dictionary
     await save_settings_db(db_pool, settings_data.model_dump())
@@ -509,6 +622,17 @@ async def save_settings(settings_data: SettingsData, request: Request):
 # User Management Endpoints
 @app.post("/api/users/add", response_model=User)
 async def addUser(user_create_request: CreateUserRequest, request: Request):
+    '''
+    Adds a new user to the system.
+
+    :param user_create_request: The details of the user to create.
+    :type user_create_request: CreateUserRequest
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :raises HTTPException: If a user with the same email already exists (400) or if an unexpected error occurs (500).
+    :returns: The created user object (without password hash).
+    :rtype: User
+    '''
     db_pool = request.app.state.db
     hashed_password = pwd_context.hash(user_create_request.password)
     try:
@@ -533,6 +657,23 @@ async def addUser(user_create_request: CreateUserRequest, request: Request):
 
 @app.put("/api/users/{user_identifier}/set", response_model=User)
 async def setUser(user_identifier: Union[int, str], user_update_request: UpdateUserRequest, request: Request):
+    '''
+    Updates an existing user's details.
+
+    The user can be identified by their ID (int) or email (str).
+    If 'password' is provided in the request, it will be hashed before saving.
+
+    :param user_identifier: The ID (int) or email (str) of the user to update.
+    :type user_identifier: Union[int, str]
+    :param user_update_request: The data to update for the user.
+    :type user_update_request: UpdateUserRequest
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :raises HTTPException: If user identifier is invalid (400), user not found (404),
+                           email conflict (400), or unexpected error (500).
+    :returns: The updated user object (without password hash).
+    :rtype: User
+    '''
     db_pool = request.app.state.db
     updates = user_update_request.model_dump(exclude_unset=True)
     
@@ -575,6 +716,19 @@ async def setUser(user_identifier: Union[int, str], user_update_request: UpdateU
 
 @app.delete("/api/users/{user_identifier}")
 async def deleteUser(user_identifier: Union[int, str], request: Request):
+    '''
+    Deletes a user from the system.
+
+    The user can be identified by their ID (int) or email (str).
+
+    :param user_identifier: The ID (int) or email (str) of the user to delete.
+    :type user_identifier: Union[int, str]
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :raises HTTPException: If user identifier is invalid (400) or user not found (404).
+    :returns: A status confirmation message.
+    :rtype: Dict[str, str]
+    '''
     db_pool = request.app.state.db
     user_to_delete = None
     if isinstance(user_identifier, str) and "@" in user_identifier:
@@ -597,6 +751,14 @@ async def deleteUser(user_identifier: Union[int, str], request: Request):
 
 @app.get("/api/users", response_model=List[User])
 async def list_users(request: Request):
+    '''
+    Lists all users in the system.
+
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :returns: A list of user objects (without password hashes).
+    :rtype: List[User]
+    '''
     db_pool = request.app.state.db
     users_list_from_db = await list_users_db(db_pool)
     # Ensure password hash is not included in the response
@@ -608,6 +770,21 @@ async def list_users(request: Request):
 
 @app.post("/api/users/{email}/token")
 async def save_user_token_endpoint(email: str, data: dict, request: Request):
+    '''
+    Saves a Google access token for a user.
+
+    Note: The request body `data` is expected to be a dictionary with a "token" key.
+
+    :param email: The email of the user for whom to save the token.
+    :type email: str
+    :param data: A dictionary containing the token, e.g., `{"token": "user_access_token"}`.
+    :type data: dict
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :raises HTTPException: If token is missing (400), user not found (404), or update fails (500).
+    :returns: A status confirmation.
+    :rtype: Dict[str, str]
+    '''
     db_pool = request.app.state.db
     token = data.get("token") # Assuming this is for google_access_token
     if not token:
@@ -625,6 +802,23 @@ async def save_user_token_endpoint(email: str, data: dict, request: Request):
 
 @app.get("/oauth2callback")
 async def oauth2callback_endpoint(request: Request, code: str = Query(...), state: str = Query(None)):
+    '''
+    Handles the OAuth2 callback from Google.
+
+    Exchanges the authorization code for tokens, extracts user ID from the state,
+    and stores the tokens in the database for the user.
+    Redirects the user back to the frontend settings page with auth status.
+
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :param code: The authorization code provided by Google.
+    :type code: str
+    :param state: The state parameter, expected to contain the user ID.
+    :type state: Optional[str]
+    :raises HTTPException: If OAuth client configuration is missing (500).
+    :returns: A RedirectResponse to the frontend settings page.
+    :rtype: RedirectResponse
+    '''
     db_pool = request.app.state.db
     logger.info("-----------------------------------------")
     logger.info(f"Received OAuth2 callback with code: {code}, state: {state}")
@@ -667,12 +861,14 @@ async def oauth2callback_endpoint(request: Request, code: str = Query(...), stat
 
 @app.get("/api/oauth-config")
 def get_oauth_config():
-    """Retrieves the Google OAuth client configuration.
+    '''Retrieves the Google OAuth client configuration.
+
     This is used by the frontend to initialize the Google Login flow.
-    Returns:
-        JSONResponse: The OAuth client configuration from `auth/gcp-oauth.keys.json`.
-                      Returns 404 if file not found, 500 on other errors.
-    """
+
+    :raises HTTPException: If the config file is not found (404) or if there's an error reading/parsing it (500).
+    :returns: The OAuth client configuration.
+    :rtype: JSONResponse
+    '''
     # Ensure the path is relative to this file's location (backend_main.py)
     config_path = os.path.join(os.path.dirname(__file__), 'auth/gcp-oauth.keys.json')
     try:
@@ -696,15 +892,17 @@ def get_oauth_config():
 
 
 @app.get("/api/gmail/auth-url")
-async def get_gmail_auth_url(request: Request): # request argument might not be needed if user_id is hardcoded/mockedAdd commentMore actions
-    """Generates the Gmail OAuth authorization URL.
-    The generated URL includes a state parameter with an appended user ID (currently placeholder).
+async def get_gmail_auth_url(request: Request): # request argument might not be needed if user_id is hardcoded/mocked
+    '''Generates the Gmail OAuth authorization URL.
+
+    The generated URL includes a state parameter with an appended user ID (currently placeholder '1').
     This URL is intended for the frontend to initiate the Google OAuth flow.
-    Args:
-        request (Request): The FastAPI request object (currently unused for user_id).
-    Returns:
-        dict: A dictionary containing the "auth_url".
-    """
+
+    :param request: The FastAPI request object (currently unused for user_id, but good practice to include).
+    :type request: Request
+    :returns: A dictionary containing the "auth_url".
+    :rtype: Dict[str, str]
+    '''
     logger.info("Generating Gmail OAuth authorization URL...")
     # Placeholder for actual user ID retrieval from authenticated request context
     user_id = 1 # Example: Replace with actual authenticated user's ID
@@ -725,10 +923,14 @@ async def get_gmail_auth_url(request: Request): # request argument might not be 
 
 @app.get("/api/mcp/auth-url")
 async def get_mcp_auth_url():
-    """Provides the frontend with the URL to initiate MCP server login (placeholder).
-    Returns:
-        dict: A dictionary containing the "auth_url".
-    """
+    '''Provides the frontend with the URL to initiate MCP server login.
+
+    The URL is constructed based on environment variables for the MCP server URL
+    and a predefined callback URL for this application.
+
+    :returns: A dictionary containing the "auth_url".
+    :rtype: Dict[str, str]
+    '''
     # This is a placeholder. The actual URL should come from configuration
     # or be dynamically constructed based on the MCP server's requirements.
     # It typically includes a redirect_uri for the MCP server to call back to.
@@ -743,6 +945,20 @@ async def get_mcp_auth_url():
 # Add endpoint to handle MCP callback and save token
 @app.get("/mcpcallback")
 async def mcp_callback_endpoint(request: Request, token: str = Query(...), user_email: str = Query(...)):
+    '''
+    Handles the callback from the MCP server after user authentication.
+
+    Saves the MCP token for the specified user and redirects to the frontend settings page.
+
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :param token: The MCP token provided by the MCP server.
+    :type token: str
+    :param user_email: The email of the user associated with this MCP authentication.
+    :type user_email: str
+    :returns: A RedirectResponse to the frontend settings page with MCP auth status.
+    :rtype: RedirectResponse
+    '''
     db_pool = request.app.state.db
     user = await get_user_by_email_db(db_pool, user_email)
     if user:
@@ -760,12 +976,31 @@ async def mcp_callback_endpoint(request: Request, token: str = Query(...), user_
 # Processing Task Endpoints
 @app.get("/api/processing_tasks", response_model=List[ProcessingTask])
 async def get_processing_tasks_endpoint(request: Request):
+    '''
+    Retrieves a list of all processing tasks.
+
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :returns: A list of processing task objects.
+    :rtype: List[ProcessingTask]
+    '''
     db_pool = request.app.state.db
     tasks_data = await get_processing_tasks_db(db_pool)
     return [ProcessingTask(**task) for task in tasks_data]
 
 @app.post("/api/processing_tasks/{task_id}/validate")
 async def validate_task_endpoint(task_id: int, request: Request):
+    '''
+    Marks a processing task as 'validated'.
+
+    :param task_id: The ID of the task to validate.
+    :type task_id: int
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :raises HTTPException: If the task is not found or update fails (404).
+    :returns: A status confirmation message.
+    :rtype: Dict[str, str]
+    '''
     db_pool = request.app.state.db
     # update_task_status_db calls log_task_action_db internally
     updated = await update_task_status_db(db_pool, task_id, 'validated', user="user_api")
@@ -775,6 +1010,17 @@ async def validate_task_endpoint(task_id: int, request: Request):
 
 @app.post("/api/processing_tasks/{task_id}/abort")
 async def abort_task_endpoint(task_id: int, request: Request):
+    '''
+    Marks a processing task as 'aborted'.
+
+    :param task_id: The ID of the task to abort.
+    :type task_id: int
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :raises HTTPException: If the task is not found or update fails (404).
+    :returns: A status confirmation message.
+    :rtype: Dict[str, str]
+    '''
     db_pool = request.app.state.db
     updated = await update_task_status_db(db_pool, task_id, 'aborted', user="user_api")
     if not updated:
@@ -783,6 +1029,19 @@ async def abort_task_endpoint(task_id: int, request: Request):
 
 @app.post("/api/tasks/{task_id}/status") # Note: path uses /api/tasks/ not /api/processing_tasks/
 async def set_task_status_endpoint(task_id: int, status_request: SetTaskStatusRequest, request: Request):
+    '''
+    Sets the status of a specific task.
+
+    :param task_id: The ID of the task to update.
+    :type task_id: int
+    :param status_request: The request body containing the new status.
+    :type status_request: SetTaskStatusRequest
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :raises HTTPException: If the task is not found or update fails (404).
+    :returns: A status confirmation message.
+    :rtype: Dict[str, str]
+    '''
     db_pool = request.app.state.db
     updated = await update_task_status_db(db_pool, task_id, status_request.status, user="user_api")
     if not updated:
@@ -792,6 +1051,17 @@ async def set_task_status_endpoint(task_id: int, status_request: SetTaskStatusRe
 # Document Endpoints
 @app.delete("/api/documents/{document_id}")
 async def delete_document_endpoint(document_id: int, request: Request):
+    '''
+    Deletes a document by its ID.
+
+    :param document_id: The ID of the document to delete.
+    :type document_id: int
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :raises HTTPException: If the document is not found (404) or if deletion fails (500).
+    :returns: A status confirmation message.
+    :rtype: Dict[str, str]
+    '''
     db_pool = request.app.state.db
     # Check if document exists before attempting to delete
     doc_exists = await get_document_content_db(db_pool, document_id) 
@@ -807,6 +1077,14 @@ async def delete_document_endpoint(document_id: int, request: Request):
 
 @app.get("/api/documents", response_model=List[Document])
 async def get_documents_endpoint(request: Request):
+    '''
+    Retrieves a list of all documents.
+
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :returns: A list of document objects.
+    :rtype: List[Document]
+    '''
     db_pool = request.app.state.db
     documents_list = await get_documents_db(db_pool)
     # Ensure the Document model is correctly mapping fields from get_documents_db
@@ -814,6 +1092,20 @@ async def get_documents_endpoint(request: Request):
 
 @app.get("/api/documents/{document_id}/content")
 async def get_document_content_endpoint(document_id: int, request: Request):
+    '''
+    Retrieves the content of a specific document.
+
+    The content is returned as a FileResponse, allowing inline display or download.
+
+    :param document_id: The ID of the document to retrieve content for.
+    :type document_id: int
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :raises HTTPException: If the document or its content is not found (404),
+                           or if there's an error decoding the content (500).
+    :returns: The document content as a file response.
+    :rtype: Response
+    '''
     db_pool = request.app.state.db
     doc_data = await get_document_content_db(db_pool, document_id)
     if not doc_data:
@@ -838,6 +1130,15 @@ async def get_document_content_endpoint(document_id: int, request: Request):
 # Scheduler Control Endpoints
 @app.post("/api/scheduler/start")
 async def start_scheduler_endpoint(request: Request):
+    '''
+    Starts the agent scheduler.
+
+    :param request: The FastAPI request object.
+    :type request: Request
+    :raises HTTPException: If the scheduler is not available or initialized (500).
+    :returns: The current status of the scheduler ('running').
+    :rtype: Dict[str, str]
+    '''
     db_pool = request.app.state.db
     if hasattr(request.app.state, 'scheduler') and request.app.state.scheduler:
         request.app.state.scheduler.start()
@@ -848,6 +1149,15 @@ async def start_scheduler_endpoint(request: Request):
 
 @app.post("/api/scheduler/stop")
 async def stop_scheduler_endpoint(request: Request):
+    '''
+    Stops the agent scheduler and cancels all its tasks.
+
+    :param request: The FastAPI request object.
+    :type request: Request
+    :raises HTTPException: If the scheduler is not available or initialized (500).
+    :returns: The current status of the scheduler ('stopped').
+    :rtype: Dict[str, str]
+    '''
     db_pool = request.app.state.db
     if hasattr(request.app.state, 'scheduler') and request.app.state.scheduler:
         request.app.state.scheduler.cancel_all()
@@ -857,7 +1167,16 @@ async def stop_scheduler_endpoint(request: Request):
     raise HTTPException(status_code=fastapi_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Scheduler not available or not initialized.")
 
 @app.get("/api/scheduler/status")
-async def scheduler_status_endpoint(request: Request): # Added request to align with others, though db_pool not directly used here
+async def scheduler_status_endpoint(request: Request):
+    '''
+    Gets the current status of the agent scheduler (running or stopped).
+
+    :param request: The FastAPI request object.
+    :type request: Request
+    :raises HTTPException: If the scheduler is not available or initialized (500).
+    :returns: The current status of the scheduler.
+    :rtype: Dict[str, str]
+    '''
     if hasattr(request.app.state, 'scheduler') and request.app.state.scheduler:
         is_running = hasattr(request.app.state.scheduler, 'is_running') and request.app.state.scheduler.is_running()
         status_str = "running" if is_running else "stopped"
@@ -876,16 +1195,20 @@ async def scheduler_status_endpoint(request: Request): # Added request to align 
 
 
 @app.get("/api/users/{user_identifier}/has_google_refresh_token")
-async def has_google_refresh_token(user_identifier: Union[int, str]):
-    """Checks if a Google refresh token is set for the specified user.
-    Args:
-        user_identifier (Union[int, str]): The ID or email of the user to check.
-    Returns:
-        dict: {"has_refresh_token": True} if token exists and is not empty/null.
-    Raises:
-        HTTPException: If user not found, or if token is not set (HTTP_400_BAD_REQUEST specifically).
-    """
+async def has_google_refresh_token(user_identifier: Union[int, str], request: Request):
+    '''Checks if a Google refresh token is set for the specified user.
+
+    :param user_identifier: The ID (int) or email (str) of the user to check.
+    :type user_identifier: Union[int, str]
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :raises HTTPException: If user identifier is invalid (400), user not found (404),
+                           or if token is not set (400).
+    :returns: A dictionary indicating whether a refresh token exists.
+    :rtype: Dict[str, bool]
+    '''
     # Determine if identifier is email or ID
+    db_pool = request.app.state.db # Added to use request.app.state.db
     if isinstance(user_identifier, str) and "@" in user_identifier:
         condition_column = "email"
     elif isinstance(user_identifier, int) or (isinstance(user_identifier, str) and user_identifier.isdigit()):
@@ -893,12 +1216,12 @@ async def has_google_refresh_token(user_identifier: Union[int, str]):
         try:
             user_identifier = int(user_identifier)
         except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid user ID format. Must be an integer or numeric string.")
+            raise HTTPException(status_code=fastapi_status.HTTP_400_BAD_REQUEST, detail="Invalid user ID format. Must be an integer or numeric string.")
     else:
-        raise HTTPException(status_code=400, detail="Invalid user identifier. Must be an email string or an integer ID.")
-    row = await app.state.db.fetchrow(f"SELECT google_refresh_token FROM users WHERE {condition_column} = $1", user_identifier)
+        raise HTTPException(status_code=fastapi_status.HTTP_400_BAD_REQUEST, detail="Invalid user identifier. Must be an email string or an integer ID.")
+    row = await db_pool.fetchrow(f"SELECT google_refresh_token FROM users WHERE {condition_column} = $1", user_identifier)
     if not row:
-        raise HTTPException(status_code=404, detail=f"User with {condition_column} '{user_identifier}' not found.")
+        raise HTTPException(status_code=fastapi_status.HTTP_404_NOT_FOUND, detail=f"User with {condition_column} '{user_identifier}' not found.")
     refresh_token = row["google_refresh_token"]
     if not refresh_token or refresh_token.strip() == "" or refresh_token.lower() == "none": # More robust check
         raise HTTPException(status_code=fastapi_status.HTTP_400_BAD_REQUEST, detail=f"Google refresh token not set for user {user_identifier}.")
@@ -906,34 +1229,49 @@ async def has_google_refresh_token(user_identifier: Union[int, str]):
 
 
 @app.delete("/api/emails/{email_id}")
-async def delete_email_endpoint(email_id: int, request: Request): # Renamed to avoid conflict if 'delete_email' from gmail_utils is imported
-    """Deletes an email by its ID from the database.
-    Args:
-        email_id (int): The ID of the email to delete.
-        request (Request): The FastAPI request object.
-    Returns:
-        dict: A status confirmation message.
-    Raises:
-        HTTPException: If the email is not found.
-    """
-    result=await delete_email_from_db(db_pool=request.app.state.db, email_id=email_id) # Assuming this function exists in db_utils
-    if result == "DELETE 0":
-        raise HTTPException(status_code=404, detail=f"Email with id {email_id} not found during delete, though existed moments before.")
+async def delete_email_endpoint(email_id: int, request: Request):
+    '''Deletes an email by its ID from the database.
+
+    :param email_id: The ID of the email to delete.
+    :type email_id: int
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :raises HTTPException: If the email is not found (404) or if the deletion result indicates an issue.
+    :returns: A status confirmation message.
+    :rtype: Dict[str, str]
+    '''
+    db_pool = request.app.state.db
+    # delete_email_from_db returns bool, True if "DELETE 1", False otherwise
+    deleted_successfully = await delete_email_from_db(db_pool=db_pool, email_id=email_id)
+    if not deleted_successfully:
+        # To provide a more specific error, we might need to check if the email exists first.
+        # However, delete_email_from_db already handles linked entities.
+        # If it returns False, it means the email was not found or an issue occurred.
+        # For simplicity, we'll assume not found if delete operation didn't affect rows.
+        # A more robust check would be to call get_email_by_id_db first.
+        raise HTTPException(status_code=fastapi_status.HTTP_404_NOT_FOUND, detail=f"Email with id {email_id} not found or delete operation failed.")
     
     return {"status": "ok", "message": f"Email {email_id} deleted successfully from database."}
 
 @app.post("/api/userinfo")
 async def userinfo(request: Request):
-    """Retrieves user information (admin status, roles, Google ID) based on email.
-    Args:
-        request (Request): The FastAPI request object containing user email in JSON body.
-    Returns:
-        dict: User information including `is_admin`, `roles`, and `google_id`.
-              Returns default values if user not found.
-    Raises:
-        HTTPException: If email is missing in the request.
-    """
-    result=await check_if_admin_user_exists_db(request.app.state.db, request.app.state.email)
-    logger.info(f"Userinfo query for email: {request.app.state.email} returned row: {result}")
-    return result
+    '''Retrieves user information (admin status, roles, Google ID) based on email.
+
+    The email is expected to be available in `request.app.state.email`, which implies
+    it's set by some authentication middleware (not shown in this snippet).
+
+    :param request: The FastAPI request object, used to access app state including db pool and user email.
+    :type request: Request
+    :returns: User information including `is_admin`, `roles`, and `google_id`.
+              Returns default values if user not found (as per `check_if_admin_user_exists_db` behavior).
+    :rtype: Dict[str, Any]
+    '''
+    # Assuming request.app.state.email is populated by some auth middleware
+    if not hasattr(request.app.state, 'email') or not request.app.state.email:
+        raise HTTPException(status_code=fastapi_status.HTTP_400_BAD_REQUEST, detail="User email not available in request state.")
+
+    db_pool = request.app.state.db
+    user_info_result = await check_if_admin_user_exists_db(db_pool, request.app.state.email)
+    logger.info(f"Userinfo query for email: {request.app.state.email} returned: {user_info_result}")
+    return user_info_result
 
