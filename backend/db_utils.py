@@ -779,7 +779,7 @@ async def get_scheduler_tasks_db(db_pool: asyncpg.pool.Pool) -> List[Dict[str, A
     '''
     rows = await db_pool.fetch(
         """
-        SELECT id, task_name, trigger_type, cron_expression, status, 
+        SELECT id, workflow_name, trigger_type, cron_expression, status,
                last_run_at, next_run_at, workflow_config, created_at, updated_at 
         FROM scheduler_tasks ORDER BY created_at DESC
         """
