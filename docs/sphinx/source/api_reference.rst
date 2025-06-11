@@ -6,6 +6,9 @@ This section provides detailed API documentation generated automatically from th
 .. automodule:: backend.backend_main
    :members:
 
+.. automodule:: backend.db_utils
+   :members:
+
 .. automodule:: backend.agent.agent_scheduler
    :members:
 

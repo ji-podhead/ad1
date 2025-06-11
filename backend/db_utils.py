@@ -8,9 +8,17 @@ logger = logging.getLogger(__name__)
 
 # --- Helper to get db_pool ---
 async def get_db_pool(context: Any) -> asyncpg.pool.Pool:
-    """
+    '''
     Helper to get db_pool from various contexts like FastAPI request, app state, or direct pool.
-    """
+
+    :param context: The context from which to retrieve the db_pool.
+                    This can be a FastAPI Request object, an App object,
+                    an app.state object, or an asyncpg.pool.Pool itself.
+    :type context: Any
+    :raises ValueError: If the db_pool cannot be retrieved from the provided context.
+    :returns: The database connection pool.
+    :rtype: asyncpg.pool.Pool
+    '''
     if hasattr(context, 'app') and hasattr(context.app, 'state') and hasattr(context.app.state, 'db'):
         return context.app.state.db  # FastAPI Request object
     elif hasattr(context, 'state') and hasattr(context.state, 'db'):
@@ -29,7 +37,22 @@ async def log_generic_action_db(
     event_type: Optional[str] = None,
     data: Optional[Dict[str, Any]] = None
 ) -> None:
-    """Logs a generic action to the audit_trail table."""
+    '''
+    Logs a generic action to the audit_trail table.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param username: The username performing the action, defaults to "system_event".
+    :type username: str
+    :param email_id: Optional ID of the email related to the event.
+    :type email_id: Optional[int]
+    :param event_type: Optional type of the event.
+    :type event_type: Optional[str]
+    :param data: Optional dictionary containing additional data about the event.
+    :type data: Optional[Dict[str, Any]]
+    :returns: None
+    :rtype: None
+    '''
     try:
         # Ensure data is a dictionary
         log_data = data if data is not None else {}
@@ -58,7 +81,24 @@ async def log_task_action_db(
     user: str = "system_user",
     data: Optional[Dict[str, Any]] = None
 ) -> None:
-    """Logs a task-specific action to the audit_trail table, fetching task details."""
+    '''
+    Logs a task-specific action to the audit_trail table, fetching task details.
+
+    The 'action' parameter is used as the description in the log's data field.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param task_id: The ID of the task related to the action.
+    :type task_id: int
+    :param action: Description of the action performed. This will be stored in the 'data' part of the audit log.
+    :type action: str
+    :param user: The user performing the action, defaults to "system_user".
+    :type user: str
+    :param data: Optional dictionary containing additional data to be merged with task details.
+    :type data: Optional[Dict[str, Any]]
+    :returns: None
+    :rtype: None
+    '''
     try:
         task_details = await db_pool.fetchrow(
             "SELECT email_id, status, workflow_type FROM tasks WHERE id = $1", task_id
@@ -96,7 +136,24 @@ async def log_email_action_db(
     user: str = "system_user",
     data: Optional[Dict[str, Any]] = None
 ) -> None:
-    """Logs an email-specific action to the audit_trail table, fetching email details."""
+    '''
+    Logs an email-specific action to the audit_trail table, fetching email details.
+
+    The 'action' parameter is used as the description in the log's data field.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param email_id: The ID of the email related to the action.
+    :type email_id: int
+    :param action: Description of the action performed. This will be stored in the 'data' part of the audit log.
+    :type action: str
+    :param user: The user performing the action, defaults to "system_user".
+    :type user: str
+    :param data: Optional dictionary containing additional data to be merged with email details.
+    :type data: Optional[Dict[str, Any]]
+    :returns: None
+    :rtype: None
+    '''
     try:
         email_details = await db_pool.fetchrow(
             "SELECT subject, sender, label FROM emails WHERE id = $1", email_id
@@ -135,7 +192,24 @@ async def log_document_action_db(
     user: str = "system_user",
     data: Optional[Dict[str, Any]] = None
 ) -> None:
-    """Logs a document-specific action to the audit_trail table, fetching document details."""
+    '''
+    Logs a document-specific action to the audit_trail table, fetching document details.
+
+    The 'action' parameter is used as the description in the log's data field.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param document_id: The ID of the document related to the action.
+    :type document_id: int
+    :param action: Description of the action performed. This will be stored in the 'data' part of the audit log.
+    :type action: str
+    :param user: The user performing the action, defaults to "system_user".
+    :type user: str
+    :param data: Optional dictionary containing additional data to be merged with document details.
+    :type data: Optional[Dict[str, Any]]
+    :returns: None
+    :rtype: None
+    '''
     try:
         document_details = await db_pool.fetchrow(
             "SELECT filename, email_id FROM documents WHERE id = $1", document_id
@@ -165,10 +239,30 @@ async def log_document_action_db(
 
 # --- User Management Functions ---
 async def get_user_by_email_db(db_pool: asyncpg.pool.Pool, email: str) -> Optional[Dict[str, Any]]:
+    '''
+    Retrieves a user from the database by their email address.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param email: The email address of the user to retrieve.
+    :type email: str
+    :returns: A dictionary containing user details if found, otherwise None.
+    :rtype: Optional[Dict[str, Any]]
+    '''
     row = await db_pool.fetchrow("SELECT id, email, is_admin, roles, google_id, created_at, updated_at, mcp_token, google_access_token, google_refresh_token FROM users WHERE email = $1", email)
     return dict(row) if row else None
 
 async def get_user_by_id_db(db_pool: asyncpg.pool.Pool, user_id: int) -> Optional[Dict[str, Any]]:
+    '''
+    Retrieves a user from the database by their ID.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param user_id: The ID of the user to retrieve.
+    :type user_id: int
+    :returns: A dictionary containing user details if found, otherwise None.
+    :rtype: Optional[Dict[str, Any]]
+    '''
     row = await db_pool.fetchrow("SELECT id, email, is_admin, roles, google_id, created_at, updated_at, mcp_token, google_access_token, google_refresh_token FROM users WHERE id = $1", user_id)
     return dict(row) if row else None
 
@@ -180,6 +274,25 @@ async def create_user_db(
     roles: Optional[List[str]] = None,
     google_id: Optional[str] = None
 ) -> Dict[str, Any]:
+    '''
+    Creates a new user in the database.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param email: The email address of the new user.
+    :type email: str
+    :param hashed_password: The hashed password for the new user.
+    :type hashed_password: str
+    :param is_admin: Flag indicating if the user is an administrator, defaults to False.
+    :type is_admin: bool
+    :param roles: Optional list of roles assigned to the user.
+    :type roles: Optional[List[str]]
+    :param google_id: Optional Google ID for the user.
+    :type google_id: Optional[str]
+    :raises Exception: If user creation fails in the database.
+    :returns: A dictionary containing the details of the created user.
+    :rtype: Dict[str, Any]
+    '''
     roles_array = roles if roles else []
     row = await db_pool.fetchrow(
         """
@@ -203,6 +316,21 @@ async def update_user_db(
     user_identifier: Any, 
     updates: Dict[str, Any]
 ) -> Optional[Dict[str, Any]]:
+    '''
+    Updates user details in the database.
+
+    The user can be identified by either their ID (int) or email (str).
+    Valid fields for update are: "email", "password", "is_admin", "roles", "google_id", "mcp_token", "google_access_token", "google_refresh_token".
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param user_identifier: The ID (int) or email (str) of the user to update.
+    :type user_identifier: Any
+    :param updates: A dictionary containing the fields to update and their new values.
+    :type updates: Dict[str, Any]
+    :returns: A dictionary containing the updated user details if successful, otherwise None.
+    :rtype: Optional[Dict[str, Any]]
+    '''
     set_clauses = []
     values = []
     param_idx = 1
@@ -242,12 +370,32 @@ async def update_user_db(
     return user_data
 
 async def delete_user_db(db_pool: asyncpg.pool.Pool, user_identifier: Any) -> bool:
+    '''
+    Deletes a user from the database.
+
+    The user can be identified by either their ID (int) or email (str).
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param user_identifier: The ID (int) or email (str) of the user to delete.
+    :type user_identifier: Any
+    :returns: True if the user was deleted successfully, False otherwise.
+    :rtype: bool
+    '''
     condition_column = "id" if isinstance(user_identifier, int) else "email"
     query = f"DELETE FROM users WHERE {condition_column} = $1"
     result = await db_pool.execute(query, user_identifier)
     return result == "DELETE 1"
 
 async def list_users_db(db_pool: asyncpg.pool.Pool) -> List[Dict[str, Any]]:
+    '''
+    Lists all users from the database, ordered by email.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :returns: A list of dictionaries, where each dictionary contains user details.
+    :rtype: List[Dict[str, Any]]
+    '''
     rows = await db_pool.fetch("SELECT id, email, is_admin, roles, google_id, created_at, updated_at, mcp_token, google_access_token, google_refresh_token FROM users ORDER BY email")
     users = []
     for row in rows:
@@ -259,6 +407,19 @@ async def list_users_db(db_pool: asyncpg.pool.Pool) -> List[Dict[str, Any]]:
     return users
 
 async def get_user_access_token_db(db_pool: asyncpg.pool.Pool, user_email: str) -> Optional[str]:
+    '''
+    Retrieves the Google access token for a given user by email.
+
+    If the specified user is not found or has no token, it attempts a fallback
+    to find any user with a Google access token (this fallback behavior might be reviewed).
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param user_email: The email address of the user.
+    :type user_email: str
+    :returns: The Google access token if found, otherwise None.
+    :rtype: Optional[str]
+    '''
     user_row = await db_pool.fetchrow("SELECT google_access_token FROM users WHERE email = $1", user_email)
     # Fallback to original logic if specific user not found or has no token, though this might not be desired.
     if not user_row or not user_row['google_access_token']:
@@ -272,12 +433,40 @@ async def get_user_access_token_db(db_pool: asyncpg.pool.Pool, user_email: str) 
 
 
 async def update_user_google_tokens_db(db_pool: asyncpg.pool.Pool, user_id: int, access_token: str, refresh_token: Optional[str]) -> None:
+    '''
+    Updates the Google OAuth tokens for a user.
+
+    The refresh token is only updated if a new value is provided.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param user_id: The ID of the user whose tokens are to be updated.
+    :type user_id: int
+    :param access_token: The new Google access token.
+    :type access_token: str
+    :param refresh_token: The new Google refresh token (optional). If None, existing refresh token is kept.
+    :type refresh_token: Optional[str]
+    :returns: None
+    :rtype: None
+    '''
     await db_pool.execute(
         "UPDATE users SET google_access_token = $1, google_refresh_token = COALESCE($2, google_refresh_token), updated_at = NOW() WHERE id = $3",
         access_token, refresh_token, user_id
     )
 
 async def update_user_mcp_token_db(db_pool: asyncpg.pool.Pool, user_email: str, mcp_token: str) -> bool:
+    '''
+    Updates the MCP token for a user identified by their email.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param user_email: The email address of the user.
+    :type user_email: str
+    :param mcp_token: The new MCP token.
+    :type mcp_token: str
+    :returns: True if the update was successful (one row affected), False otherwise.
+    :rtype: bool
+    '''
     result = await db_pool.execute(
         "UPDATE users SET mcp_token = $1, updated_at = NOW() WHERE email = $2",
         mcp_token, user_email
@@ -286,18 +475,60 @@ async def update_user_mcp_token_db(db_pool: asyncpg.pool.Pool, user_email: str, 
 
 # --- Email Management Functions ---
 async def get_emails_db(db_pool: asyncpg.pool.Pool) -> List[Dict[str, Any]]:
+    '''
+    Retrieves all emails from the database, ordered by received date descending.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :returns: A list of dictionaries, where each dictionary contains email details.
+    :rtype: List[Dict[str, Any]]
+    '''
     rows = await db_pool.fetch("SELECT id, subject, sender, body, received_at, label, type, short_description, document_ids FROM emails ORDER BY received_at DESC")
     return [dict(row) for row in rows]
 
 async def get_email_by_id_db(db_pool: asyncpg.pool.Pool, email_id: int) -> Optional[Dict[str, Any]]:
+    '''
+    Retrieves a specific email from the database by its ID.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param email_id: The ID of the email to retrieve.
+    :type email_id: int
+    :returns: A dictionary containing email details if found, otherwise None.
+    :rtype: Optional[Dict[str, Any]]
+    '''
     row = await db_pool.fetchrow("SELECT id, subject, sender, body, received_at, label, type, short_description, document_ids FROM emails WHERE id = $1", email_id)
     return dict(row) if row else None
 
 async def update_email_label_db(db_pool: asyncpg.pool.Pool, email_id: int, label: str) -> bool:
+    '''
+    Updates the label of a specific email.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param email_id: The ID of the email to update.
+    :type email_id: int
+    :param label: The new label for the email.
+    :type label: str
+    :returns: True if the update was successful (one row affected), False otherwise.
+    :rtype: bool
+    '''
     result = await db_pool.execute("UPDATE emails SET label = $1, updated_at = NOW() WHERE id = $2", label, email_id)
     return result == "UPDATE 1"
 
 async def delete_email_from_db(db_pool: asyncpg.pool.Pool, email_id: int) -> bool:
+    '''
+    Deletes an email and its associated data (tasks, documents, audit trail entries) from the database.
+
+    This operation is performed within a transaction.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param email_id: The ID of the email to delete.
+    :type email_id: int
+    :returns: True if the email was deleted successfully, False otherwise.
+    :rtype: bool
+    '''
     async with db_pool.acquire() as conn:
         async with conn.transaction():
             await conn.execute("DELETE FROM tasks WHERE email_id = $1", email_id)
@@ -320,10 +551,30 @@ async def delete_email_from_db(db_pool: asyncpg.pool.Pool, email_id: int) -> boo
 
 # --- Document Management Functions ---
 async def get_documents_db(db_pool: asyncpg.pool.Pool) -> List[Dict[str, Any]]:
+    '''
+    Retrieves all documents from the database, ordered by creation date descending.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :returns: A list of dictionaries, where each dictionary contains document details.
+    :rtype: List[Dict[str, Any]]
+    '''
     rows = await db_pool.fetch("SELECT id, email_id, filename, content_type, is_processed, created_at, updated_at, processed_data FROM documents ORDER BY created_at DESC")
     return [dict(row) for row in rows]
 
 async def get_document_content_db(db_pool: asyncpg.pool.Pool, document_id: int) -> Optional[Dict[str, Any]]:
+    '''
+    Retrieves specific details of a document, including its base64 encoded data.
+
+    Fields returned: id, filename, content_type, data_b64, processed_data.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param document_id: The ID of the document to retrieve.
+    :type document_id: int
+    :returns: A dictionary containing document details if found, otherwise None.
+    :rtype: Optional[Dict[str, Any]]
+    '''
     row = await db_pool.fetchrow("SELECT id, filename, content_type, data_b64, processed_data FROM documents WHERE id = $1", document_id)
     return dict(row) if row else None
     
@@ -336,10 +587,28 @@ async def create_document_db(
     created_at_dt: Optional[datetime.datetime] = None,
     processed_data: Optional[str] = None  # New field
 ) -> Optional[Dict[str, Any]]:
-    """
+    '''
     Creates a new document record in the database and returns the created record (excluding data_b64).
     Logs the creation of the document.
-    """
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param email_id: The ID of the email this document is associated with.
+    :type email_id: int
+    :param filename: The name of the document file.
+    :type filename: str
+    :param content_type: The MIME type of the document.
+    :type content_type: str
+    :param data_b64: The base64 encoded content of the document.
+    :type data_b64: str
+    :param created_at_dt: Optional datetime for when the document was created.
+                          If timezone-aware, it will be converted to naive UTC. Defaults to NOW().
+    :type created_at_dt: Optional[datetime.datetime]
+    :param processed_data: Optional string containing processed data from the document.
+    :type processed_data: Optional[str]
+    :returns: A dictionary containing the details of the created document (excluding data_b64) if successful, otherwise None.
+    :rtype: Optional[Dict[str, Any]]
+    '''
     final_created_at = created_at_dt
     # Assuming 'created_at' column in 'documents' table is 'timestamp without time zone'
     # based on behavior in existing insert_document_db.
@@ -386,6 +655,19 @@ async def create_document_db(
         return None
 
 async def delete_document_from_db(db_pool: asyncpg.pool.Pool, document_id: int) -> bool:
+    '''
+    Deletes a document from the database and updates associated email records.
+
+    This operation is performed within a transaction. It also deletes related audit trail entries
+    and removes the document ID from the `document_ids` array in the `emails` table.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param document_id: The ID of the document to delete.
+    :type document_id: int
+    :returns: True if the document was deleted successfully, False otherwise.
+    :rtype: bool
+    '''
     async with db_pool.acquire() as conn:
         async with conn.transaction():
             # Delete audit trail entries related to this document BEFORE deleting the document
@@ -410,6 +692,17 @@ async def delete_document_from_db(db_pool: asyncpg.pool.Pool, document_id: int) 
 
 # --- Settings Functions ---
 async def get_settings_db(db_pool: asyncpg.pool.Pool) -> Dict[str, Any]:
+    '''
+    Retrieves various application settings from the database.
+
+    This includes email grabber frequency, email types, and key features.
+    Default values are provided for email grabber frequency if not found in the database.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :returns: A dictionary containing various settings.
+    :rtype: Dict[str, Any]
+    '''
     settings_map = {}
     keys_to_fetch = [
         'email_grabber_frequency_type', 
@@ -431,6 +724,22 @@ async def get_settings_db(db_pool: asyncpg.pool.Pool) -> Dict[str, Any]:
     return settings_map
 
 async def save_settings_db(db_pool: asyncpg.pool.Pool, settings_data_dict: Dict[str, Any]) -> None:
+    '''
+    Saves application settings to the database.
+
+    This includes email grabber frequency, email types, and key features.
+    Existing email types and key features are deleted and replaced with the new ones.
+    This operation is performed within a transaction.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param settings_data_dict: A dictionary containing the settings to save.
+                               Expected keys: 'email_grabber_frequency_type', 'email_grabber_frequency_value',
+                               'email_types' (list of dicts), 'key_features' (list of dicts).
+    :type settings_data_dict: Dict[str, Any]
+    :returns: None
+    :rtype: None
+    '''
     async with db_pool.acquire() as connection:
         async with connection.transaction():
             await connection.execute(
@@ -458,6 +767,16 @@ async def save_settings_db(db_pool: asyncpg.pool.Pool, settings_data_dict: Dict[
 
 # --- SchedulerTask / Workflow Functions ---
 async def get_scheduler_tasks_db(db_pool: asyncpg.pool.Pool) -> List[Dict[str, Any]]:
+    '''
+    Retrieves all scheduler tasks (workflows) from the database, ordered by creation date descending.
+
+    Workflow configuration stored as JSON in the database is parsed into a dictionary.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :returns: A list of dictionaries, where each dictionary represents a scheduler task.
+    :rtype: List[Dict[str, Any]]
+    '''
     rows = await db_pool.fetch(
         """
         SELECT id, task_name, trigger_type, cron_expression, status, 
@@ -478,6 +797,22 @@ async def get_scheduler_tasks_db(db_pool: asyncpg.pool.Pool) -> List[Dict[str, A
 
 
 async def create_scheduler_task_db(db_pool: asyncpg.pool.Pool, task_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    '''
+    Creates a new scheduler task (workflow) in the database.
+
+    Workflow configuration is stored as a JSON string.
+    Logs the creation of the scheduler task.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param task_data: A dictionary containing data for the new task.
+                      Expected keys: 'task_name', 'trigger_type', 'cron_expression',
+                      'status' (optional, defaults to 'active'), 'workflow_config' (dict, optional).
+    :type task_data: Dict[str, Any]
+    :returns: A dictionary representing the created scheduler task if successful, otherwise None.
+              The 'workflow_config' in the returned dict is parsed into a Python dict.
+    :rtype: Optional[Dict[str, Any]]
+    '''
     workflow_config_json = task_data.get('workflow_config')
     if isinstance(workflow_config_json, dict):
         workflow_config_json = json.dumps(workflow_config_json)
@@ -532,6 +867,24 @@ async def create_scheduler_task_db(db_pool: asyncpg.pool.Pool, task_data: Dict[s
         return None
 
 async def update_scheduler_task_db(db_pool: asyncpg.pool.Pool, task_id: int, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    '''
+    Updates an existing scheduler task (workflow) in the database.
+
+    Valid fields for update: "task_name", "trigger_type", "cron_expression", "status",
+    "workflow_config", "last_run_at", "next_run_at".
+    Workflow configuration is stored as a JSON string.
+    Logs the update action.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param task_id: The ID of the scheduler task to update.
+    :type task_id: int
+    :param updates: A dictionary containing the fields to update and their new values.
+    :type updates: Dict[str, Any]
+    :returns: A dictionary representing the updated scheduler task if successful, otherwise None.
+              The 'workflow_config' in the returned dict is parsed into a Python dict.
+    :rtype: Optional[Dict[str, Any]]
+    '''
     set_clauses = []
     values = []
     param_idx = 1
@@ -604,7 +957,18 @@ async def update_scheduler_task_db(db_pool: asyncpg.pool.Pool, task_id: int, upd
     return updated_task
 
 async def delete_scheduler_task_db(db_pool: asyncpg.pool.Pool, task_id: int) -> bool:
-    """Deletes a scheduler task from the database."""
+    '''
+    Deletes a scheduler task from the database.
+
+    Logs the deletion action.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param task_id: The ID of the scheduler task to delete.
+    :type task_id: int
+    :returns: True if the task was deleted successfully, False otherwise.
+    :rtype: bool
+    '''
     try:
         result = await db_pool.execute("DELETE FROM scheduler_tasks WHERE id = $1", task_id)
         if result == "DELETE 1":
@@ -629,6 +993,17 @@ async def delete_scheduler_task_db(db_pool: asyncpg.pool.Pool, task_id: int) -> 
 
 # --- ProcessingTask Functions ---
 async def get_processing_tasks_db(db_pool: asyncpg.pool.Pool) -> List[Dict[str, Any]]:
+    '''
+    Retrieves processing tasks along with associated email details from the database.
+
+    Tasks are ordered by creation date descending.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :returns: A list of dictionaries, where each dictionary represents a processing task
+              and includes details from the associated email.
+    :rtype: List[Dict[str, Any]]
+    '''
     query = """
         SELECT 
             t.id, t.email_id, t.status, t.created_at, t.updated_at, t.workflow_type,
@@ -654,6 +1029,22 @@ async def get_processing_tasks_db(db_pool: asyncpg.pool.Pool) -> List[Dict[str, 
     return tasks_data
 
 async def update_task_status_db(db_pool: asyncpg.pool.Pool, task_id: int, status: str, user: str = "system_user") -> bool:
+    '''
+    Updates the status of a processing task.
+
+    Logs the status change action.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param task_id: The ID of the task to update.
+    :type task_id: int
+    :param status: The new status for the task.
+    :type status: str
+    :param user: The user initiating the status change, defaults to "system_user".
+    :type user: str
+    :returns: True if the update was successful (one row affected), False otherwise.
+    :rtype: bool
+    '''
     result = await db_pool.execute(
         "UPDATE tasks SET status = $1, updated_at = NOW() WHERE id = $2",
         status, task_id
@@ -666,12 +1057,40 @@ async def update_task_status_db(db_pool: asyncpg.pool.Pool, task_id: int, status
 
 # --- Functions for agent/email_checker.py ---
 async def find_existing_email_db(db_pool: asyncpg.pool.Pool, subject: str, sender: str, body: str) -> Optional[int]:
+    '''
+    Finds an existing email by its subject, sender, and body to detect duplicates.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param subject: The subject of the email.
+    :type subject: str
+    :param sender: The sender of the email.
+    :type sender: str
+    :param body: The body content of the email.
+    :type body: str
+    :returns: The ID of the existing email if found, otherwise None.
+    :rtype: Optional[int]
+    '''
     return await db_pool.fetchval(
         "SELECT id FROM emails WHERE subject = $1 AND sender = $2 AND body = $3",
         subject, sender, body
     )
 
 async def delete_email_and_audit_for_duplicate_db(db_pool: asyncpg.pool.Pool, email_id: int, original_subject: str) -> None:
+    '''
+    Deletes an email identified as a duplicate and its associated audit trail entries.
+
+    This operation is performed within a transaction. Logs the deletion of the duplicate.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param email_id: The ID of the duplicate email to delete.
+    :type email_id: int
+    :param original_subject: The subject of the duplicate email, used for logging.
+    :type original_subject: str
+    :returns: None
+    :rtype: None
+    '''
     async with db_pool.acquire() as connection:
         async with connection.transaction():
             # Delete audit trail entries related to this email BEFORE deleting the email
@@ -701,6 +1120,34 @@ async def insert_new_email_db(
     short_description: Optional[str],
     document_ids: Optional[List[int]] = None # List of document IDs
 ) -> int:
+    '''
+    Inserts a new email into the database.
+
+    The `received_at` datetime might be adjusted to naive if the database column
+    is 'timestamp without time zone'.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param subject: The subject of the email.
+    :type subject: str
+    :param sender: The parsed email address of the sender.
+    :type sender: str
+    :param body: The body content of the email.
+    :type body: str
+    :param received_at: The datetime when the email was received.
+                        Should be timezone-aware or consistently naive UTC.
+    :type received_at: datetime.datetime
+    :param label: Optional label for the email.
+    :type label: Optional[str]
+    :param email_type: Optional type classification for the email.
+    :type email_type: Optional[str]
+    :param short_description: Optional short description of the email content.
+    :type short_description: Optional[str]
+    :param document_ids: Optional list of document IDs associated with this email.
+    :type document_ids: Optional[List[int]]
+    :returns: The ID of the newly inserted email.
+    :rtype: int
+    '''
     # Ensure received_at is naive if your DB column is timestamp without timezone, or aware if it is with timezone
     # Assuming DB 'received_at' is 'timestamp without time zone' and 'created_at', 'updated_at' are 'timestamp with time zone' (or use NOW())
     if received_at.tzinfo is not None:
@@ -724,6 +1171,30 @@ async def insert_document_db(
     created_at_dt: datetime.datetime, # Should match email's received_at or be NOW()
     processed_data: Optional[str] = None # New field
 ) -> int:
+    '''
+    Inserts a new document associated with an email into the database.
+
+    The `created_at_dt` datetime might be adjusted to naive if the database column
+    is 'timestamp without time zone'.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param email_id: The ID of the email this document belongs to.
+    :type email_id: int
+    :param filename: The name of the document file.
+    :type filename: str
+    :param content_type: The MIME type of the document.
+    :type content_type: str
+    :param data_b64: The base64 encoded content of the document.
+    :type data_b64: str
+    :param created_at_dt: The datetime when the document was created/received.
+                          Should match the email's `received_at` or be current time.
+    :type created_at_dt: datetime.datetime
+    :param processed_data: Optional string containing processed data from the document.
+    :type processed_data: Optional[str]
+    :returns: The ID of the newly inserted document.
+    :rtype: int
+    '''
     if created_at_dt.tzinfo is not None:
          created_at_dt = created_at_dt.replace(tzinfo=None) # Match 'timestamp without time zone' if that's the column type
 
@@ -741,7 +1212,20 @@ async def update_email_document_ids_db(
     email_id: int,
     document_ids: List[int]
 ) -> bool:
-    """Updates the document_ids array for a given email."""
+    '''
+    Updates the document_ids array for a given email.
+
+    Logs the action, whether successful or failed.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param email_id: The ID of the email to update.
+    :type email_id: int
+    :param document_ids: The new list of document IDs for the email.
+    :type document_ids: List[int]
+    :returns: True if the update was successful, False otherwise.
+    :rtype: bool
+    '''
     try:
         result = await db_pool.execute(
             "UPDATE emails SET document_ids = $1, updated_at = NOW() WHERE id = $2",
@@ -787,10 +1271,21 @@ async def update_document_processed_data_db(
     processed_data_text: str,
     username: str = "system_processing"
 ) -> bool:
-    """
+    '''
     Updates an existing document with processed data and marks it as processed.
     Logs the update action.
-    """
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param document_id: The ID of the document to update.
+    :type document_id: int
+    :param processed_data_text: The processed text data from the document.
+    :type processed_data_text: str
+    :param username: The username performing the update, defaults to "system_processing".
+    :type username: str
+    :returns: True if the update was successful, False otherwise.
+    :rtype: bool
+    '''
     try:
         result = await db_pool.execute(
             """
@@ -824,6 +1319,21 @@ async def update_document_processed_data_db(
         return False
 
 async def fetch_active_workflows_db(db_pool: asyncpg.pool.Pool, trigger_type: str = 'email_received') -> List[Dict[str, Any]]:
+    '''
+    Fetches active workflows (scheduler tasks) from the database based on a trigger type.
+
+    Workflow configuration JSON is parsed into a dictionary.
+    Logs an error if parsing workflow_config JSON fails for a task.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param trigger_type: The type of trigger to filter workflows by (e.g., 'email_received'),
+                         defaults to 'email_received'.
+    :type trigger_type: str
+    :returns: A list of dictionaries, where each dictionary represents an active workflow
+              matching the trigger type. 'workflow_config' is a Python dict.
+    :rtype: List[Dict[str, Any]]
+    '''
     # Original query in email_checker was for 'cron'. If workflows are triggered by new emails,
     # the trigger_type should reflect that, or the query needs to be more flexible.
     # Assuming 'scheduler_tasks' table holds all workflow definitions.
@@ -865,6 +1375,20 @@ async def create_processing_task_db(
     # created_at will be NOW() in the DB query
     workflow_type: Optional[str] 
 ) -> int:
+    '''
+    Creates a new processing task for an email, typically triggered by a workflow.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param email_id: The ID of the email for which the task is created.
+    :type email_id: int
+    :param initial_status: The initial status of the task (e.g., 'new').
+    :type initial_status: str
+    :param workflow_type: Optional type of the workflow that initiated this task.
+    :type workflow_type: Optional[str]
+    :returns: The ID of the newly created processing task.
+    :rtype: int
+    '''
     return await db_pool.fetchval(
         """
         INSERT INTO tasks (email_id, status, created_at, updated_at, workflow_type)
@@ -875,25 +1399,75 @@ async def create_processing_task_db(
     )
 
 async def get_audit_trail_db(db_pool: asyncpg.pool.Pool, limit: int = 100) -> List[Dict[str, Any]]:
+    '''
+    Retrieves the most recent audit trail entries from the database.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param limit: The maximum number of audit trail entries to retrieve, defaults to 100.
+    :type limit: int
+    :returns: A list of dictionaries, where each dictionary represents an audit trail entry.
+    :rtype: List[Dict[str, Any]]
+    '''
     rows = await db_pool.fetch(
         "SELECT id, email_id, task_id, document_id, username, timestamp FROM audit_trail ORDER BY timestamp DESC LIMIT $1",
         limit
     )
     return [dict(row) for row in rows]
 
-async def check_if_admin_user_exists_db(db_pool: asyncpg.pool.Pool, email: str) -> bool:
-    row= await db_pool.fetchval("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1 AND is_admin = TRUE)", email)
-    if not row:
-        # Return a default structure if user not found, to prevent frontend errors
+async def check_if_admin_user_exists_db(db_pool: asyncpg.pool.Pool, email: str) -> bool: # Original type hint was bool, but returns dict
+    '''
+    Checks if an admin user exists with the given email.
+
+    Note: The return type annotation was `bool` but the implementation returns a dictionary.
+    This docstring reflects the implementation.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param email: The email address to check.
+    :type email: str
+    :returns: A dictionary with 'is_admin', 'roles', and 'google_id' if the user is an admin.
+              Otherwise, a dictionary indicating not an admin with default values.
+    :rtype: Dict[str, Any]
+    '''
+    # The original function signature returns bool, but the implementation returns a dict.
+    # Keeping the implementation's return type for now.
+    user_details = await db_pool.fetchrow("SELECT is_admin, roles, google_id FROM users WHERE email = $1 AND is_admin = TRUE", email)
+    if not user_details:
+        # Return a default structure if user not found or not admin
         return {"is_admin": False, "roles": [], "google_id": None}
     else:
-        return {"is_admin": row["is_admin"], "roles": row["roles"], "google_id": row["google_id"]}
+        return {"is_admin": user_details["is_admin"], "roles": user_details["roles"], "google_id": user_details["google_id"]}
+
 
 async def check_if_user_exists_db(db_pool: asyncpg.pool.Pool, email: str) -> bool:
+    '''
+    Checks if a user exists with the given email address.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param email: The email address to check.
+    :type email: str
+    :returns: True if a user with the email exists, False otherwise.
+    :rtype: bool
+    '''
     return await db_pool.fetchval("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", email)
 
 async def get_user_id_by_state_db(db_pool: asyncpg.pool.Pool, state: str) -> Optional[int]:
-    """Retrieves user_id from oauth_state table. Note: oauth_state table is not in schema.md, assuming it exists for this logic."""
+    '''
+    Retrieves user_id from the oauth_state table using a state value.
+
+    This function assumes an `oauth_state` table exists. If the table does not exist,
+    an error is logged and None is returned.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param state: The OAuth state value to look up.
+    :type state: str
+    :returns: The user_id associated with the state if found, otherwise None.
+    :rtype: Optional[int]
+    :raises asyncpg.exceptions.UndefinedTableError: Internally caught if oauth_state table is missing.
+    '''
     # This function assumes an oauth_state table: CREATE TABLE oauth_state (state TEXT PRIMARY KEY, user_id INTEGER REFERENCES users(id), created_at TIMESTAMPTZ DEFAULT NOW());
     # If this table does not exist, this function will fail.
     # Consider adding a TTL to state entries.
@@ -906,7 +1480,21 @@ async def get_user_id_by_state_db(db_pool: asyncpg.pool.Pool, state: str) -> Opt
 
 
 async def store_oauth_state_db(db_pool: asyncpg.pool.Pool, state: str, user_id: int) -> None:
-    """Stores OAuth state with user_id. Assumes oauth_state table."""
+    '''
+    Stores an OAuth state value with an associated user_id in the oauth_state table.
+
+    Assumes an `oauth_state` table exists. Logs the action or failure if the table is missing.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param state: The OAuth state value to store.
+    :type state: str
+    :param user_id: The user_id to associate with the state.
+    :type user_id: int
+    :returns: None
+    :rtype: None
+    :raises asyncpg.exceptions.UndefinedTableError: Internally caught if oauth_state table is missing.
+    '''
     try:
         await db_pool.execute("INSERT INTO oauth_state (state, user_id) VALUES ($1, $2)", state, user_id)
         await log_generic_action_db(
@@ -937,7 +1525,19 @@ async def store_oauth_state_db(db_pool: asyncpg.pool.Pool, state: str, user_id: 
 
 
 async def delete_oauth_state_db(db_pool: asyncpg.pool.Pool, state: str) -> None:
-    """Deletes OAuth state after use. Assumes oauth_state table."""
+    '''
+    Deletes an OAuth state value from the oauth_state table after it has been used.
+
+    Assumes an `oauth_state` table exists. Logs the action or failure if the table is missing.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param state: The OAuth state value to delete.
+    :type state: str
+    :returns: None
+    :rtype: None
+    :raises asyncpg.exceptions.UndefinedTableError: Internally caught if oauth_state table is missing.
+    '''
     try:
         await db_pool.execute("DELETE FROM oauth_state WHERE state = $1", state)
         await log_generic_action_db(
@@ -961,4 +1561,3 @@ async def delete_oauth_state_db(db_pool: asyncpg.pool.Pool, state: str) -> None:
         )
     except Exception as e:
         logger.error(f"Error deleting oauth state: {e}")
-
