@@ -11,3 +11,4 @@ timm
 protobuf
 uvicorn
 pytesseract
+tesseract

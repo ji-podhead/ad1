@@ -2,9 +2,13 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# Install system dependencies required by pdf2image (poppler) and potentially other libraries
-RUN apt-get update && apt-get install -y \
+# Install system dependencies required by pdf2image (poppler) and Tesseract OCR
+RUN apt-get update && apt-get install -y --no-install-recommends \
     poppler-utils \
+    tesseract-ocr \
+    # Add language packs if needed, e.g., tesseract-ocr-eng for English, tesseract-ocr-deu for German
+    tesseract-ocr-eng \
+    tesseract-ocr-deu \
     && rm -rf /var/lib/apt/lists/*
 
 COPY ./app/requirements.txt /app/requirements.txt

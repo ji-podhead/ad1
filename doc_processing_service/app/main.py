@@ -5,6 +5,7 @@ from transformers import LayoutLMv3Processor, LayoutLMv3ForTokenClassification
 import torch
 import io
 from typing import List, Dict, Any
+import pytesseract
 
 app = FastAPI()
 
