@@ -67,7 +67,7 @@ Stores configurations for scheduled tasks and workflows.
 | `type`          | `VARCHAR(50)`               | Type of scheduled task (e.g., 'email', 'cron', 'agent_event'). |
 | `description`   | `TEXT`                      | Description of the scheduled task.             |
 | `status`        | `VARCHAR(50)`               | Status of the scheduled task ('active', 'paused'). |
-| `nextRun`       | `TIMESTAMP WITHOUT TIME ZONE` | The next scheduled time for the task to run.   |
+| `next_run_at`       | `TIMESTAMP WITHOUT TIME ZONE` | The next scheduled time for the task to run.   |
 | `to_email`      | `VARCHAR(255)`              | Recipient email address (for email tasks).     |
 | `subject`       | `VARCHAR(255)`              | Email subject (for email tasks).               |
 | `body`          | `TEXT`                      | Email body (for email tasks).                  |
@@ -77,7 +77,7 @@ Stores configurations for scheduled tasks and workflows.
 | `actionDesc`    | `TEXT`                      | Description of the action to perform.          |
 | `trigger_type`  | `VARCHAR(50)`               | The type of trigger for the workflow ('email_receive', 'cron'). |
 | `workflow_config`| `JSONB`                     | JSON object containing workflow-specific configuration (model, steps, etc.). ||
-| `workflow_name` | `VARCHAR(255)`              | A user-defined name for the workflow.          |
+| `task_name` | `VARCHAR(255)`              | A user-defined name for the workflow.          |
 
 ## settings
 

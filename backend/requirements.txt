@@ -12,3 +12,4 @@ aiohttp
 google-auth-oauthlib
 google-api-python-client
 pydantic-ai
+debugpy

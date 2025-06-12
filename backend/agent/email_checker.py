@@ -22,7 +22,7 @@ from db_utils import (
     insert_document_db, insert_new_email_db, log_generic_action_db,
     fetch_active_workflows_db, find_existing_email_db,
     delete_email_and_audit_for_duplicate_db, create_processing_task_db,
-    update_email_document_ids_db
+    update_email_document_ids_db,get_settings_db
 )
 from gmail_utils.gmail_db import store_email_in_db,del_if_exists
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
     """
     try:
         now_utc = datetime.datetime.now(datetime.timezone.utc)
-        after_dt = now_utc - datetime.timedelta(hours=interval_seconds)
+        after_dt = now_utc - datetime.timedelta(minutes=40)
         # Convert to Unix timestamps (seconds since epoch)
         after_ts = int(after_dt.timestamp())
         before_ts = int(now_utc.timestamp())
@@ -64,6 +64,8 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
             for email in emails:
                 results = await read_emails_and_log(db_pool=db_pool, email=email)
                 
+                if results is None:
+                    results = []
                 processed_emails.extend(results)
             logger.info(f"Found {(processed_emails)} new emails to process.")
         except Exception as e:
@@ -71,15 +73,19 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
             
 #       --- PROCESS EACH EMAIL ---
         for email_data in processed_emails:
-            logger.info(f"Processing email data keys: {email_data.keys()}") # Log keys for debugging
-            headers = email_data.get('headers', {}) # Get the headers dictionary
-            message_id = email_data.get('id') # This is the Gmail message ID
+            # Initialize variables that might be used in logging or further down in the loop
+            message_id = email_data.get('id')
+            headers = email_data.get('headers', {})
             email_subject_str = headers.get('Subject', 'No Subject')
-            sender = headers.get('From', 'Unknown Sender')
-            email_body_str = email_data.get('body', '') # This is base64 encoded from get_email
+            raw_sender_header = headers.get('From', 'Unknown Sender') # Use a distinct name for the raw header
+            email_body_str = email_data.get('body', '')
             received_at = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
-            logger.info(f"Processing email: Gmail ID={message_id}, Subject='{email_subject_str}', Sender='{sender}'")
+            
+            logger.info(f"Processing email: Gmail ID={message_id}, Subject='{email_subject_str}', Raw Sender='{raw_sender_header}'")
+            
             inserted_email_id = None
+            parsed_sender_email = "<Error: Not Parsed>" # Default for logging in case of early failure
+
 #           --- DECODE EMAIL BODY ---
             try:
                 if isinstance(email_body_str, str):
@@ -88,20 +94,28 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                 logger.warning(f"Could not decode email body for message ID {message_id}, assuming plain text or already decoded: {e}")
             try:
 #               --- CHECK FOR DUPLICATES ---                
-                sender_email=await del_if_exists(
+                parsed_sender_email = await del_if_exists(
                     db_pool=db_pool,
                     message_id=message_id,
-                    sender=sender,
+                    sender=raw_sender_header, # Pass the raw sender header here
                     email_subject_str=email_subject_str,
                     email_body_str=email_body_str
                 )
-                if sender_email is None:
-                    logger.info(f"Email with Subject='{email_subject_str}' and Sender='{sender}' already exists in the database. Skipping further processing.")
+                if parsed_sender_email is None:
+                    logger.info(f"Email with Subject='{email_subject_str}' and Raw Sender='{raw_sender_header}' already exists or error in del_if_exists. Skipping further processing.")
                     continue
+                # If we reach here, parsed_sender_email is the successfully parsed sender email for a new email
+
 #               --- LLM PROCESSING ---                
                 llm_model_to_use = "gemini-1.5-flash"
-                possible_types = ["Google", "Important", "Health", "Marketing", "Spam", "Other"]
-                attachments_info_for_llm = email_data.get('attachments_for_llm', [])
+                settings=await get_settings_db(db_pool=db_pool)
+                logger.info(f"Fetched------------------------------------------------------- settings for LLM model: {llm_model_to_use} with settings: {settings}")
+                possible_types = ["none"]
+                if settings and "email_types" in settings:
+                    for email_type in settings["email_types"]:
+                        possible_types.append(f"{email_type['topic']}")
+                #settings.get("email_types", ["Google", "Important", "Health", "Marketing", "Spam", "Other"])
+                attachments_info_for_llm = email_data.get('attachments', [])
                 logger.info(f"Calling get_summary_and_type_from_llm for Gmail ID: {message_id} with attachments: {attachments_info_for_llm}")
                 llm_summary_data = await get_summary_and_type_from_llm(
                     email_subject=email_subject_str,
@@ -114,36 +128,35 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                 short_description = llm_summary_data.get("short_description", "Summary N/A (LLMError)")
                 logger.info(f"LLM summary for Gmail ID {message_id}: topic={topic}, desc={short_description}")
 #               --- STORE EMAIL IN DB ---
-                store_email_in_db(
+                inserted_email_id = await store_email_in_db(
                     db_pool=db_pool,
                     email_data=email_data,
                     topic=topic,
-                    short_description="Email received, awaiting LLM processing.",
+                    short_description=short_description, # Verwende die Beschreibung vom LLM
                     received_at=received_at,
                     email_subject_str=email_subject_str,
                     email_body_str=email_body_str,  # Use decoded body
-                    sender_email=sender_email,
+                    sender_email=parsed_sender_email, # Pass the parsed sender email here
                     message_id=message_id
                 )
 #               --- WORKFLOW MATCHING & EXECUTION ---
                 logger.info(f"Fetching active workflows for email DB ID {inserted_email_id} using db_utils.fetch_active_workflows_db.")
                 workflow_rows = await fetch_active_workflows_db(
                     db_pool=db_pool, # Use db_pool
-                    trigger_type='cron' 
                 )
                 logger.info(f"Found {len(workflow_rows)} active 'cron' triggered workflows.")
                 for wf_row in workflow_rows: # wf_row is already a dict
                     wf_config = wf_row.get('workflow_config', {})
                     selected_topic = wf_config.get('selected_topic')
                     if selected_topic and selected_topic != topic:
-                        logger.info(f"Skipping workflow '{wf_row['workflow_name']}' for email DB ID {inserted_email_id} due to topic mismatch (required: {selected_topic}, email topic: {topic}).")
+                        logger.info(f"Skipping workflow '{wf_row['task_name']}' for email DB ID {inserted_email_id} due to topic mismatch (required: {selected_topic}, email topic: {topic}).")
                         continue
-                    logger.info(f"Executing workflow '{wf_row['workflow_name']}' for topic '{topic}' on email DB ID {inserted_email_id}")
+                    logger.info(f"Executing workflow '{wf_row['task_name']}' for topic '{topic}' on email DB ID {inserted_email_id}")
                     task_id = await create_processing_task_db(
                         db_pool=db_pool,
                         email_id=inserted_email_id,
                         initial_status=wf_config.get('initial_status', 'pending'),
-                        workflow_type=wf_row['workflow_name'] # Using workflow_name as workflow_type for task
+                        workflow_type=wf_row['task_name'] # Using task_name as workflow_type for task
                     )
                     if wf_config and "document_processing" in wf_config.get("steps", []):
                         logger.info(f"Initiating document processing step for task {task_id}, email DB ID {inserted_email_id}.")
@@ -157,10 +170,11 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                         logger.info(f"No document_processing step in workflow for task {task_id}.")
                 logger.info(f"Processing attachments for email DB ID {inserted_email_id}.")
             except Exception as e:
-                logger.error(f"Error processing email (Subject: '{email_subject_str}', Sender: '{sender_email}', Gmail ID: {message_id}): {e}", exc_info=True)
-                action_desc_error = f"Error processing email. Subject: '{email_subject_str}', Gmail ID: {message_id}. Error: {str(e)}"
-                error_email_id_ref = inserted_email_id # Will be None if insertion failed
+                # Use raw_sender_header for logging if parsed_sender_email might not be set due to an early error
+                logger.error(f"Error processing email (Subject: '{email_subject_str}', Raw Sender: '{raw_sender_header}', Gmail ID: {message_id}): {e}", exc_info=True)
+                # action_desc_error = f"Error processing email. Subject: '{email_subject_str}', Gmail ID: {message_id}. Error: {str(e)}" # This line seems to be for a different logging mechanism
+                # error_email_id_ref = inserted_email_id # This will be None or an int if store_email_in_db was reached
 
-                continue
+                continue # Continue to the next email
     except Exception as e:
         logger.error(f"[Scheduler] Error during email check: {e}")

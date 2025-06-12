@@ -28,7 +28,7 @@ Below are the main tables used in the backend database, with their columns and t
 | Column         | Type                | Description                                 |
 |----------------|---------------------|---------------------------------------------|
 | id             | SERIAL PRIMARY KEY  | Unique task ID                              |
-| workflow_name  | TEXT                | Name of the workflow                        |
+| task_name  | TEXT                | Name of the workflow                        |
 | workflow_config| JSONB or TEXT       | Workflow configuration (JSON)               |
 | status         | TEXT                | Task status (e.g., 'active')                |
 | trigger_type   | TEXT                | Trigger type (e.g., 'cron')                 |

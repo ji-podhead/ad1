@@ -14,7 +14,7 @@ from fastapi import FastAPI, WebSocket, Query, Request, Depends, HTTPException, 
 from fastapi.responses import RedirectResponse, JSONResponse, Response
 
 from pydantic import BaseModel
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Dict, Any
 import json
 from passlib.context import CryptContext
 try:
@@ -33,6 +33,8 @@ from agent.agent_scheduler import AgentScheduler
 from agent.agent_ws import agent_websocket
 from agent.email_checker import check_new_emails
 from gmail_utils.gmail_auth import generate_auth_url
+import debugpy
+
 
 # Import all necessary functions from db_utils
 from db_utils import (
@@ -81,12 +83,10 @@ class Email(BaseModel):
 class AuditTrail(BaseModel):
     '''Represents an audit trail log entry.'''
     id: int
-    email_id: Optional[int] = None
-    task_id: Optional[int] = None # Added task_id
-    document_id: Optional[int] = None # Added document_id
-    action: str
+    event_type: str # Changed from action to event_type to match DB
     username: str
     timestamp: datetime.datetime # Changed to datetime for proper typing
+    data: Optional[Dict[str, Any]] = None # Ensure data is expected as dict
 
 class SchedulerTask(BaseModel):
     '''Represents a scheduled task or workflow configuration.'''
@@ -94,17 +94,14 @@ class SchedulerTask(BaseModel):
     type: Optional[str] = None
     description: Optional[str] = None
     status: str = "active"
-    nextRun: Optional[datetime.datetime] = None # Changed to datetime
     to: Optional[str] = None
     subject: Optional[str] = None
     body: Optional[str] = None
     date: Optional[str] = None # Consider if this should be datetime
-    interval: Optional[int] = None
     condition: Optional[str] = None
     actionDesc: Optional[str] = None
-    trigger_type: str
     workflow_config: Optional[dict] = None
-    workflow_name: Optional[str] = None
+    task_name: Optional[str] = None
     # Fields from db_utils.get_scheduler_tasks_db that might be missing:
     last_run_at: Optional[datetime.datetime] = None
     created_at: Optional[datetime.datetime] = None
@@ -115,19 +112,16 @@ class SchedulerTaskCreate(BaseModel):
     '''Data model for creating a new scheduler task.'''
     type: Optional[str] = None # Maps to 'task_name' in some contexts
     description: Optional[str] = None
-    trigger_type: str
     status: str = "active"
-    workflow_name: Optional[str] = None # Often used as 'task_name'
+    task_name: Optional[str] = None # Often used as 'task_name'
     workflow_config: Optional[dict] = None
     # Fields that might go into workflow_config if not direct columns in scheduler_tasks
     to: Optional[str] = None
     subject: Optional[str] = None
     body: Optional[str] = None
     date: Optional[str] = None
-    interval: Optional[int] = None # Or cron_expression
     condition: Optional[str] = None
     actionDesc: Optional[str] = None
-    cron_expression: Optional[str] = None # Explicitly for cron jobs
 
 class CreateUserRequest(BaseModel):
     '''Data model for creating a new user.'''
@@ -208,7 +202,7 @@ class Document(BaseModel):
     email_id: int
     filename: str
     content_type: Optional[str] = None # Made optional as DB allows NULL
-    # data_b64: str # Not for list views
+    data_b64: Optional[str] = None # Re-enabled for frontend preview
     is_processed: bool
     created_at: datetime.datetime
     updated_at: Optional[datetime.datetime] = None # Added, as it's in DB
@@ -223,6 +217,10 @@ async def startup():
     schedules the global email checking cron job based on settings,
     and processes ADMIN_EMAILS environment variable to create initial admin users.
     '''
+    debugpy.listen(("0.0.0.0", 5678))
+    logger.info("Debugger is listening on port 5678. Waiting for attach...")
+    # debugpy.wait_for_client() # Optional: uncomment if you want to pause until debugger attaches
+
     app.state.db = await asyncpg.create_pool(DATABASE_URL)
     if app.state.db is None:
         logger.error("Database connection pool could not be created.")
@@ -395,19 +393,19 @@ async def get_scheduler_tasks(request: Request):
     db_pool = request.app.state.db
     tasks_from_db = await get_scheduler_tasks_db(db_pool)
     response_tasks = []
+    logger.info(f"Retrieved {len(tasks_from_db)} tasks from the database.") 
     for task_dict in tasks_from_db:
         # Map db fields to SchedulerTask model fields
-        # get_scheduler_tasks_db returns: id, task_name, trigger_type, cron_expression, status, 
-        # last_run_at, next_run_at, workflow_config, created_at, updated_at
+        # get_scheduler_tasks_db returns: id, task_name, type, description, status, 
+        # last_run_at, workflow_config, created_at, updated_at
         mapped_task = {
             "id": str(task_dict.get('id')), # Model expects str ID
-            "workflow_name": task_dict.get('task_name'),
-            "type": task_dict.get('task_name'), # 'type' in model might map to 'task_name'
+            "task_name": task_dict.get('task_name'),
+            "type": task_dict.get('type'), 
             "description": task_dict.get('description', task_dict.get('task_name')), # Fallback for description
-            "trigger_type": task_dict.get('trigger_type'),
             "status": task_dict.get('status'),
-            "lastRun": task_dict.get('last_run_at'), # Pydantic model uses lastRun, DB has last_run_at
-            "nextRun": task_dict.get('next_run_at'), # Pydantic model uses nextRun, DB has next_run_at
+            "last_run_at": task_dict.get('last_run_at'), # Corrected from lastRun
+            # "next_run_at": task_dict.get('next_run_at'), # REMOVED
             "workflow_config": task_dict.get('workflow_config'), # Already a dict from db_utils
             "created_at": task_dict.get('created_at'),
             "updated_at": task_dict.get('updated_at'),
@@ -416,7 +414,7 @@ async def get_scheduler_tasks(request: Request):
             "subject": task_dict.get('workflow_config', {}).get('subject'),
             "body": task_dict.get('workflow_config', {}).get('body'),
             "date": task_dict.get('workflow_config', {}).get('date'),
-            "interval": task_dict.get('workflow_config', {}).get('interval'),
+            # "interval": task_dict.get('workflow_config', {}).get('interval'), # REMOVED
             "condition": task_dict.get('workflow_config', {}).get('condition'),
             "actionDesc": task_dict.get('workflow_config', {}).get('actionDesc')
         }
@@ -438,21 +436,18 @@ async def create_scheduler_task(task_create_data: SchedulerTaskCreate, request: 
     '''
     db_pool = request.app.state.db
     db_task_data = {
-        'task_name': task_create_data.workflow_name or task_create_data.description or "Untitled Workflow",
-        'trigger_type': task_create_data.trigger_type,
-        'cron_expression': task_create_data.cron_expression, # Added cron_expression to Pydantic model
+        'task_name': task_create_data.task_name or task_create_data.description or "Untitled Workflow",
+        'type': task_create_data.type,
+        'description': task_create_data.description,
         'status': task_create_data.status,
-        'workflow_config': task_create_data.workflow_config or {}
+        'workflow_config': task_create_data.workflow_config or {},
+        # 'trigger_type' is no longer part of SchedulerTaskCreate or db_task_data
     }
-    # Populate workflow_config with other fields from SchedulerTaskCreate
-    if task_create_data.to: db_task_data['workflow_config']['to'] = task_create_data.to
-    if task_create_data.subject: db_task_data['workflow_config']['subject'] = task_create_data.subject
-    if task_create_data.body: db_task_data['workflow_config']['body'] = task_create_data.body
-    if task_create_data.date: db_task_data['workflow_config']['date'] = task_create_data.date
-    if task_create_data.interval: db_task_data['workflow_config']['interval'] = task_create_data.interval
-    if task_create_data.condition: db_task_data['workflow_config']['condition'] = task_create_data.condition
-    if task_create_data.actionDesc: db_task_data['workflow_config']['actionDesc'] = task_create_data.actionDesc
-
+    logger.info(f"Creating scheduler task with data: {db_task_data}")
+    # ID is generated within create_scheduler_task_db now
+    # task_id= str(uuid.uuid4()) 
+    # db_task_data['id'] = task_id 
+    
     created_task_dict = await create_scheduler_task_db(db_pool, db_task_data)
     if not created_task_dict:
         raise HTTPException(status_code=fastapi_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create scheduler task.")
@@ -460,13 +455,13 @@ async def create_scheduler_task(task_create_data: SchedulerTaskCreate, request: 
     # Map db_utils response to SchedulerTask Pydantic model
     response_task = SchedulerTask(
         id=str(created_task_dict.get('id')),
-        workflow_name=created_task_dict.get('task_name'),
-        type=created_task_dict.get('task_name'),
+        task_name=created_task_dict.get('task_name'),
+        type=created_task_dict.get('type'),
         description=created_task_dict.get('description', created_task_dict.get('task_name')),
-        trigger_type=created_task_dict.get('trigger_type'),
+        # trigger_type=created_task_dict.get('trigger_type'), # REMOVED
         status=created_task_dict.get('status'),
-        lastRun=created_task_dict.get('last_run_at'),
-        nextRun=created_task_dict.get('next_run_at'),
+        last_run_at=created_task_dict.get('last_run_at'),
+        # next_run_at=created_task_dict.get('next_run_at'), # REMOVED
         workflow_config=created_task_dict.get('workflow_config'),
         created_at=created_task_dict.get('created_at'),
         updated_at=created_task_dict.get('updated_at'),
@@ -474,19 +469,19 @@ async def create_scheduler_task(task_create_data: SchedulerTaskCreate, request: 
         subject=created_task_dict.get('workflow_config', {}).get('subject'),
         body=created_task_dict.get('workflow_config', {}).get('body'),
         date=created_task_dict.get('workflow_config', {}).get('date'),
-        interval=created_task_dict.get('workflow_config', {}).get('interval'),
+        # interval=created_task_dict.get('workflow_config', {}).get('interval'), # REMOVED
         condition=created_task_dict.get('workflow_config', {}).get('condition'),
         actionDesc=created_task_dict.get('workflow_config', {}).get('actionDesc')
     )
     return response_task
 
 @app.put("/api/scheduler/task/{task_id}", response_model=SchedulerTask)
-async def update_scheduler_task(task_id: int, task_update_data: SchedulerTaskCreate, request: Request):
+async def update_scheduler_task(task_id: str, task_update_data: SchedulerTaskCreate, request: Request): # Changed task_id to str
     '''
     Updates an existing scheduler task (workflow).
 
     :param task_id: The ID of the scheduler task to update.
-    :type task_id: int
+    :type task_id: str
     :param task_update_data: The data to update the scheduler task with.
     :type task_update_data: SchedulerTaskCreate
     :param request: The FastAPI request object, used to access the database pool.
@@ -498,16 +493,24 @@ async def update_scheduler_task(task_id: int, task_update_data: SchedulerTaskCre
     db_pool = request.app.state.db
     # Prepare updates dict for update_scheduler_task_db
     updates_for_db = {
-        'task_name': task_update_data.workflow_name or task_update_data.description,
-        'trigger_type': task_update_data.trigger_type,
-        'cron_expression': task_update_data.cron_expression,
+        'task_name': task_update_data.task_name or task_update_data.description,
+        'type': task_update_data.type,
+        'description': task_update_data.description,
+        # 'trigger_type': task_update_data.trigger_type, # REMOVED
         'status': task_update_data.status,
         'workflow_config': task_update_data.workflow_config or {}
     }
-    if task_update_data.to: updates_for_db['workflow_config']['to'] = task_update_data.to
-    if task_update_data.subject: updates_for_db['workflow_config']['subject'] = task_update_data.subject
-    # ... add other fields to workflow_config as in create endpoint ...
+    # Remove None values to avoid overwriting existing fields with None if not provided
+    updates_for_db = {k: v for k, v in updates_for_db.items() if v is not None}
 
+    if task_update_data.to: updates_for_db.setdefault('workflow_config', {})['to'] = task_update_data.to
+    if task_update_data.subject: updates_for_db.setdefault('workflow_config', {})['subject'] = task_update_data.subject
+    if task_update_data.body: updates_for_db.setdefault('workflow_config', {})['body'] = task_update_data.body
+    if task_update_data.date: updates_for_db.setdefault('workflow_config', {})['date'] = task_update_data.date
+    # if task_update_data.interval: updates_for_db.setdefault('workflow_config', {})['interval'] = task_update_data.interval # REMOVED
+    if task_update_data.condition: updates_for_db.setdefault('workflow_config', {})['condition'] = task_update_data.condition
+    if task_update_data.actionDesc: updates_for_db.setdefault('workflow_config', {})['actionDesc'] = task_update_data.actionDesc
+    
     updated_task_dict = await update_scheduler_task_db(db_pool, task_id, updates_for_db)
     if not updated_task_dict:
         raise HTTPException(status_code=fastapi_status.HTTP_404_NOT_FOUND, detail="Scheduler task not found or not updated.")
@@ -515,30 +518,33 @@ async def update_scheduler_task(task_id: int, task_update_data: SchedulerTaskCre
     # Map to SchedulerTask Pydantic model (similar to create endpoint)
     response_task = SchedulerTask(
         id=str(updated_task_dict.get('id')),
-        workflow_name=updated_task_dict.get('task_name'),
-        type=updated_task_dict.get('task_name'),
+        task_name=updated_task_dict.get('task_name'),
+        type=updated_task_dict.get('type'),
         description=updated_task_dict.get('description', updated_task_dict.get('task_name')),
-        trigger_type=updated_task_dict.get('trigger_type'),
+        # trigger_type=updated_task_dict.get('trigger_type'), # REMOVED
         status=updated_task_dict.get('status'),
-        lastRun=updated_task_dict.get('last_run_at'),
-        nextRun=updated_task_dict.get('next_run_at'),
+        last_run_at=updated_task_dict.get('last_run_at'),
+        # next_run_at=updated_task_dict.get('next_run_at'), # REMOVED
         workflow_config=updated_task_dict.get('workflow_config'),
         created_at=updated_task_dict.get('created_at'),
         updated_at=updated_task_dict.get('updated_at'),
         to=updated_task_dict.get('workflow_config', {}).get('to'),
         subject=updated_task_dict.get('workflow_config', {}).get('subject'),
-        body=updated_task_dict.get('workflow_config', {}).get('body')
-        # ... etc.
+        body=updated_task_dict.get('workflow_config', {}).get('body'),
+        date=updated_task_dict.get('workflow_config', {}).get('date'),
+        # interval=updated_task_dict.get('workflow_config', {}).get('interval'), # REMOVED
+        condition=updated_task_dict.get('workflow_config', {}).get('condition'),
+        actionDesc=updated_task_dict.get('workflow_config', {}).get('actionDesc')
     )
     return response_task
 
 @app.post("/api/scheduler/task/{task_id}/pause")
-async def pause_scheduler_task(task_id: int, request: Request):
+async def pause_scheduler_task(task_id: str, request: Request): # Changed task_id to str
     '''
     Pauses or resumes a scheduler task by toggling its status between 'active' and 'paused'.
 
     :param task_id: The ID of the scheduler task to pause/resume.
-    :type task_id: int
+    :type task_id: str
     :param request: The FastAPI request object, used to access the database pool.
     :type request: Request
     :raises HTTPException: If the task is not found (404) or if the update fails (500).
@@ -548,7 +554,7 @@ async def pause_scheduler_task(task_id: int, request: Request):
     db_pool = request.app.state.db
     # Fetch current task to determine new status
     tasks_from_db = await get_scheduler_tasks_db(db_pool)
-    current_task_dict = next((task for task in tasks_from_db if task.get('id') == task_id), None)
+    current_task_dict = next((task for task in tasks_from_db if task.get('id') == task_id), None) # Compare str with str
 
     if not current_task_dict:
         raise HTTPException(status_code=fastapi_status.HTTP_404_NOT_FOUND, detail="Task not found")
@@ -563,12 +569,12 @@ async def pause_scheduler_task(task_id: int, request: Request):
     return {"status": new_status, "id": task_id}
 
 @app.delete("/api/scheduler/task/{task_id}")
-async def delete_scheduler_task_endpoint(task_id: int, request: Request):
+async def delete_scheduler_task_endpoint(task_id: str, request: Request): # Changed task_id to str
     '''
     Deletes a scheduler task.
 
     :param task_id: The ID of the scheduler task to delete.
-    :type task_id: int
+    :type task_id: str
     :param request: The FastAPI request object, used to access the database pool.
     :type request: Request
     :raises HTTPException: If the task is not found or deletion fails (404).
@@ -1257,21 +1263,37 @@ async def delete_email_endpoint(email_id: int, request: Request):
 async def userinfo(request: Request):
     '''Retrieves user information (admin status, roles, Google ID) based on email.
 
-    The email is expected to be available in `request.app.state.email`, which implies
-    it's set by some authentication middleware (not shown in this snippet).
+    The email is first attempted to be retrieved from `request.app.state.email`.
+    If not found there, it attempts to parse the email from the JSON request body
+    (e.g., `{"email": "user@example.com"}`).
 
-    :param request: The FastAPI request object, used to access app state including db pool and user email.
+    :param request: The FastAPI request object, used to access app state and request body.
     :type request: Request
+    :raises HTTPException: If email is not provided in state or body (400),
+                           or if JSON body is invalid (400).
     :returns: User information including `is_admin`, `roles`, and `google_id`.
               Returns default values if user not found (as per `check_if_admin_user_exists_db` behavior).
     :rtype: Dict[str, Any]
     '''
-    # Assuming request.app.state.email is populated by some auth middleware
-    if not hasattr(request.app.state, 'email') or not request.app.state.email:
-        raise HTTPException(status_code=fastapi_status.HTTP_400_BAD_REQUEST, detail="User email not available in request state.")
+    user_email = None
+    # Try to get email from request state first
+    if hasattr(request.app.state, 'email') and request.app.state.email:
+        user_email = request.app.state.email
+    else:
+        # If not in state, try to parse from request body
+        try:
+            body = await request.json()
+            user_email = body.get("email")
+        except json.JSONDecodeError:
+            logger.warning("Failed to decode JSON body while attempting to get email for /api/userinfo.")
+            raise HTTPException(status_code=fastapi_status.HTTP_400_BAD_REQUEST, detail="Invalid JSON body.")
+        
+    if not user_email:
+        logger.warning("/api/userinfo called without user email in state or body.")
+        raise HTTPException(status_code=fastapi_status.HTTP_400_BAD_REQUEST, detail="User email not provided in request state or body.")
 
     db_pool = request.app.state.db
-    user_info_result = await check_if_admin_user_exists_db(db_pool, request.app.state.email)
-    logger.info(f"Userinfo query for email: {request.app.state.email} returned: {user_info_result}")
+    user_info_result = await check_if_admin_user_exists_db(db_pool, user_email)
+    logger.info(f"Userinfo query for email: {user_email} returned: {user_info_result}")
     return user_info_result
 

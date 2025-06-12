@@ -115,9 +115,8 @@ The following user management endpoints typically require administrator privileg
     -   **Request Body (Payload Example)**:
         ```json
         {
-          "workflow_name": "Monthly Report Generation",
+          "task_name": "Monthly Report Generation",
           "trigger_type": "cron", // or "email_receive"
-          "cron_expression": "0 0 1 * *", // if trigger_type is cron
           "email_trigger_config": { // if trigger_type is email_receive
             "subject_contains": "Invoice",
             "from_address": "billing@example.com"
@@ -131,7 +130,7 @@ The following user management endpoints typically require administrator privileg
           "action_parameters": { /* specific parameters for the action */ }
         }
         ```
-    -   **Details**: The payload includes `workflow_name`, `trigger_type` (`email_receive`, `cron`), `workflow_config` (a JSON object detailing AI model, token limits, processing steps, initial status for created tasks), and other relevant scheduling or action parameters.
+    -   **Details**: The payload includes `task_name`, `trigger_type` (`email_receive`, `cron`), `workflow_config` (a JSON object detailing AI model, token limits, processing steps, initial status for created tasks), and other relevant scheduling or action parameters.
 
 -   `POST /api/scheduler/task/{task_id}/pause`
     -   **Purpose**: Pauses or resumes a specific scheduled task or workflow identified by `task_id`.

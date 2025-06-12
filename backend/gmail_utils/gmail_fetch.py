@@ -297,9 +297,9 @@ async def get_full_email(
                 email_details['body'] = preferred_body_part['body']['data'] 
 
                 # Download attachments using the collected info
-                downloaded_attachments = []
-                email_details['attachments']= []  # Reset to empty list for downloaded attachments
-                for att_info in attachment_info_list:
+                email_details['attachments'] = []  # Initialisieren/Zurücksetzen für korrekt strukturierte Anhänge
+
+                for att_info in attachment_info_list: # att_info enthält Metadaten wie attachmentId, filename, mimeType
                     downloaded_att = await download_gmail_attachment(
                         db_pool,
                         user_email,
@@ -309,15 +309,25 @@ async def get_full_email(
                         access_token
                     )
                     if downloaded_att:
-                        downloaded_att['mimeType'] = att_info['mimeType']  # Add mimeType to downloaded attachment info
-                        downloaded_att["email_id"] = email_details['id']  # Link to email
+                        # downloaded_att enthält {'filename': ..., 'data': file_bytes, 'size': ..., 'attachment_id': ...}
                         
-                        downloaded_attachments.append(downloaded_att)
+                        # Rohe Bytes in einen base64-String kodieren
+                        data_b64_str = base64.b64encode(downloaded_att['data']).decode('utf-8')
+
+                        # Das korrekte Dictionary für die Datenbankaufbereitung und Weitergabe erstellen
+                        attachment_data_for_processing = {
+                            'filename': downloaded_att['filename'],
+                            'mimeType': att_info['mimeType'], # mimeType aus den ursprünglichen Metadaten
+                            'data_b64': data_b64_str,        # Die base64-kodierten Daten
+                            'size': downloaded_att.get('size') # Optional die Größe hinzufügen
+                        }
                         
-                        email_details['attachments'].append(att_info['attachmentId'])
-                        logger.info(f"Successfully downloaded attachment: {downloaded_att.keys()} for message {message_id}.")
+                        # Das verarbeitete Anhangs-Dictionary (mit data_b64) hinzufügen
+                        email_details['attachments'].append(attachment_data_for_processing)
+                        logger.info(f"Successfully processed attachment for email_details: {attachment_data_for_processing['filename']} for message {message_id}.")
                     else:
                         logger.error(f"Failed to download attachment: {att_info['filename']} for message {message_id}.")
+                
                 return email_details
     except Exception as e:
         logger.error(f"Exception during full message fetch and attachment download for message {message_id}: {e}")

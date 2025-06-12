@@ -13,7 +13,7 @@ import asyncpg # Assuming asyncpg is used for database connection
 import logging # Added for explicit logging
 import base64
 import aiohttp
-from db_utils import log_generic_action_db, get_document_content_db, update_document_processed_data_db # Import necessary db_utils
+from db_utils import log_generic_action_db, get_document_content_db, update_document_processed_data_db,log_document_action_db # Import necessary db_utils
 
 async def process_document_step(
     task_id: int,
@@ -39,27 +39,32 @@ async def process_document_step(
     pdf_bytes: Optional[bytes] = None
     filename_for_service = f"doc_{document_id}_task_{task_id}.pdf" # Default filename
 
-    await log_generic_action_db(
-        db_pool=db_pool,
-        action_description=f"Attempting document processing for Document ID: {document_id}, Task ID: {task_id}",
-        username="system_workflow_step",
-        document_id=document_id,
-        task_id=task_id
-    )
 
+    await log_document_action_db(
+                db_pool=db_pool, # Use the transaction connection
+                document_id=document_id,
+                action="document_processing_start",
+                user="system",
+                data={
+                    "action_description": f"Attempting document processing for Document ID: {document_id}, Task ID: {task_id}",
+                    "document_id": document_id
+                } # Include action description and deleted ID in data
+            )
     try:
         # 1. Fetch document content from DB
         logger.info(f"Fetching content for Document ID: {document_id}")
         doc_content_data = await get_document_content_db(db_pool, document_id)
 
         if not doc_content_data or not doc_content_data.get('data_b64'):
-            logger.error(f"Document content (data_b64) not found for Document ID: {document_id}. Skipping processing.")
-            await log_generic_action_db(
-                db_pool=db_pool,
-                action_description=f"Document content not found for Document ID: {document_id}. Processing skipped.",
-                username="system_workflow_step",
+            await log_document_action_db(
+                db_pool=db_pool, # Use the transaction connection
                 document_id=document_id,
-                task_id=task_id
+                action="document_processing_skip",
+                user="system",
+                data={
+                    "action_description": f"Document content not found for Document ID: {document_id}. Processing skipped.",
+                    "document_id": document_id
+                } # Include action description and deleted ID in data
             )
             return
 
@@ -69,24 +74,30 @@ async def process_document_step(
 
     except Exception as e:
         logger.error(f"Error fetching/decoding document ID {document_id} for Task {task_id}: {e}", exc_info=True)
-        await log_generic_action_db(
-            db_pool=db_pool,
-            action_description=f"Error fetching/decoding document for Task ID: {task_id}, Doc ID: {document_id}. Error: {str(e)}",
-            username="system_workflow_error",
+        await log_document_action_db(
+            db_pool=db_pool, # Use the transaction connection
             document_id=document_id,
-            task_id=task_id
+            action="document_processing_error",
+            user="system",
+            data={
+                "action_description": f"Error fetching/decoding document for Task ID: {task_id}, Doc ID: {document_id}. Error: {str(e)}",
+                "document_id": document_id
+            } # Include action description and deleted ID in data
         )
         return
 
     doc_service_url = os.getenv("DOC_PROCESSING_SERVICE_URL")
     if not doc_service_url:
         logger.error(f"DOC_PROCESSING_SERVICE_URL environment variable is not set. Cannot process document for Task {task_id}, Doc ID {document_id}.")
-        await log_generic_action_db(
-            db_pool=db_pool,
-            action_description=f"DOC_PROCESSING_SERVICE_URL not set. Document processing skipped for Task ID: {task_id}, Doc ID: {document_id}.",
-            username="system_config_error",
+        await log_document_action_db(
+            db_pool=db_pool, # Use the transaction connection
             document_id=document_id,
-            task_id=task_id
+            action="document_processing_skip",
+            user="system",
+            data={
+                "action_description": f"DOC_PROCESSING_SERVICE_URL not set. Document processing skipped for Task ID: {task_id}, Doc ID: {document_id}.",
+                "document_id": document_id
+            } # Include action description and deleted ID in data
         )
         return
 
@@ -100,10 +111,17 @@ async def process_document_step(
                 filename=filename_for_service, # Use fetched or generated filename
                 content_type=doc_content_data.get('content_type', 'application/pdf') # Use fetched content_type
             )
-
-            logger.info(f"Calling Document Processing Service for Task ID: {task_id}, Doc ID: {document_id} at URL: {doc_service_url}")
-            await log_generic_action_db(db_pool, f"Calling external document processing for Doc ID: {document_id}", document_id=document_id, task_id=task_id)
-
+            await log_document_action_db(
+                db_pool=db_pool, # Use the transaction connection
+                document_id=document_id,
+                action="document_processing_service_call",
+                user="system",
+                data={
+                    "action_description": f"Calling document processing service for Document ID: {document_id}, Task ID: {task_id}.",
+                    "document_id": document_id,
+                    "service_url": doc_service_url
+                } # Include action description and service URL in data
+            )
             async with session.post(doc_service_url, data=form_data, timeout=300) as response:
                 response_text = await response.text()
                 response_status = response.status
@@ -120,8 +138,6 @@ async def process_document_step(
 
 
                     if processed_text_result:
-                        logger.info(f"Document processing successful for Task ID: {task_id}, Doc ID: {document_id}. Result snippet: {processed_text_result[:200]}...")
-                        await log_generic_action_db(db_pool, f"Document processing successful for Doc ID: {document_id}.", document_id=document_id, task_id=task_id)
                         
                         # 3. Store processed data
                         update_success = await update_document_processed_data_db(
@@ -129,6 +145,17 @@ async def process_document_step(
                             document_id=document_id,
                             processed_data_text=processed_text_result,
                             username="system_doc_processing"
+                        )
+                        await log_document_action_db(
+                            db_pool=db_pool, # Use the transaction connection
+                            document_id=document_id,
+                            action="document_processing_complete",
+                            user="system",
+                            data={
+                                "action_description": f"Document processing completed for Document ID: {document_id}, Task ID: {task_id}.",
+                                "document_id": document_id,
+                                "processed_text_snippet": processed_text_result[:200]  # Store a snippet of the processed text
+                            } # Include action description and processed text snippet in data
                         )
                         if update_success:
                             logger.info(f"Successfully updated Doc ID {document_id} with processed data.")
@@ -138,8 +165,16 @@ async def process_document_step(
                             await log_generic_action_db(db_pool, f"Failed to store processed data for Doc ID: {document_id}", document_id=document_id, task_id=task_id, username="system_workflow_error")
                     else:
                         logger.warning(f"Document processing service returned 200 but no processable text found for Doc ID: {document_id}. Response: {response_text[:500]}")
-                        await log_generic_action_db(db_pool, f"Document processing for Doc ID: {document_id} returned 200 but no text. Response: {response_text[:200]}", document_id=document_id, task_id=task_id)
-
+                        await log_document_action_db(
+                            db_pool=db_pool, # Use the transaction connection
+                            document_id=document_id,
+                            action="document_processing_no_text",
+                            user="system",
+                            data={
+                                "action_description": f"Document processing service returned 200 but no processable text found for Document ID: {document_id}, Task ID: {task_id}. Response: {response_text[:200]}",
+                                "document_id": document_id
+                            } # Include action description and response snippet in data
+                        )
                 except json.JSONDecodeError:
                     logger.warning(f"Response from document service for Task {task_id}, Doc ID {document_id} was 200 but not valid JSON. Storing raw response. Raw: {response_text[:200]}...")
                     processed_text_result = response_text # Store raw text if not JSON
@@ -157,7 +192,16 @@ async def process_document_step(
 
             else: # Non-200 response
                 logger.error(f"Document processing failed for Task ID: {task_id}, Doc ID: {document_id}. Status: {response_status}, Response: {response_text}")
-                await log_generic_action_db(db_pool, f"Document processing failed for Doc ID: {document_id}. Status: {response_status}, Details: {response_text[:200]}", document_id=document_id, task_id=task_id, username="system_workflow_error")
+                await log_document_action_db(
+                    db_pool=db_pool,
+                    document_id=document_id,
+                    action="document_processing_failed",
+                    user="system",
+                    data={
+                        "action_description": f"Document processing failed for Doc ID: {document_id}. Status: {response_status}, Details: {response_text[:200]}",
+                        "document_id": document_id
+                    }
+                )
 
     except aiohttp.ClientConnectorError as e:
         logger.error(f"Connection error calling document processing service for Task ID {task_id}, Doc ID {document_id} at {doc_service_url}: {e}", exc_info=True)

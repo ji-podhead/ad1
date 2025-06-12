@@ -3,6 +3,7 @@ import logging
 import json
 from typing import Optional, List, Dict, Any
 import datetime
+import uuid # Import uuid module
 
 logger = logging.getLogger(__name__)
 
@@ -30,47 +31,87 @@ async def get_db_pool(context: Any) -> asyncpg.pool.Pool:
     raise ValueError("Could not retrieve db_pool from the provided context.")
 
 # --- Audit Log Functions ---
+async def get_audit_trail_db(db_pool: asyncpg.pool.Pool, limit: int = 50) -> List[Dict[str, Any]]:
+    '''
+    Retrieves the latest audit trail entries from the database.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param limit: The maximum number of audit entries to retrieve, defaults to 50.
+    :type limit: int
+    :returns: A list of dictionaries, where each dictionary represents an audit trail entry.
+              The 'data' field (JSONB from DB) is parsed into a Python dict.
+              The 'event_type' field is used directly as is from the DB.
+    :rtype: List[Dict[str, Any]]
+    '''
+    rows = await db_pool.fetch(
+        """
+        SELECT id, event_type, username, timestamp, data
+        FROM audit_trail
+        ORDER BY timestamp DESC
+        LIMIT $1
+        """,
+        limit
+    )
+    
+    processed_rows = []
+    for row_proxy in rows:
+        row = dict(row_proxy)
+        # Parse the 'data' field from JSON string to dict if it's a string
+        # asyncpg might return dict directly for JSONB depending on setup, but explicit parsing is safer.
+        if row.get('data') and isinstance(row['data'], str):
+            try:
+                row['data'] = json.loads(row['data'])
+            except json.JSONDecodeError:
+                logger.error(f"Failed to parse JSON for audit trail data: {row['data']}")
+                row['data'] = {} # Default to empty dict on error
+        elif row.get('data') is None: # Handle cases where data might be NULL in DB
+            row['data'] = {}
+        
+        # event_type is now directly used by the Pydantic model, no renaming needed.
+        # Ensure event_type exists, or provide a default if it can be NULL in DB
+        # (though it's not defined as nullable in your db_init.sql for audit_trail)
+        if 'event_type' not in row or row['event_type'] is None:
+            row['event_type'] = "unknown_event" # Fallback if necessary
+            
+        processed_rows.append(row)
+    return processed_rows
+
 async def log_generic_action_db(
     db_pool: asyncpg.pool.Pool,
     username: str = "system_event",
-    email_id: Optional[int] = None,
     event_type: Optional[str] = None,
     data: Optional[Dict[str, Any]] = None
 ) -> None:
     '''
     Logs a generic action to the audit_trail table.
+    email_id, task_id, document_id are now expected to be within the 'data' dict if relevant.
 
     :param db_pool: The database connection pool.
     :type db_pool: asyncpg.pool.Pool
     :param username: The username performing the action, defaults to "system_event".
     :type username: str
-    :param email_id: Optional ID of the email related to the event.
-    :type email_id: Optional[int]
     :param event_type: Optional type of the event.
     :type event_type: Optional[str]
-    :param data: Optional dictionary containing additional data about the event.
+    :param data: Optional dictionary containing all relevant context about the event, including any IDs.
     :type data: Optional[Dict[str, Any]]
     :returns: None
     :rtype: None
     '''
     try:
-        # Ensure data is a dictionary
         log_data = data if data is not None else {}
-
         data_json = json.dumps(log_data) if log_data else None
 
         await db_pool.execute(
             """
-            INSERT INTO audit_trail (username, timestamp, email_id, event_type, data)
-            VALUES ($1, NOW(), $2, $3, $4)
+            INSERT INTO audit_trail (username, timestamp, event_type, data)
+            VALUES ($1, NOW(), $2, $3)
             """,
-            username, email_id, event_type, data_json
+            username, event_type, data_json
         )
-        # Log the action description from the data dictionary for debugging
         action_desc_for_log = log_data.get("action_description", "No description provided")
         logger.debug(f"Audit log: {action_desc_for_log} (Type: {event_type}) by {username}")
     except Exception as e:
-        # Attempt to get action description from data for error logging
         action_desc_for_error = data.get("action_description", "No description provided") if data else "No description provided"
         logger.error(f"Failed to log generic action '{action_desc_for_error}' (Type: {event_type}) by '{username}': {e}")
 
@@ -82,39 +123,26 @@ async def log_task_action_db(
     data: Optional[Dict[str, Any]] = None
 ) -> None:
     '''
-    Logs a task-specific action to the audit_trail table, fetching task details.
-
-    The 'action' parameter is used as the description in the log's data field.
-
-    :param db_pool: The database connection pool.
-    :type db_pool: asyncpg.pool.Pool
-    :param task_id: The ID of the task related to the action.
-    :type task_id: int
-    :param action: Description of the action performed. This will be stored in the 'data' part of the audit log.
-    :type action: str
-    :param user: The user performing the action, defaults to "system_user".
-    :type user: str
-    :param data: Optional dictionary containing additional data to be merged with task details.
-    :type data: Optional[Dict[str, Any]]
-    :returns: None
-    :rtype: None
+    Logs a task-specific action to the audit_trail table.
+    Task ID is now part of the 'data' dictionary.
     '''
     try:
         task_details = await db_pool.fetchrow(
             "SELECT email_id, status, workflow_type FROM tasks WHERE id = $1", task_id
         )
-        db_email_id = None
+        db_email_id_for_context = None # For potential cross-referencing if needed in data
         task_status = "N/A"
         workflow_type = "N/A"
         if task_details:
-            db_email_id = task_details['email_id']
+            db_email_id_for_context = task_details['email_id']
             task_status = task_details['status']
             workflow_type = task_details['workflow_type']
         
         log_data = data if data is not None else {}
         log_data.update({
-            "action_description": action, # Include action description in data
-            "task_id": task_id,
+            "action_description": action,
+            "task_id": task_id, # Ensure task_id is in the data payload
+            "email_id_context": db_email_id_for_context, # Optional: context for the task's email
             "task_status": task_status,
             "workflow_type": workflow_type
         })
@@ -122,9 +150,8 @@ async def log_task_action_db(
         await log_generic_action_db(
             db_pool,
             username=user,
-            email_id=db_email_id, # Associate with email if available
-            event_type="task", # Specify event type
-            data=log_data # Pass combined data
+            event_type="task_event", # Generic event_type for task-related logs
+            data=log_data
         )
     except Exception as e:
         logger.error(f"Failed to log task action '{action}' for task {task_id}, user '{user}': {e}")
@@ -137,22 +164,8 @@ async def log_email_action_db(
     data: Optional[Dict[str, Any]] = None
 ) -> None:
     '''
-    Logs an email-specific action to the audit_trail table, fetching email details.
-
-    The 'action' parameter is used as the description in the log's data field.
-
-    :param db_pool: The database connection pool.
-    :type db_pool: asyncpg.pool.Pool
-    :param email_id: The ID of the email related to the action.
-    :type email_id: int
-    :param action: Description of the action performed. This will be stored in the 'data' part of the audit log.
-    :type action: str
-    :param user: The user performing the action, defaults to "system_user".
-    :type user: str
-    :param data: Optional dictionary containing additional data to be merged with email details.
-    :type data: Optional[Dict[str, Any]]
-    :returns: None
-    :rtype: None
+    Logs an email-specific action to the audit_trail table.
+    Email ID is now part of the 'data' dictionary.
     '''
     try:
         email_details = await db_pool.fetchrow(
@@ -168,8 +181,8 @@ async def log_email_action_db(
 
         log_data = data if data is not None else {}
         log_data.update({
-            "action_description": action, # Include action description in data
-            "email_id": email_id,
+            "action_description": action,
+            "email_id": email_id, # Ensure email_id is in the data payload
             "email_subject": email_subject,
             "email_sender": email_sender,
             "email_label": email_label
@@ -178,8 +191,7 @@ async def log_email_action_db(
         await log_generic_action_db(
             db_pool,
             username=user,
-            email_id=email_id, # Associate with email
-            event_type="email", # Specify event type
+            event_type="email_event", # Generic event_type for email-related logs
             data=log_data
         )
     except Exception as e:
@@ -193,45 +205,31 @@ async def log_document_action_db(
     data: Optional[Dict[str, Any]] = None
 ) -> None:
     '''
-    Logs a document-specific action to the audit_trail table, fetching document details.
-
-    The 'action' parameter is used as the description in the log's data field.
-
-    :param db_pool: The database connection pool.
-    :type db_pool: asyncpg.pool.Pool
-    :param document_id: The ID of the document related to the action.
-    :type document_id: int
-    :param action: Description of the action performed. This will be stored in the 'data' part of the audit log.
-    :type action: str
-    :param user: The user performing the action, defaults to "system_user".
-    :type user: str
-    :param data: Optional dictionary containing additional data to be merged with document details.
-    :type data: Optional[Dict[str, Any]]
-    :returns: None
-    :rtype: None
+    Logs a document-specific action to the audit_trail table.
+    Document ID is now part of the 'data' dictionary.
     '''
     try:
         document_details = await db_pool.fetchrow(
             "SELECT filename, email_id FROM documents WHERE id = $1", document_id
         )
         document_filename = "N/A"
-        email_id = None
+        email_id_for_context = None # For potential cross-referencing if needed in data
         if document_details:
             document_filename = document_details['filename']
-            email_id = document_details['email_id']
+            email_id_for_context = document_details['email_id']
 
         log_data = data if data is not None else {}
         log_data.update({
-            "action_description": action, # Include action description in data
-            "document_id": document_id,
+            "action_description": action, 
+            "document_id": document_id, # Ensure document_id is in the data payload
+            "email_id_context": email_id_for_context, # Optional: context for the document's email
             "document_filename": document_filename
         })
 
         await log_generic_action_db(
             db_pool,
             username=user,
-            email_id=email_id, # Associate with email if available
-            event_type="document", # Specify event type
+            event_type="document_event", # Generic event_type for document-related logs
             data=log_data
         )
     except Exception as e:
@@ -533,19 +531,20 @@ async def delete_email_from_db(db_pool: asyncpg.pool.Pool, email_id: int) -> boo
         async with conn.transaction():
             await conn.execute("DELETE FROM tasks WHERE email_id = $1", email_id)
             await conn.execute("DELETE FROM documents WHERE email_id = $1", email_id)
-            # Delete audit trail entries related to this email BEFORE deleting the email
-            await conn.execute("DELETE FROM audit_trail WHERE email_id = $1", email_id)
+            # Audit trail entries related to this email are now identified by email_id within the 'data' field.
+            # A more complex query would be needed to delete them if strictly necessary, or they can be kept.
+            # For simplicity, we are not deleting audit_trail entries based on email_id in data field here.
+            # If you need to delete them, you'd query: DELETE FROM audit_trail WHERE data->>'email_id' = email_id::text;
             result = await conn.execute("DELETE FROM emails WHERE id = $1", email_id)
             
-            # Log the deletion using a generic action with event_type
             await log_generic_action_db(
-                db_pool=conn, # Use the transaction connection
-                username="user_api", # Placeholder
-                event_type="email_deletion", # Specific event type for deletion
+                db_pool=conn, 
+                username="user_api", 
+                event_type="email_deletion_event", 
                 data={
                     "action_description": f"Email and associated data deleted from database.",
                     "deleted_email_id": email_id
-                } # Include action description and deleted ID in data
+                }
             )
             return result == "DELETE 1"
 
@@ -559,7 +558,7 @@ async def get_documents_db(db_pool: asyncpg.pool.Pool) -> List[Dict[str, Any]]:
     :returns: A list of dictionaries, where each dictionary contains document details.
     :rtype: List[Dict[str, Any]]
     '''
-    rows = await db_pool.fetch("SELECT id, email_id, filename, content_type, is_processed, created_at, updated_at, processed_data FROM documents ORDER BY created_at DESC")
+    rows = await db_pool.fetch("SELECT * FROM documents")
     return [dict(row) for row in rows]
 
 async def get_document_content_db(db_pool: asyncpg.pool.Pool, document_id: int) -> Optional[Dict[str, Any]]:
@@ -585,7 +584,7 @@ async def create_document_db(
     content_type: str,
     data_b64: str,
     created_at_dt: Optional[datetime.datetime] = None,
-    processed_data: Optional[str] = None  # New field
+    processed_data: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
     '''
     Creates a new document record in the database and returns the created record (excluding data_b64).
@@ -628,23 +627,21 @@ async def create_document_db(
             content_type,
             data_b64,
             final_created_at,
-            processed_data  # New field
+            processed_data
         )
         if row:
             doc_id = row['id']
-            # Log the creation
             await log_generic_action_db(
                 db_pool,
-                username="system_document_creation", # Consider making username a parameter or deriving it
-                email_id=email_id,
-                document_id=doc_id,
+                username="system_document_creation",
+                event_type="document_creation_event",
                 data={
                     "action_description": f"Document '{filename}' (ID: {doc_id}) created and associated with email ID {email_id}.",
+                    "document_id": doc_id,
                     "email_id": email_id,
                     "filename": filename,
-                    "content_type": content_type,
-                    "processed_data": processed_data
-                } # Include action description and document details in data
+                    "content_type": content_type
+                }
             )
             return dict(row)
         else:
@@ -670,25 +667,49 @@ async def delete_document_from_db(db_pool: asyncpg.pool.Pool, document_id: int) 
     '''
     async with db_pool.acquire() as conn:
         async with conn.transaction():
-            # Delete audit trail entries related to this document BEFORE deleting the document
-            await conn.execute("DELETE FROM audit_trail WHERE document_id = $1", document_id)
+            # Audit trail entries related to this document are now identified by document_id within the 'data' field.
+            # Similar to email deletion, not deleting them here for simplicity.
             result = await conn.execute("DELETE FROM documents WHERE id = $1", document_id)
-            # After deleting document, update emails table to remove this document_id from document_ids arrays
             await conn.execute(
                 "UPDATE emails SET document_ids = array_remove(document_ids, $1) WHERE $1 = ANY(document_ids)",
                 document_id
             )
-            # Log the deletion using a generic action with event_type
             await log_generic_action_db(
-                db_pool=conn, # Use the transaction connection
+                db_pool=conn, 
                 username="system_document_deletion",
-                event_type="document_deletion", # Specific event type for deletion
+                event_type="document_deletion_event", 
                 data={
                     "action_description": f"Document deleted from database.",
                     "deleted_document_id": document_id
-                } # Include action description and deleted ID in data
+                } 
             )
             return result == "DELETE 1"
+
+async def delete_email_and_audit_for_duplicate_db(db_pool: asyncpg.pool.Pool, email_id: int, original_subject: str) -> None:
+    '''
+    Deletes an email identified as a duplicate and its associated processing tasks.
+    Logs the deletion of the duplicate.
+    '''
+    async with db_pool.acquire() as connection:
+        async with connection.transaction():
+            # First, delete associated tasks from the 'tasks' table
+            await connection.execute("DELETE FROM tasks WHERE email_id = $1", email_id)
+            logger.info(f"Deleted tasks associated with duplicate email ID: {email_id}")
+
+            # Then, delete the email itself
+            await connection.execute("DELETE FROM emails WHERE id = $1", email_id)
+            logger.info(f"Deleted duplicate email ID: {email_id} (Subject: '{original_subject}')")
+            
+            await log_generic_action_db(
+                db_pool=connection, 
+                username="system_email_processing",
+                event_type="duplicate_email_deletion_event", 
+                data={
+                    "action_description": f"Duplicate email (DB ID: {email_id}, Subject: '{original_subject}') and associated tasks deleted.",
+                    "deleted_email_id": email_id,
+                    "original_subject": original_subject
+                }
+            )
 
 # --- Settings Functions ---
 async def get_settings_db(db_pool: asyncpg.pool.Pool) -> Dict[str, Any]:
@@ -756,14 +777,14 @@ async def save_settings_db(db_pool: asyncpg.pool.Pool, settings_data_dict: Dict[
             if email_types_to_insert:
                 email_type_values = [(et.get('topic'), et.get('description')) for et in email_types_to_insert]
                 if email_type_values:
-                    await connection.copy_records_to_table('email_types', records=email_type_values, columns=['topic', 'description'], if_not_exists=False) # Overwrite
+                    await connection.copy_records_to_table('email_types', records=email_type_values, columns=['topic', 'description']) # Overwrite, removed if_not_exists
 
             await connection.execute("DELETE FROM key_features")
             key_features_to_insert = settings_data_dict.get('key_features', [])
             if key_features_to_insert:
                 key_feature_values = [(kf.get('name'),) for kf in key_features_to_insert]
                 if key_feature_values:
-                     await connection.copy_records_to_table('key_features', records=key_feature_values, columns=['name'], if_not_exists=False) # Overwrite
+                     await connection.copy_records_to_table('key_features', records=key_feature_values, columns=['name']) # Overwrite
 
 # --- SchedulerTask / Workflow Functions ---
 async def get_scheduler_tasks_db(db_pool: asyncpg.pool.Pool) -> List[Dict[str, Any]]:
@@ -779,8 +800,7 @@ async def get_scheduler_tasks_db(db_pool: asyncpg.pool.Pool) -> List[Dict[str, A
     '''
     rows = await db_pool.fetch(
         """
-        SELECT id, workflow_name, trigger_type, status,
-               last_run_at, next_run_at, workflow_config, created_at, updated_at 
+        SELECT id, task_name, type, description, status, workflow_config, created_at, updated_at
         FROM scheduler_tasks ORDER BY created_at DESC
         """
     )
@@ -806,7 +826,7 @@ async def create_scheduler_task_db(db_pool: asyncpg.pool.Pool, task_data: Dict[s
     :param db_pool: The database connection pool.
     :type db_pool: asyncpg.pool.Pool
     :param task_data: A dictionary containing data for the new task.
-                      Expected keys: 'task_name', 'trigger_type', 'cron_expression',
+                      Expected keys: 'task_name', 'trigger_type', 'type', 'description',
                       'status' (optional, defaults to 'active'), 'workflow_config' (dict, optional).
     :type task_data: Dict[str, Any]
     :returns: A dictionary representing the created scheduler task if successful, otherwise None.
@@ -818,25 +838,36 @@ async def create_scheduler_task_db(db_pool: asyncpg.pool.Pool, task_data: Dict[s
         workflow_config_json = json.dumps(workflow_config_json)
     elif workflow_config_json is None:
         workflow_config_json = json.dumps({}) # Default to empty JSON object if None
-
+    
+    task_uuid = str(uuid.uuid4()) # Generate a unique ID
+    logger.info(f"Creating scheduler task with ID: {task_uuid}, data: {task_data}, workflow_config_json: {workflow_config_json}")
+    logger.debug(f"Creating scheduler task with ID: {task_uuid}, data: {task_data}, workflow_config_json: {workflow_config_json}")
+    # Ensure all NOT NULL columns are included and names match db_init.sql
+    # id is TEXT PRIMARY KEY, type and description are TEXT NOT NULL
     query = """
         INSERT INTO scheduler_tasks
-            (task_name, trigger_type, cron_expression, status, workflow_config, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-        RETURNING id, task_name, trigger_type, cron_expression, status, last_run_at, next_run_at, workflow_config, created_at, updated_at
-    """
+            (id, task_name, type, description, status, workflow_config, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+        RETURNING id, task_name, type, description, status, last_run_at, workflow_config, created_at, updated_at
+    """ # Removed next_run_at, trigger_type from RETURNING
     try:
+        # Ensure 'type' and 'description' are provided, as they are NOT NULL in the table
+        task_type = task_data.get('type')
+        task_description = task_data.get('description')
+
+        # Removed trigger_type from parameters as it's removed from the table
         row = await db_pool.fetchrow(
             query,
-            task_data.get('task_name'),
-            task_data.get('trigger_type'),
-            task_data.get('cron_expression'),
-            task_data.get('status', 'active'),  # Default status to 'active'
-            workflow_config_json
+            task_uuid,                           # $1 - id
+            task_data.get('task_name'),          # $2 - task_name
+            task_type,                           # $3 - type (ensure this is not None)
+            task_description,                    # $4 - description (ensure this is not None)
+            task_data.get('status', 'active'),   # $5 - status
+            workflow_config_json,                # $6 - workflow_config
         )
         
         if not row:
-            logger.error(f"Scheduler task creation failed for task_name: {task_data.get('task_name')}. No row returned.")
+            logger.error(f"Scheduler task creation failed for task_name: {task_data.get('task_name')} with generated ID {task_uuid}. No row returned.")
             return None
         
         created_task = dict(row)
@@ -853,25 +884,25 @@ async def create_scheduler_task_db(db_pool: asyncpg.pool.Pool, task_data: Dict[s
         # Log the creation using a generic action with event_type
         await log_generic_action_db(
             db_pool,
-            username="system_scheduler_task_creation", # Or derive username if available
-            event_type="scheduler_task_creation", # Specific event type
+            username="system_scheduler_task_creation",
+            event_type="scheduler_task_creation",
             data={
                 "action_description": f"Scheduler task created.",
                 "scheduler_task_id": created_task.get('id'),
                 "task_name": created_task.get('task_name')
-            } # Include action description and details in data
+            }
         )
         return created_task
     except Exception as e:
         logger.error(f"Exception during scheduler task creation for task_name: {task_data.get('task_name')}: {e}")
         return None
 
-async def update_scheduler_task_db(db_pool: asyncpg.pool.Pool, task_id: int, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+async def update_scheduler_task_db(db_pool: asyncpg.pool.Pool, task_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     '''
     Updates an existing scheduler task (workflow) in the database.
 
-    Valid fields for update: "task_name", "trigger_type", "cron_expression", "status",
-    "workflow_config", "last_run_at", "next_run_at".
+    Valid fields for update: "task_name", "type", "description", "status",
+    "workflow_config", "last_run_at".
     Workflow configuration is stored as a JSON string.
     Logs the update action.
 
@@ -890,12 +921,13 @@ async def update_scheduler_task_db(db_pool: asyncpg.pool.Pool, task_id: int, upd
     param_idx = 1
 
     for key, value in updates.items():
-        if key in ["task_name", "trigger_type", "cron_expression", "status", "workflow_config", "last_run_at", "next_run_at"]:
+        # Removed trigger_type, cron_expression, next_run_at from updatable fields
+        if key in ["task_name", "type", "description", "status", "workflow_config", "last_run_at"]:
             if key == "workflow_config" and isinstance(value, dict):
                 value = json.dumps(value)
-            elif key in ["last_run_at", "next_run_at"] and value is None: # Allow setting to NULL
+            elif key in ["last_run_at"] and value is None: # Allow setting to NULL
                 pass # Handled by COALESCE or direct assignment if needed
-            elif key in ["last_run_at", "next_run_at"] and not isinstance(value, datetime.datetime):
+            elif key in ["last_run_at"] and not isinstance(value, datetime.datetime):
                 try:
                     value = datetime.datetime.fromisoformat(str(value))
                 except (ValueError, TypeError):
@@ -924,8 +956,8 @@ async def update_scheduler_task_db(db_pool: asyncpg.pool.Pool, task_id: int, upd
     query = f"""
         UPDATE scheduler_tasks SET {set_query_part}, updated_at = NOW()
         WHERE id = ${param_idx}
-        RETURNING id, task_name, trigger_type, cron_expression, status, last_run_at, next_run_at, workflow_config, created_at, updated_at
-    """
+        RETURNING id, task_name, type, description, status, last_run_at, workflow_config, created_at, updated_at
+    """ # Removed next_run_at, trigger_type from RETURNING
     
     row = await db_pool.fetchrow(query, *values)
         
@@ -1078,35 +1110,28 @@ async def find_existing_email_db(db_pool: asyncpg.pool.Pool, subject: str, sende
 
 async def delete_email_and_audit_for_duplicate_db(db_pool: asyncpg.pool.Pool, email_id: int, original_subject: str) -> None:
     '''
-    Deletes an email identified as a duplicate and its associated audit trail entries.
-
-    This operation is performed within a transaction. Logs the deletion of the duplicate.
-
-    :param db_pool: The database connection pool.
-    :type db_pool: asyncpg.pool.Pool
-    :param email_id: The ID of the duplicate email to delete.
-    :type email_id: int
-    :param original_subject: The subject of the duplicate email, used for logging.
-    :type original_subject: str
-    :returns: None
-    :rtype: None
+    Deletes an email identified as a duplicate and its associated processing tasks.
+    Logs the deletion of the duplicate.
     '''
     async with db_pool.acquire() as connection:
         async with connection.transaction():
-            # Delete audit trail entries related to this email BEFORE deleting the email
-            await connection.execute("DELETE FROM audit_trail WHERE email_id = $1", email_id)
+            # First, delete associated tasks from the 'tasks' table
+            await connection.execute("DELETE FROM tasks WHERE email_id = $1", email_id)
+            logger.info(f"Deleted tasks associated with duplicate email ID: {email_id}")
+
+            # Then, delete the email itself
             await connection.execute("DELETE FROM emails WHERE id = $1", email_id)
-            logger.info(f"Deleted duplicate email ID: {email_id} (Subject: '{original_subject}') and associated audit trail.")
-            # Log the deletion of the duplicate itself using a generic action with event_type
+            logger.info(f"Deleted duplicate email ID: {email_id} (Subject: '{original_subject}')")
+            
             await log_generic_action_db(
-                db_pool=connection, # Use the transaction connection
+                db_pool=connection, 
                 username="system_email_processing",
-                event_type="duplicate_email_deletion", # Specific event type
+                event_type="duplicate_email_deletion_event", 
                 data={
-                    "action_description": f"Duplicate email deleted.",
+                    "action_description": f"Duplicate email (DB ID: {email_id}, Subject: '{original_subject}') and associated tasks deleted.",
                     "deleted_email_id": email_id,
                     "original_subject": original_subject
-                } # Include action description and details in data
+                }
             )
 
 async def insert_new_email_db(
@@ -1155,8 +1180,8 @@ async def insert_new_email_db(
 
     return await db_pool.fetchval(
         """
-        INSERT INTO emails (subject, sender, body, received_at, label, type, short_description, document_ids, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+        INSERT INTO emails (subject, sender, body, received_at, label, type, short_description, document_ids)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING id
         """,
         subject, sender, body, received_at, label, email_type, short_description, document_ids
@@ -1318,33 +1343,24 @@ async def update_document_processed_data_db(
         logger.error(f"Exception updating document ID {document_id} with processed data: {e}")
         return False
 
-async def fetch_active_workflows_db(db_pool: asyncpg.pool.Pool, trigger_type: str = 'email_received') -> List[Dict[str, Any]]:
+async def fetch_active_workflows_db(db_pool: asyncpg.pool.Pool) -> List[Dict[str, Any]]:
     '''
-    Fetches active workflows (scheduler tasks) from the database based on a trigger type.
+    Fetches active workflows (scheduler tasks) from the database.
+    Now fetches all active workflows as trigger_type is removed.
 
     Workflow configuration JSON is parsed into a dictionary.
     Logs an error if parsing workflow_config JSON fails for a task.
 
     :param db_pool: The database connection pool.
     :type db_pool: asyncpg.pool.Pool
-    :param trigger_type: The type of trigger to filter workflows by (e.g., 'email_received'),
-                         defaults to 'email_received'.
-    :type trigger_type: str
-    :returns: A list of dictionaries, where each dictionary represents an active workflow
-              matching the trigger type. 'workflow_config' is a Python dict.
+    :returns: A list of dictionaries, where each dictionary represents an active workflow.
+              'workflow_config' is a Python dict.
     :rtype: List[Dict[str, Any]]
     '''
-    # Original query in email_checker was for 'cron'. If workflows are triggered by new emails,
-    # the trigger_type should reflect that, or the query needs to be more flexible.
-    # Assuming 'scheduler_tasks' table holds all workflow definitions.
     rows = await db_pool.fetch(
-        "SELECT id, workflow_name, workflow_config FROM scheduler_tasks WHERE status = 'active' AND trigger_type = $1",
-        trigger_type # e.g., 'email_received' or a more generic 'event' type
+        "SELECT id, task_name, type, description, status, workflow_config, created_at, updated_at, last_run_at FROM scheduler_tasks WHERE status = 'active'" 
+        # Removed trigger_type from query and parameters
     )
-    # If no specific trigger_type for 'email_received', perhaps all 'active' workflows are candidates?
-    # Or, a specific field in workflow_config might denote it's email-triggered.
-    # For now, using the passed trigger_type.
-    
     results = []
     for row in rows:
         data = dict(row)
@@ -1358,7 +1374,7 @@ async def fetch_active_workflows_db(db_pool: asyncpg.pool.Pool, trigger_type: st
                     task_id=data.get('id'),
                     action="Failed to parse workflow_config JSON",
                     user="system_workflow_fetch",
-                    data={"error": "Invalid JSON format in workflow_config", "workflow_name": data.get('workflow_name')}
+                    data={"error": "Invalid JSON format in workflow_config", "task_name": data.get('task_name')}
                 )
                 data['workflow_config'] = {}
         elif not config_str: # Handles None or empty string
@@ -1398,22 +1414,50 @@ async def create_processing_task_db(
         email_id, initial_status, workflow_type
     )
 
-async def get_audit_trail_db(db_pool: asyncpg.pool.Pool, limit: int = 100) -> List[Dict[str, Any]]:
+async def get_audit_trail_db(db_pool: asyncpg.pool.Pool, limit: int = 50) -> List[Dict[str, Any]]:
     '''
-    Retrieves the most recent audit trail entries from the database.
+    Retrieves the latest audit trail entries from the database.
+    The 'data' field (JSONB from DB) is parsed into a Python dict.
 
     :param db_pool: The database connection pool.
     :type db_pool: asyncpg.pool.Pool
-    :param limit: The maximum number of audit trail entries to retrieve, defaults to 100.
+    :param limit: The maximum number of audit entries to retrieve, defaults to 50.
     :type limit: int
     :returns: A list of dictionaries, where each dictionary represents an audit trail entry.
+              The 'data' field (JSONB from DB) is parsed into a Python dict.
+              The 'event_type' field is used directly as is from the DB.
     :rtype: List[Dict[str, Any]]
     '''
     rows = await db_pool.fetch(
-        "SELECT id, email_id, task_id, document_id, username, timestamp FROM audit_trail ORDER BY timestamp DESC LIMIT $1",
+        """
+        SELECT id, event_type, username, timestamp, data
+        FROM audit_trail
+        ORDER BY timestamp DESC
+        LIMIT $1
+        """,
         limit
     )
-    return [dict(row) for row in rows]
+    
+    processed_rows = []
+    for row_proxy in rows:
+        row = dict(row_proxy)
+        if row.get('data') and isinstance(row['data'], str):
+            try:
+                row['data'] = json.loads(row['data'])
+            except json.JSONDecodeError:
+                logger.error(f"Failed to parse JSON for audit trail data: {row['data']}")
+                row['data'] = {} # Default to empty dict on error
+        elif row.get('data') is None: # Handle cases where data might be NULL in DB
+            row['data'] = {}
+        
+        # event_type is now directly used by the Pydantic model, no renaming needed.
+        # Ensure event_type exists, or provide a default if it can be NULL in DB
+        # (though it's not defined as nullable in your db_init.sql for audit_trail)
+        if 'event_type' not in row or row['event_type'] is None:
+            row['event_type'] = "unknown_event" # Fallback if necessary
+            
+        processed_rows.append(row)
+    return processed_rows
 
 async def check_if_admin_user_exists_db(db_pool: asyncpg.pool.Pool, email: str) -> bool: # Original type hint was bool, but returns dict
     '''

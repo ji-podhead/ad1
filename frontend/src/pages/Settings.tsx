@@ -249,7 +249,7 @@ const Settings: React.FC = () => {
     };
 
     const payload: any = {
-      workflow_name: workflowName,
+      task_name: workflowName,
       trigger_type: 'cron', // Always cron for now
       description: description,
       workflow_config: workflowConfigData,
@@ -349,7 +349,7 @@ const Settings: React.FC = () => {
   // New handler for editing a workflow
   const handleEditWorkflow = (workflow: any) => {
     setEditingWorkflowId(workflow.id);
-    setWorkflowName(workflow.workflow_name);
+    setWorkflowName(workflow.task_name);
     setDescription(workflow.description);
     setSelectedSteps(workflow.workflow_config?.steps || []);
     setModel(workflow.workflow_config?.model || 'gpt-4');
@@ -815,7 +815,7 @@ const Settings: React.FC = () => {
                 <ul>
                   {savedWorkflows.map(wf => (
                     <li key={wf.id} className="flex items-center gap-2 border-b py-2">
-                      <span className="flex-1">{wf.workflow_name} ({wf.workflow_config?.frequency_value} {wf.workflow_config?.frequency_type}) - Topic: {wf.workflow_config?.selected_topic}</span>
+                      <span className="flex-1">{wf.task_name} ({wf.workflow_config?.frequency_value} {wf.workflow_config?.frequency_type}) - Topic: {wf.workflow_config?.selected_topic}</span>
                       {/* Add Edit Button */}
                       <button onClick={() => handleEditWorkflow(wf)} className="bg-yellow-500 text-white px-2 py-1 rounded text-xs">Bearbeiten</button>
                       <button onClick={() => handleDeleteWorkflow(wf.id)} className="bg-red-500 text-white px-2 py-1 rounded text-xs">Löschen</button>

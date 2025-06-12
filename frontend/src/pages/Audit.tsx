@@ -2,10 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 
 interface AuditEntry {
   id: number;
-  email_id: number | null;
-  action: string;
+  event_type: string;
   username: string;
   timestamp: string;
+  data: Record<string, any> | null;
 }
 
 const Audit: React.FC = () => {
@@ -14,7 +14,9 @@ const Audit: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [userFilter, setUserFilter] = useState<string>("");
-  const [actionFilter, setActionFilter] = useState<string>("");
+  const [eventTypeFilter, setEventTypeFilter] = useState<string>(""); // Changed from actionFilter
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false); // For data details modal
+  const [modalContent, setModalContent] = useState<string>(""); // Content for the modal
 
   const fetchAuditLogs = async () => {
     setLoading(true);
@@ -50,13 +52,13 @@ const Audit: React.FC = () => {
         log.username.toLowerCase().includes(userFilter.toLowerCase())
       );
     }
-    if (actionFilter) {
+    if (eventTypeFilter) { // Changed from actionFilter
       logs = logs.filter(log =>
-        log.action.toLowerCase().includes(actionFilter.toLowerCase())
+        log.event_type.toLowerCase().includes(eventTypeFilter.toLowerCase()) // Changed from log.action
       );
     }
     setFilteredLogs(logs);
-  }, [auditLogs, userFilter, actionFilter]);
+  }, [auditLogs, userFilter, eventTypeFilter]); // Changed from actionFilter
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
@@ -87,13 +89,13 @@ const Audit: React.FC = () => {
             />
           </div>
           <div>
-            <label htmlFor="actionFilter" className="block text-sm font-medium text-gray-700 mb-1">Filter by Action</label>
+            <label htmlFor="eventTypeFilter" className="block text-sm font-medium text-gray-700 mb-1">Filter by Event Type</label> {/* Changed from Action */}
             <input
               type="text"
-              id="actionFilter"
-              value={actionFilter}
-              onChange={e => setActionFilter(e.target.value)}
-              placeholder="Enter action keyword..."
+              id="eventTypeFilter" // Changed from actionFilter
+              value={eventTypeFilter} // Changed from actionFilter
+              onChange={e => setEventTypeFilter(e.target.value)} // Changed from setActionFilter
+              placeholder="Enter event type keyword..." // Changed placeholder text
               className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
@@ -116,9 +118,9 @@ const Audit: React.FC = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event Type</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Associated Email ID</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -126,22 +128,55 @@ const Audit: React.FC = () => {
                 filteredLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(log.timestamp)}</td>
-                    <td className="px-6 py-4 whitespace-normal text-sm text-gray-900 max-w-md truncate" title={log.action}>
-                      {log.action}
+                    <td className="px-6 py-4 whitespace-normal text-sm text-gray-900 max-w-xs truncate" title={log.event_type}>
+                      {log.event_type}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.username}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.email_id !== null ? log.email_id : 'N/A'}</td>
+                    <td 
+                      className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 hover:underline cursor-pointer"
+                      title={log.data ? JSON.stringify(log.data, null, 2) : 'No data'}
+                      onClick={() => {
+                        setModalContent(log.data ? JSON.stringify(log.data, null, 2) : 'No data available.');
+                        setIsModalOpen(true);
+                      }}
+                    >
+                      [View Details]
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="px-6 py-10 text-center text-sm text-gray-500">
+                  <td colSpan={4} className="px-6 py-10 text-center text-sm text-gray-500"> {/* Adjusted colSpan from 7 to 4 */}
                     {auditLogs.length === 0 ? "No audit logs found." : "No logs match your filters."}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+        </div>
+      )}
+      {/* Modal for Data Details */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex justify-center items-center">
+          <div className="relative mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="mt-3 text-center">
+              <h3 className="text-lg leading-6 font-medium text-gray-900">Audit Log Data Details</h3>
+              <div className="mt-2 px-7 py-3">
+                <pre className="text-sm text-gray-700 bg-gray-100 p-4 rounded-md overflow-auto max-h-96 text-left whitespace-pre-wrap break-all">
+                  {modalContent}
+                </pre>
+              </div>
+              <div className="items-center px-4 py-3">
+                <button
+                  id="close-modal"
+                  className="px-4 py-2 bg-indigo-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  onClick={() => setIsModalOpen(false)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
