@@ -78,12 +78,12 @@ services:
       - "8002:8002"
     environment:
       - DOC_SERVICE_INTERNAL_PORT=8002 # Service will listen on port 8002 on the host
-      - TRANSFORMERS_CACHE=/app/huggingface_cache
+      - TRANSFORMERS_CACHE=/huggingface_cache
       # - NVIDIA_VISIBLE_DEVICES=all # Uncomment for local GPU with nvidia-docker
       # - NVIDIA_DRIVER_CAPABILITIES=compute,utility # Uncomment for local GPU
     volumes:
-      - ./doc_processing_service/app:/app/app
-      - doc_processing_cache:/app/huggingface_cache
+      - ./doc_processing_service/app:/app
+      - doc_processing_cache:/huggingface_cache
     restart: unless-stopped
     # healthcheck:
     #   test: ["CMD", "curl", "-f", "http://localhost:8002/health"]

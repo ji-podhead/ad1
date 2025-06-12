@@ -9,7 +9,7 @@ from db_utils import (
     update_email_document_ids_db,log_email_action_db
 )
 import asyncio
-from typing import Callable, Any, Dict, Optional, List # Ensure Optional is imported
+from typing import Callable, Any, Dict, Optional, List, Tuple # Ensure Tuple is imported
 import datetime
 import json
 import os
@@ -71,7 +71,7 @@ async def del_if_exists(
             # or handle it differently. For now, returning None to skip.
             return None 
     else:
-        logger.info(f"New email detected: Subject='{email_subject_str}', Sender='{sender_email}'. Proceeding with summary and processing.")
+        logger.info(f"New email detected: Subject='{email_subject_str}', Sender='{sender_email}'. Proceeding with summary and processing.") # Corrected f-string
         return sender_email # It's a new email, return sender_email for processing
 async def store_email_in_db(
     db_pool: asyncpg.pool.Pool,
@@ -83,8 +83,8 @@ async def store_email_in_db(
     email_body_str: str,
     sender_email: str,
     message_id: str
-) -> Optional[int]: # Return type was None, changed to Optional[int] to match potential return of inserted_email_id
-    print("--- DEBUG: store_email_in_db WURDE AUFGERUFEN ---") # DIAGNOSTIC PRINT
+) -> Tuple[Optional[int], Dict[str, Any]]: # Modified return type hint
+    # print("--- DEBUG: store_email_in_db WURDE AUFGERUFEN ---") # Commented out to avoid NameError if DEBUG is not defined
     logger.info("--- LOGGER DEBUG: store_email_in_db WURDE AUFGERUFEN ---") # DIAGNOSTIC LOGGER
     logger.info(f"Inserting email (Gmail ID {message_id}) into database using db_utils.insert_new_email_db.")
     inserted_email_id = await insert_new_email_db(
@@ -110,11 +110,12 @@ async def store_email_in_db(
         )
     logger.info(f"Logged email insertion action for email ID {email_data.keys()} with message ID {message_id}.")
     attachments_to_save = email_data.get('attachments', [])
+    document_ids_for_email_table_update = [] # Renamed for clarity from document_ids_for_update
+
     if attachments_to_save:
-        document_ids_for_update = []
-        for att_data in attachments_to_save:
+        for att_data in attachments_to_save: # att_data is a dictionary in the list
             try:
-                logger.info(f"Inserting attachment '{att_data}' for email DB ID {inserted_email_id} using db_utils.insert_document_db.")
+                logger.info(f"Inserting attachment '{att_data.get('filename')}' for email DB ID {inserted_email_id} using db_utils.insert_document_db.")
                 doc_id = await insert_document_db(
                     db_pool=db_pool,
                     email_id=inserted_email_id,
@@ -125,21 +126,22 @@ async def store_email_in_db(
                     processed_data=None
                 )
                 if doc_id: # insert_document_db returns the ID
-                    document_ids_for_update.append(doc_id)
-                    logger.info(f"Inserted document ID {doc_id} for email {inserted_email_id} (attachment: {att_data.get('filename')})")
+                    document_ids_for_email_table_update.append(doc_id)
+                    att_data['db_id'] = doc_id # Add the db_id to the attachment dictionary in email_data
+                    logger.info(f"Inserted document ID {doc_id} for email {inserted_email_id} (attachment: {att_data.get('filename')}) and updated att_data.")
                 else:
                     logger.error(f"Failed to insert document for attachment: {att_data.get('filename')}, no doc_id returned.")
             except Exception as e:
                 logger.error(f"Failed to insert document for email {inserted_email_id} (attachment: {att_data.get('filename')}): {e}")
 
-        if document_ids_for_update:
-            logger.info(f"Updating email {inserted_email_id} with document_ids: {document_ids_for_update} using db_utils.update_email_document_ids_db")
+        if document_ids_for_email_table_update:
+            logger.info(f"Updating email {inserted_email_id} with document_ids: {document_ids_for_email_table_update} using db_utils.update_email_document_ids_db")
             await update_email_document_ids_db(
                 db_pool=db_pool,
                 email_id=inserted_email_id,
-                document_ids=document_ids_for_update
+                document_ids=document_ids_for_email_table_update
             )
-            logger.info(f"Updated email {inserted_email_id} with document_ids: {document_ids_for_update}")
+            logger.info(f"Updated email {inserted_email_id} with document_ids: {document_ids_for_email_table_update}")
     
     logger.info(f"Finished processing email with Gmail ID {message_id}, DB ID {inserted_email_id}.")
-    return inserted_email_id # Return the ID
+    return inserted_email_id, email_data # Return modified email_data

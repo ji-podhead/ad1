@@ -14,7 +14,7 @@ app = FastAPI()
 # and Tesseract needs to be installed in the Docker image.
 # For this iteration, we are attempting to extract text from token classifications, which is experimental for OCR.
 try:
-    processor = LayoutLMv3Processor.from_pretrained("microsoft/layoutlmv3-base", apply_ocr=False)
+    processor = LayoutLMv3Processor.from_pretrained("microsoft/layoutlmv3-base", apply_ocr=True) # Changed to True
     model = LayoutLMv3ForTokenClassification.from_pretrained("microsoft/layoutlmv3-base")
     model.eval() # Set model to evaluation mode
 except Exception as e:
@@ -39,29 +39,33 @@ async def process_pdf_endpoint(file: UploadFile = File(...)):
         # Log the exception for more details on the server side
         print(f"Error converting PDF to images: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to read or convert PDF: {str(e)}")
-
+    print(f"Converted PDF to {len(images)} images.")
     results = []
     for i, pil_image in enumerate(images):
+        print(f"Processing page {i + 1}...")
         page_number = i + 1
         try:
-            image = pil_image.convert("RGB")
 
+            image = pil_image.convert("RGB")
+            print(f"Processing page {page_number}...")  
             # Process image for the model
             # For LayoutLMv3ForTokenClassification, we usually pass the image and get token classifications.
             # No explicit "question" is typically used unless it's a QA model.
             encoding = processor(image, return_tensors="pt", truncation=True, padding="max_length", max_length=512)
-
+            print(f"Encoding for page {page_number}: {encoding}")
             # Model inference
             with torch.no_grad():
                 outputs = model(**encoding)
-
+            print(f"Model outputs for page {page_number}: {outputs}")
             # Post-process to get text from token classifications
             extracted_text = ""
             if hasattr(outputs, 'logits'):
                 token_predictions = torch.argmax(outputs.logits, dim=2)
-                # Each item in token_predictions[0] is a token ID for that position
+                # Each item in token_predictions[0] is a token ID for
+                # hat position
+                print(f"Token predictions for page {page_number}: {token_predictions}")
                 predicted_token_ids = token_predictions[0].tolist()
-
+                print(f"Predicted token IDs for page {page_number}: {predicted_token_ids}")
                 # Filter out special tokens before converting to string
                 # This depends on the tokenizer's special token IDs (e.g., pad_token_id)
                 # Using tokenizer.decode is generally more robust for this.

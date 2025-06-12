@@ -46,7 +46,7 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
     """
     try:
         now_utc = datetime.datetime.now(datetime.timezone.utc)
-        after_dt = now_utc - datetime.timedelta(minutes=40)
+        after_dt = now_utc - datetime.timedelta(minutes=160)
         # Convert to Unix timestamps (seconds since epoch)
         after_ts = int(after_dt.timestamp())
         before_ts = int(now_utc.timestamp())
@@ -128,7 +128,7 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                 short_description = llm_summary_data.get("short_description", "Summary N/A (LLMError)")
                 logger.info(f"LLM summary for Gmail ID {message_id}: topic={topic}, desc={short_description}")
 #               --- STORE EMAIL IN DB ---
-                inserted_email_id = await store_email_in_db(
+                inserted_email_id,email_data = await store_email_in_db(
                     db_pool=db_pool,
                     email_data=email_data,
                     topic=topic,
@@ -160,12 +160,14 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                     )
                     if wf_config and "document_processing" in wf_config.get("steps", []):
                         logger.info(f"Initiating document processing step for task {task_id}, email DB ID {inserted_email_id}.")
-                        await process_document_step(
-                            task_id=task_id,
-                            email_id=inserted_email_id,
-                            db_conn_for_audit=db_pool, 
-                            workflow_config=wf_config
-                        )
+                        for document in email_data.get('attachments', []):
+                            await process_document_step(
+                                task_id=task_id,
+                                #email_id=inserted_email_id,
+                                db_pool=db_pool, 
+                                workflow_config=wf_config,
+                                document_id=document['db_id']
+                            )
                     else:
                         logger.info(f"No document_processing step in workflow for task {task_id}.")
                 logger.info(f"Processing attachments for email DB ID {inserted_email_id}.")

@@ -11,7 +11,7 @@ COPY ./app/requirements.txt /app/requirements.txt
 # Consider using --no-cache-dir to reduce layer size if not debugging package issues
 RUN pip install -r requirements.txt
 
-COPY ./app /app
+# COPY ./app /app
 
 # To download model files during build time (optional):
 # This makes the Docker image larger but can make the first startup of the container faster
