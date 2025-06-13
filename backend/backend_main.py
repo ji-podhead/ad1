@@ -8,7 +8,6 @@ It also integrates with Gmail API for email operations and provides
 WebSocket support for real-time agent interactions.
 '''
 # FastAPI backend for Ornex Mail
-# Entry point: main.py
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, WebSocket, Query, Request, Depends, HTTPException, status as fastapi_status
 from fastapi.responses import RedirectResponse, JSONResponse, Response
@@ -43,7 +42,7 @@ from db_utils import (
     get_audit_trail_db, get_scheduler_tasks_db, create_scheduler_task_db, update_scheduler_task_db, delete_scheduler_task_db,
     save_settings_db, list_users_db, update_user_google_tokens_db, get_user_by_id_db, delete_user_db,
     get_processing_tasks_db, update_task_status_db, get_user_access_token_db, check_if_admin_user_exists_db,
-    get_document_content_db, get_documents_db, delete_document_from_db,
+    get_document_content_db, get_documents_db, delete_document_from_db, get_documents_by_email_id_db,
     log_generic_action_db, log_task_action_db, update_user_mcp_token_db
 )
 # Remove direct mcp tool imports if they are now fully handled via db_utils or other layers
@@ -68,6 +67,15 @@ app.add_middleware(
 )
 
 # --- Pydantic models ---
+
+# New Attachment model
+class Attachment(BaseModel):
+    '''Represents an email attachment.'''
+    id: int
+    filename: str
+    content_type: Optional[str] = None
+    thumbnail_base64: Optional[str] = None # For image hover previews
+
 # Email/Audit models
 class Email(BaseModel):
     '''Represents an email message.'''
@@ -75,10 +83,12 @@ class Email(BaseModel):
     subject: str
     sender: str
     body: str # Consider if this should always be returned, might be large
+    received_at: datetime.datetime # Added received_at to the model
     label: Optional[str] = None
     type: Optional[str] = None
     short_description: Optional[str] = None
-    # document_ids: Optional[List[int]] = None # If you want to include this
+    document_ids: Optional[List[int]] = None # Keep document_ids for internal use if needed
+    attachments: List[Attachment] = [] # Add attachments list
 
 class AuditTrail(BaseModel):
     '''Represents an audit trail log entry.'''
@@ -297,35 +307,103 @@ async def shutdown():
 @app.get("/api/emails", response_model=List[Email])
 async def get_emails(request: Request):
     '''
-    Retrieves a list of all emails.
+    Retrieves a list of all emails with their attachments.
 
     :param request: The FastAPI request object, used to access the database pool.
     :type request: Request
-    :returns: A list of email objects.
+    :returns: A list of email objects including attachment details.
     :rtype: List[Email]
     '''
     db_pool = request.app.state.db
     email_rows = await get_emails_db(db_pool)
-    return [Email(**email) for email in email_rows]
+    emails_with_attachments = []
+
+    for email_row in email_rows:
+        email_dict = dict(email_row)
+        attachments_list = []
+        document_ids = email_dict.get('document_ids')
+
+        if document_ids:
+            for doc_id in document_ids:
+                # Fetch minimal document details for the attachment list
+                # get_document_content_db fetches data_b64, which might be too much for a list view.
+                # A new DB function might be better, but for now, let's use get_document_content_db
+                # and only include necessary fields in the Attachment model.
+                doc_data = await get_document_content_db(db_pool, doc_id)
+                if doc_data:
+                    attachments_list.append(Attachment(
+                        id=doc_data.get('id'),
+                        filename=doc_data.get('filename'),
+                        content_type=doc_data.get('content_type'),
+                        # thumbnail_base64 is not stored in DB currently, so it will be None
+                        thumbnail_base64=None 
+                    ))
+        
+        # Ensure received_at is a datetime object
+        if isinstance(email_dict.get('received_at'), datetime.datetime):
+             email_dict['received_at'] = email_dict['received_at']
+        else:
+             # Attempt to parse if it's a string, or set to now/None if parsing fails
+             try:
+                 email_dict['received_at'] = datetime.datetime.fromisoformat(str(email_dict.get('received_at')))
+             except (ValueError, TypeError):
+                 email_dict['received_at'] = datetime.datetime.now() # Fallback
+
+        emails_with_attachments.append(Email(
+            **email_dict,
+            attachments=attachments_list
+        ))
+
+    return emails_with_attachments
 
 @app.get("/api/emails/{email_id}", response_model=Email)
 async def get_email(email_id: int, request: Request):
     '''
-    Retrieves a specific email by its ID.
+    Retrieves a specific email by its ID, including attachment details.
 
     :param email_id: The ID of the email to retrieve.
     :type email_id: int
     :param request: The FastAPI request object, used to access the database pool.
     :type request: Request
     :raises HTTPException: If the email with the given ID is not found (status code 404).
-    :returns: The email details.
+    :returns: The email details including attachment details.
     :rtype: Email
     '''
     db_pool = request.app.state.db
     email_row = await get_email_by_id_db(db_pool, email_id)
     if not email_row:
         raise HTTPException(status_code=fastapi_status.HTTP_404_NOT_FOUND, detail="Email not found")
-    return Email(**email_row)
+
+    email_dict = dict(email_row)
+    attachments_list = []
+    document_ids = email_dict.get('document_ids')
+
+    if document_ids:
+        for doc_id in document_ids:
+            # Fetch minimal document details for the attachment list
+            doc_data = await get_document_content_db(db_pool, doc_id)
+            if doc_data:
+                attachments_list.append(Attachment(
+                    id=doc_data.get('id'),
+                    filename=doc_data.get('filename'),
+                    content_type=doc_data.get('content_type'),
+                    thumbnail_base64=None # thumbnail_base64 is not stored in DB currently
+                ))
+
+    # Ensure received_at is a datetime object
+    if isinstance(email_dict.get('received_at'), datetime.datetime):
+         email_dict['received_at'] = email_dict['received_at']
+    else:
+         try:
+             email_dict['received_at'] = datetime.datetime.fromisoformat(str(email_dict.get('received_at')))
+         except (ValueError, TypeError):
+             email_dict['received_at'] = datetime.datetime.now() # Fallback
+
+    return Email(
+        **email_dict,
+        attachments=attachments_list
+    )
+
 
 @app.post("/api/emails/{email_id}/label")
 async def label_email_endpoint(email_id: int, label: str, request: Request):
@@ -666,7 +744,7 @@ async def setUser(user_identifier: Union[int, str], user_update_request: UpdateU
     '''
     Updates an existing user's details.
 
-    The user can be identified by their ID (int) or email (str).
+    The user can be identified by either their ID (int) or email (str).
     If 'password' is provided in the request, it will be hashed before saving.
 
     :param user_identifier: The ID (int) or email (str) of the user to update.
@@ -725,7 +803,7 @@ async def deleteUser(user_identifier: Union[int, str], request: Request):
     '''
     Deletes a user from the system.
 
-    The user can be identified by their ID (int) or email (str).
+    The user can be identified by either their ID (int) or email (str).
 
     :param user_identifier: The ID (int) or email (str) of the user to delete.
     :type user_identifier: Union[int, str]
@@ -929,24 +1007,17 @@ async def get_gmail_auth_url(request: Request): # request argument might not be 
 
 @app.get("/api/mcp/auth-url")
 async def get_mcp_auth_url():
-    '''Provides the frontend with the URL to initiate MCP server login.
+    '''Provides the frontend with the Google OAuth URL required by the MCP server for Gmail access.
 
-    The URL is constructed based on environment variables for the MCP server URL
-    and a predefined callback URL for this application.
+    This URL initiates the Google OAuth flow with the necessary scopes for Gmail modification.
 
     :returns: A dictionary containing the "auth_url".
     :rtype: Dict[str, str]
     '''
-    # This is a placeholder. The actual URL should come from configuration
-    # or be dynamically constructed based on the MCP server's requirements.
-    # It typically includes a redirect_uri for the MCP server to call back to.
-    mcp_server_base_url = os.getenv("MCP_SERVER_URL", "http://mcp-server:8000") # Example
-    frontend_mcp_callback_url = "http://localhost:8001/mcpcallback" # This app's callback
-    # Example: MCP server might have an endpoint like /mcp/authorize
-    # This will vary greatly based on the MCP server's implementation.
-    mcp_login_url = f"{mcp_server_base_url}/mcp/authorize?client_id=ad1_backend&redirect_uri={frontend_mcp_callback_url}&response_type=token"
-    logger.info(f"Generated MCP Auth URL: {mcp_login_url}")
-    return {"auth_url": mcp_login_url}
+    # The correct Google OAuth URL for MCP authentication
+    auth_url = "https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.modify&response_type=code&client_id=539932302105-i8gd0gqhokgqtohnc9v7k1ug2j53lkhd.apps.googleusercontent.com&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Foauth2callback"
+    logger.info(f"Providing Google OAuth URL for MCP: {auth_url}")
+    return {"auth_url": auth_url}
 
 # Add endpoint to handle MCP callback and save token
 @app.get("/mcpcallback")
@@ -1132,6 +1203,23 @@ async def get_document_content_endpoint(document_id: int, request: Request):
     filename = doc_data.get('filename', f'document_{document_id}') # Fallback filename
     media_type = doc_data.get('content_type', 'application/octet-stream')
     return Response(content=content_bytes, media_type=media_type, headers={'Content-Disposition': f'inline; filename="{filename}"'})
+
+@app.get("/api/emails/{email_id}/documents", response_model=List[Document])
+async def get_documents_by_email_endpoint(email_id: int, request: Request):
+    '''
+    Retrieves a list of all documents associated with a specific email ID.
+
+    :param email_id: The ID of the email whose documents to retrieve.
+    :type email_id: int
+    :param request: The FastAPI request object, used to access the database pool.
+    :type request: Request
+    :returns: A list of document objects associated with the email.
+    :rtype: List[Document]
+    '''
+    db_pool = request.app.state.db
+    documents_list = await get_documents_by_email_id_db(db_pool, email_id)
+    # Ensure the Document model is correctly mapping fields from get_documents_by_email_id_db
+    return [Document(**doc) for doc in documents_list]
 
 # Scheduler Control Endpoints
 @app.post("/api/scheduler/start")

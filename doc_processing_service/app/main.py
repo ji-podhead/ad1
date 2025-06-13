@@ -53,42 +53,36 @@ async def process_pdf_endpoint(file: UploadFile = File(...)):
             # For LayoutLMv3ForTokenClassification, we usually pass the image and get token classifications.
             # No explicit "question" is typically used unless it's a QA model.
             encoding = processor(image, return_tensors="pt", truncation=True, padding="max_length", max_length=512)
-            print(f"Encoding for page {page_number}: {encoding}")
-            # Model inference
-            with torch.no_grad():
-                outputs = model(**encoding)
-            print(f"Model outputs for page {page_number}: {outputs}")
-            # Post-process to get text from token classifications
-            extracted_text = ""
-            if hasattr(outputs, 'logits'):
-                token_predictions = torch.argmax(outputs.logits, dim=2)
-                # Each item in token_predictions[0] is a token ID for
-                # hat position
-                print(f"Token predictions for page {page_number}: {token_predictions}")
-                predicted_token_ids = token_predictions[0].tolist()
-                print(f"Predicted token IDs for page {page_number}: {predicted_token_ids}")
-                # Filter out special tokens before converting to string
-                # This depends on the tokenizer's special token IDs (e.g., pad_token_id)
-                # Using tokenizer.decode is generally more robust for this.
-                # However, processor.tokenizer.decode might also strip special tokens by default.
+            # print(f"Encoding for page {page_number}: {encoding}") # Can be very verbose
+            
+            # --- Get OCR'd text directly from the processor's output --- 
+            # The input_ids from the encoding are the token IDs of the OCR'd text
+            ocr_token_ids = encoding['input_ids'][0]
+            extracted_text = processor.tokenizer.decode(ocr_token_ids, skip_special_tokens=True)
+            # Log a snippet of the extracted text to verify
+            print(f"Extracted text for page {page_number} (length: {len(extracted_text)}): {extracted_text[:500]}...")
 
-                # Get the tokens for the predicted IDs, excluding special ones.
-                # The input_ids from encoding include special tokens. We only want to decode the non-special ones.
-                # A common way is to use the input_ids from the encoding to know which tokens are actual content.
-                input_ids = encoding['input_ids'][0].tolist()
-                valid_token_indices = [idx for idx, token_id in enumerate(input_ids) if token_id not in processor.tokenizer.all_special_ids]
-
-                filtered_predicted_token_ids = [predicted_token_ids[idx] for idx in valid_token_indices]
-
-                extracted_text = processor.tokenizer.decode(filtered_predicted_token_ids, skip_special_tokens=True)
-
-            else:
-                extracted_text = f"Could not extract text from page {page_number}. Model output structure not as expected."
+            # --- Token Classification (Optional based on use case) ---
+            # If you need to understand the role/type of each token (e.g., header, paragraph, custom entities),
+            # then you would use the model's output. For just getting all text, the above is sufficient.
+            #
+            # with torch.no_grad():
+            #     outputs = model(**encoding)
+            # # print(f"Model outputs for page {page_number}: {outputs}") # Can be verbose
+            # if hasattr(outputs, 'logits'):
+            #     token_class_predictions = torch.argmax(outputs.logits, dim=2)
+            #     predicted_class_ids = token_class_predictions[0].tolist()
+            #     # print(f"Predicted token CLASS IDs for page {page_number}: {predicted_class_ids}")
+            #     # Here you would typically map these class IDs to their labels (e.g., 'B-QUESTION', 'I-ANSWER')
+            #     # and use this information in conjunction with the ocr_token_ids or extracted_text.
+            #     # For example, to extract only text segments belonging to a certain class.
+            #     pass # Placeholder for logic using token classifications
 
             results.append({
                 "page_number": page_number,
                 "extracted_text": extracted_text.strip(),
             })
+            print(f"Extracted text for page {page_number}: {extracted_text.strip()}")
         except Exception as e:
             # Log the exception for more details on the server side
             print(f"Error processing page {page_number}: {e}")

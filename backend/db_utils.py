@@ -548,6 +548,23 @@ async def delete_email_from_db(db_pool: asyncpg.pool.Pool, email_id: int) -> boo
             )
             return result == "DELETE 1"
 
+async def get_documents_by_email_id_db(
+    db_pool: asyncpg.pool.Pool,
+    email_id: int
+) -> List[Dict[str, Any]]:
+    '''
+    Retrieves all documents associated with a specific email ID.
+
+    :param db_pool: The database connection pool.
+    :type db_pool: asyncpg.pool.Pool
+    :param email_id: The ID of the email whose documents to retrieve.
+    :type email_id: int
+    :returns: A list of dictionaries, where each dictionary contains document details.
+    :rtype: List[Dict[str, Any]]
+    '''
+    rows = await db_pool.fetch("SELECT id, filename, content_type, is_processed, created_at, updated_at, processed_data FROM documents WHERE email_id = $1", email_id)
+    return [dict(row) for row in rows]
+
 # --- Document Management Functions ---
 async def get_documents_db(db_pool: asyncpg.pool.Pool) -> List[Dict[str, Any]]:
     '''

@@ -46,7 +46,7 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
     """
     try:
         now_utc = datetime.datetime.now(datetime.timezone.utc)
-        after_dt = now_utc - datetime.timedelta(minutes=160)
+        after_dt = now_utc - datetime.timedelta(minutes=15)
         # Convert to Unix timestamps (seconds since epoch)
         after_ts = int(after_dt.timestamp())
         before_ts = int(now_utc.timestamp())
@@ -102,8 +102,8 @@ async def check_new_emails(db_pool: asyncpg.pool.Pool, interval_seconds: int = 6
                     email_body_str=email_body_str
                 )
                 if parsed_sender_email is None:
-                    logger.info(f"Email with Subject='{email_subject_str}' and Raw Sender='{raw_sender_header}' already exists or error in del_if_exists. Skipping further processing.")
-                    continue
+                    parsed_sender_email="none"#logger.info(f"Email with Subject='{email_subject_str}' and Raw Sender='{raw_sender_header}' already exists or error in del_if_exists. Skipping further processing.")
+                    #continue
                 # If we reach here, parsed_sender_email is the successfully parsed sender email for a new email
 
 #               --- LLM PROCESSING ---                
