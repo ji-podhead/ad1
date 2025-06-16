@@ -79,9 +79,12 @@ services:
     environment:
       - DOC_SERVICE_INTERNAL_PORT=8002 # Service will listen on port 8002 on the host
       - TRANSFORMERS_CACHE=/huggingface_cache
-      # - NVIDIA_VISIBLE_DEVICES=all # Uncomment for local GPU with nvidia-docker
-      # - NVIDIA_DRIVER_CAPABILITIES=compute,utility # Uncomment for local GPU
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/keys/gcp-key.json
+      - GCP_PROJECT_ID=gmail-demo-459708
+      - GCP_LOCATION=eu
+      - PROCESSOR_ID=62aed94ed72d8336
     volumes:
+      - ./auth/gcp-oauth.keys.json:/app/keys/gcp-key.json:ro
       - ./doc_processing_service/app:/app
       - doc_processing_cache:/huggingface_cache
     restart: unless-stopped

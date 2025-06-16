@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Add language packs if needed, e.g., tesseract-ocr-eng for English, tesseract-ocr-deu for German
     tesseract-ocr-eng \
     tesseract-ocr-deu \
+    libgl1-mesa-glx \
     && rm -rf /var/lib/apt/lists/*
 
 COPY ./app/requirements.txt /app/requirements.txt

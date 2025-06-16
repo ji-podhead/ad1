@@ -12,3 +12,7 @@ protobuf
 uvicorn
 pytesseract
 tesseract
+google-cloud
+google-api-core
+google-cloud-documentai
+surya-ocr
